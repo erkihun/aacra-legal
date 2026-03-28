@@ -1,0 +1,33 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Policies;
+
+use App\Models\AdvisoryRequest;
+use App\Models\Comment;
+use App\Models\LegalCase;
+use App\Models\User;
+
+class CommentPolicy
+{
+    public function view(User $user, Comment $comment): bool
+    {
+        if (! $user->can('comments.view')) {
+            return false;
+        }
+
+        $commentable = $comment->commentable;
+
+        if ($commentable instanceof AdvisoryRequest || $commentable instanceof LegalCase) {
+            return $user->can('view', $commentable);
+        }
+
+        return $user->isSuperAdmin();
+    }
+
+    public function create(User $user): bool
+    {
+        return $user->can('comments.create');
+    }
+}
