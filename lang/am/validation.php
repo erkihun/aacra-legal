@@ -42,7 +42,7 @@ return [
         'password' => 'የይለፍ ቃል',
         'password_confirmation' => 'የይለፍ ቃል ማረጋገጫ',
         'phone' => 'ስልክ',
-        'department_id' => 'መምሪያ',
+        'department_id' => 'የስራ ክፍል',
         'team_id' => 'ቡድን',
         'role' => 'ሚና',
         'subject' => 'ርዕሰ ጉዳይ',

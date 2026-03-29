@@ -11,7 +11,7 @@ return [
         'application_name' => 'የስርዓቱ ሙሉ ስም',
         'application_short_name' => 'የስርዓቱ አጭር ስም',
         'organization_name' => 'የተቋሙ ስም',
-        'legal_department_name' => 'የህግ መምሪያ ስም',
+        'legal_department_name' => 'የህግ የስራ ክፍል ስም',
         'tagline' => 'መለያ ንግግር / መፈክር',
         'support_email' => 'የድጋፍ ኢሜይል',
         'support_phone' => 'የድጋፍ ስልክ',
