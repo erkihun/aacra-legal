@@ -563,7 +563,7 @@ function SettingsGroupPanel({
 
         return (
             <SurfaceCard>
-                <form onSubmit={(event) => { event.preventDefault(); form.put(routeName, { preserveScroll: true }); }} className="space-y-6">
+                <form onSubmit={(event) => { event.preventDefault(); submitWithFiles(form, routeName); }} className="space-y-6">
                     <div className="grid gap-4 md:grid-cols-2">
                         <TextField form={form} name="hero_eyebrow" label={t('settings.fields.hero_eyebrow')} />
                         <TextField form={form} name="hero_title" label={t('settings.fields.hero_title')} required />

@@ -13,6 +13,8 @@ use App\Models\SystemSetting;
 use App\Services\SystemSettingsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -76,8 +78,47 @@ class SystemSettingsController extends Controller
     ): RedirectResponse {
         $this->authorize('update', SystemSetting::class);
 
-        $action->execute(SystemSettingGroup::from($group), $request->validated(), $request->user());
+        $groupKey = SystemSettingGroup::from($group);
+        $updated = $action->execute($groupKey, $request->validated(), $request->user());
+
+        if ($groupKey === SystemSettingGroup::PUBLIC_WEBSITE && ! $this->heroSlideUploadsPersisted($request, $updated)) {
+            return back()->withErrors([
+                'hero_slides' => __('The uploaded hero slide image could not be saved.'),
+            ]);
+        }
 
         return back()->with('success', __('Settings updated successfully.'));
+    }
+
+    /**
+     * @param  array<string, mixed>  $updated
+     */
+    private function heroSlideUploadsPersisted(UpdateSystemSettingsRequest $request, array $updated): bool
+    {
+        $uploadedSlides = $request->file('hero_slides', []);
+
+        if (! is_array($uploadedSlides)) {
+            return true;
+        }
+
+        foreach ($uploadedSlides as $index => $slide) {
+            if (! is_array($slide)) {
+                continue;
+            }
+
+            $image = $slide['image'] ?? null;
+
+            if (! $image instanceof UploadedFile) {
+                continue;
+            }
+
+            $savedPath = $updated['hero_slides'][$index]['image_path'] ?? null;
+
+            if (! is_string($savedPath) || $savedPath === '' || ! Storage::disk('public')->exists($savedPath)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
