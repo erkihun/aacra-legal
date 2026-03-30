@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Models\PublicPost;
 use App\Services\SystemSettingsService;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -18,42 +19,43 @@ class PublicPostController extends Controller
     public function index(): Response
     {
         return Inertia::render('Public/Posts/Index', [
-            'posts' => PublicPost::query()
-                ->with('author:id,name')
-                ->published()
-                ->where(function ($query): void {
-                    $query
-                        ->whereNull('locale')
-                        ->orWhereIn('locale', array_unique([
-                            app()->getLocale(),
-                            $this->settings->fallbackLocale(),
-                        ]));
-                })
-                ->latest('published_at')
-                ->paginate(9)
-                ->through(fn (PublicPost $post) => [
-                    'id' => $post->id,
-                    'title' => $post->title,
-                    'slug' => $post->slug,
-                    'summary' => $post->summary,
-                    'published_at' => $post->published_at?->toIso8601String(),
-                    'author' => $post->author?->name,
-                    'cover_image_url' => $post->coverImageUrl(),
-                    'url' => route('posts.show', $post),
-                ]),
+            'posts' => PublicPost::tableExists()
+                ? PublicPost::query()
+                    ->with('author:id,name')
+                    ->published()
+                    ->where(function ($query): void {
+                        $query
+                            ->whereNull('locale')
+                            ->orWhereIn('locale', array_unique([
+                                app()->getLocale(),
+                                $this->settings->fallbackLocale(),
+                            ]));
+                    })
+                    ->latest('published_at')
+                    ->paginate(9)
+                    ->through(fn (PublicPost $post) => [
+                        'id' => $post->id,
+                        'title' => $post->title,
+                        'slug' => $post->slug,
+                        'summary' => $post->summary,
+                        'published_at' => $post->published_at?->toIso8601String(),
+                        'author' => $post->author?->name,
+                        'cover_image_url' => $post->coverImageUrl(),
+                        'url' => route('posts.show', ['slug' => $post->slug]),
+                    ])
+                : $this->emptyPostsPaginator(),
         ]);
     }
 
-    public function show(PublicPost $publicPost): Response
+    public function show(string $slug): Response
     {
-        abort_unless(
-            $publicPost->status?->value === 'published'
-            && $publicPost->published_at !== null
-            && $publicPost->published_at->isPast(),
-            404,
-        );
+        abort_unless(PublicPost::tableExists(), 404);
 
-        $publicPost->load('author:id,name');
+        $publicPost = PublicPost::query()
+            ->with('author:id,name')
+            ->published()
+            ->where('slug', $slug)
+            ->firstOrFail();
 
         return Inertia::render('Public/Posts/Show', [
             'post' => [
@@ -85,8 +87,22 @@ class PublicPostController extends Controller
                     'title' => $post->title,
                     'summary' => $post->summary,
                     'published_at' => $post->published_at?->toIso8601String(),
-                    'url' => route('posts.show', $post),
+                    'url' => route('posts.show', ['slug' => $post->slug]),
                 ]),
         ]);
+    }
+
+    private function emptyPostsPaginator(): LengthAwarePaginator
+    {
+        return new LengthAwarePaginator(
+            items: [],
+            total: 0,
+            perPage: 9,
+            currentPage: LengthAwarePaginator::resolveCurrentPage(),
+            options: [
+                'path' => request()->url(),
+                'pageName' => 'page',
+            ],
+        );
     }
 }

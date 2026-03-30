@@ -32,7 +32,7 @@ Route::get('/branding-assets/{path}', [BrandingAssetController::class, 'show'])
 
 Route::get('/', PublicHomeController::class)->name('home');
 Route::get('/updates', [PublicPostController::class, 'index'])->name('posts.index');
-Route::get('/updates/{publicPost:slug}', [PublicPostController::class, 'show'])->name('posts.show');
+Route::get('/updates/{slug}', [PublicPostController::class, 'show'])->name('posts.show');
 
 Route::get('/dashboard', DashboardController::class)
     ->middleware(['auth', 'verified'])

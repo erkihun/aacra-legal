@@ -12,6 +12,7 @@ use App\Models\User;
 use Database\Seeders\DemoUserSeeder;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\ReferenceDataSeeder;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Testing\AssertableInertia;
 
 beforeEach(function (): void {
@@ -76,6 +77,28 @@ it('shows only published public posts and denies draft detail access', function 
             ->where('post.slug', 'published-legal-notice'));
 
     $this->get(route('posts.show', $draft))->assertNotFound();
+});
+
+it('keeps public pages available when the public posts table is missing', function (): void {
+    Schema::drop('public_posts');
+
+    $this->get(route('home'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Public/Home')
+            ->has('featuredPosts', 0));
+
+    $this->get(route('posts.index'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Public/Posts/Index')
+            ->has('posts.data', 0));
+});
+
+it('returns not found for public post detail when the public posts table is missing', function (): void {
+    Schema::drop('public_posts');
+
+    $this->get(route('posts.show', ['slug' => 'missing-post']))->assertNotFound();
 });
 
 it('registers a department requester account with the correct default role', function (): void {

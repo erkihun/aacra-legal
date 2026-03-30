@@ -11,9 +11,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
+use Throwable;
 
 class PublicPost extends Model
 {
@@ -75,6 +77,15 @@ class PublicPost extends Model
         return $storagePath !== null
             ? route('branding-assets.show', ['path' => $storagePath])
             : null;
+    }
+
+    public static function tableExists(): bool
+    {
+        try {
+            return Schema::hasTable((new self)->getTable());
+        } catch (Throwable) {
+            return false;
+        }
     }
 
     public function getActivitylogOptions(): LogOptions
