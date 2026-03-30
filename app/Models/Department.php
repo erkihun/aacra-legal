@@ -9,8 +9,10 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Schema;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
+use Throwable;
 
 class Department extends Model
 {
@@ -46,6 +48,15 @@ class Department extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    public static function tableExists(): bool
+    {
+        try {
+            return Schema::hasTable((new self)->getTable());
+        } catch (Throwable) {
+            return false;
+        }
     }
 
     public function getActivitylogOptions(): LogOptions

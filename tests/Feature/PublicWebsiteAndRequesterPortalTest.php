@@ -95,6 +95,20 @@ it('keeps public pages available when the public posts table is missing', functi
             ->has('posts.data', 0));
 });
 
+it('keeps the public homepage available when optional content tables are missing', function (): void {
+    Schema::drop('public_posts');
+    Schema::disableForeignKeyConstraints();
+    Schema::drop('departments');
+    Schema::enableForeignKeyConstraints();
+
+    $this->get(route('home'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Public/Home')
+            ->has('featuredPosts', 0)
+            ->where('stats.departments', 0));
+});
+
 it('returns not found for public post detail when the public posts table is missing', function (): void {
     Schema::drop('public_posts');
 

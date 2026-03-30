@@ -27,10 +27,13 @@ use App\Services\Telegram\TelegramGateway;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
+use Throwable;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -43,6 +46,8 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->configureInfrastructureFallbacks();
+
         Vite::prefetch(concurrency: 3);
         RateLimiter::for('legal-mutations', function (Request $request) {
             $limit = $request->user()?->isSuperAdmin() ? 120 : 40;
@@ -103,6 +108,83 @@ class AppServiceProvider extends ServiceProvider
                     'supported_drivers' => $supportedDrivers,
                 ]);
             }
+        }
+    }
+
+    private function configureInfrastructureFallbacks(): void
+    {
+        $this->fallbackSessionDriver();
+        $this->fallbackCacheStore();
+        $this->fallbackQueueConnection();
+    }
+
+    private function fallbackSessionDriver(): void
+    {
+        if (config('session.driver') !== 'database') {
+            return;
+        }
+
+        $table = (string) config('session.table', 'sessions');
+
+        if ($this->databaseTableExists($table)) {
+            return;
+        }
+
+        Config::set('session.driver', 'file');
+
+        Log::warning('Database session driver unavailable because its table is missing. Falling back to file sessions.', [
+            'table' => $table,
+        ]);
+    }
+
+    private function fallbackCacheStore(): void
+    {
+        if (config('cache.default') !== 'database') {
+            return;
+        }
+
+        $table = (string) config('cache.stores.database.table', 'cache');
+
+        if ($this->databaseTableExists($table)) {
+            return;
+        }
+
+        Config::set('cache.default', 'file');
+
+        Log::warning('Database cache store unavailable because its table is missing. Falling back to file cache.', [
+            'table' => $table,
+        ]);
+    }
+
+    private function fallbackQueueConnection(): void
+    {
+        if (config('queue.default') !== 'database') {
+            return;
+        }
+
+        $table = (string) config('queue.connections.database.table', 'jobs');
+
+        if ($this->databaseTableExists($table)) {
+            return;
+        }
+
+        Config::set('queue.default', 'sync');
+
+        Log::warning('Database queue connection unavailable because its table is missing. Falling back to sync queue execution.', [
+            'table' => $table,
+        ]);
+    }
+
+    private function databaseTableExists(string $table): bool
+    {
+        if ($table === '') {
+            return false;
+        }
+
+        try {
+            return Schema::hasTable($table);
+        } catch (Throwable) {
+            return false;
         }
     }
 }

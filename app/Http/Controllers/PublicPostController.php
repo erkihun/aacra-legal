@@ -9,6 +9,7 @@ use App\Services\SystemSettingsService;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Inertia\Inertia;
 use Inertia\Response;
+use Throwable;
 
 class PublicPostController extends Controller
 {
@@ -19,31 +20,7 @@ class PublicPostController extends Controller
     public function index(): Response
     {
         return Inertia::render('Public/Posts/Index', [
-            'posts' => PublicPost::tableExists()
-                ? PublicPost::query()
-                    ->with('author:id,name')
-                    ->published()
-                    ->where(function ($query): void {
-                        $query
-                            ->whereNull('locale')
-                            ->orWhereIn('locale', array_unique([
-                                app()->getLocale(),
-                                $this->settings->fallbackLocale(),
-                            ]));
-                    })
-                    ->latest('published_at')
-                    ->paginate(9)
-                    ->through(fn (PublicPost $post) => [
-                        'id' => $post->id,
-                        'title' => $post->title,
-                        'slug' => $post->slug,
-                        'summary' => $post->summary,
-                        'published_at' => $post->published_at?->toIso8601String(),
-                        'author' => $post->author?->name,
-                        'cover_image_url' => $post->coverImageUrl(),
-                        'url' => route('posts.show', ['slug' => $post->slug]),
-                    ])
-                : $this->emptyPostsPaginator(),
+            'posts' => $this->publishedPostsPaginator(),
         ]);
     }
 
@@ -51,11 +28,17 @@ class PublicPostController extends Controller
     {
         abort_unless(PublicPost::tableExists(), 404);
 
-        $publicPost = PublicPost::query()
-            ->with('author:id,name')
-            ->published()
-            ->where('slug', $slug)
-            ->firstOrFail();
+        try {
+            $publicPost = PublicPost::query()
+                ->with('author:id,name')
+                ->published()
+                ->where('slug', $slug)
+                ->firstOrFail();
+        } catch (Throwable $exception) {
+            report($exception);
+
+            abort(404);
+        }
 
         return Inertia::render('Public/Posts/Show', [
             'post' => [
@@ -68,7 +51,54 @@ class PublicPostController extends Controller
                 'author' => $publicPost->author?->name,
                 'cover_image_url' => $publicPost->coverImageUrl(),
             ],
-            'relatedPosts' => PublicPost::query()
+            'relatedPosts' => $this->relatedPosts($publicPost),
+        ]);
+    }
+
+    private function publishedPostsPaginator(): LengthAwarePaginator
+    {
+        if (! PublicPost::tableExists()) {
+            return $this->emptyPostsPaginator();
+        }
+
+        try {
+            return PublicPost::query()
+                ->with('author:id,name')
+                ->published()
+                ->where(function ($query): void {
+                    $query
+                        ->whereNull('locale')
+                        ->orWhereIn('locale', array_unique([
+                            app()->getLocale(),
+                            $this->settings->fallbackLocale(),
+                        ]));
+                })
+                ->latest('published_at')
+                ->paginate(9)
+                ->through(fn (PublicPost $post) => [
+                    'id' => $post->id,
+                    'title' => $post->title,
+                    'slug' => $post->slug,
+                    'summary' => $post->summary,
+                    'published_at' => $post->published_at?->toIso8601String(),
+                    'author' => $post->author?->name,
+                    'cover_image_url' => $post->coverImageUrl(),
+                    'url' => route('posts.show', ['slug' => $post->slug]),
+                ]);
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return $this->emptyPostsPaginator();
+        }
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function relatedPosts(PublicPost $publicPost): array
+    {
+        try {
+            return PublicPost::query()
                 ->published()
                 ->whereKeyNot($publicPost->getKey())
                 ->where(function ($query): void {
@@ -88,8 +118,13 @@ class PublicPostController extends Controller
                     'summary' => $post->summary,
                     'published_at' => $post->published_at?->toIso8601String(),
                     'url' => route('posts.show', ['slug' => $post->slug]),
-                ]),
-        ]);
+                ])
+                ->all();
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return [];
+        }
     }
 
     private function emptyPostsPaginator(): LengthAwarePaginator
