@@ -76,7 +76,8 @@ class UpdateSystemSettingsRequest extends FormRequest
             SystemSettingGroup::TELEGRAM => [
                 'telegram_enabled' => ['required', 'boolean'],
                 'bot_username' => ['nullable', 'string', 'max:100'],
-                'default_chat_target' => ['nullable', 'string', 'max:255'],
+                'bot_token' => ['nullable', 'string', 'max:255', $this->telegramBotTokenRule()],
+                'default_chat_target' => ['nullable', 'string', 'max:255', $this->telegramChatTargetRule()],
                 'configuration_notes' => ['nullable', 'string', 'max:1000'],
             ],
             SystemSettingGroup::SECURITY => [
@@ -186,6 +187,7 @@ class UpdateSystemSettingsRequest extends FormRequest
             'provider_base_url' => __('settings.fields.provider_base_url'),
             'configuration_notes' => __('settings.fields.configuration_notes'),
             'bot_username' => __('settings.fields.bot_username'),
+            'bot_token' => __('settings.fields.bot_token'),
             'default_chat_target' => __('settings.fields.default_chat_target'),
             'password_min_length' => __('settings.fields.password_min_length'),
             'password_complexity_enabled' => __('settings.fields.password_complexity_enabled'),
@@ -267,6 +269,21 @@ class UpdateSystemSettingsRequest extends FormRequest
 
                 if ($this->group() !== SystemSettingGroup::SECURITY) {
                     return;
+                }
+            },
+            function ($validator): void {
+                if ($this->group() !== SystemSettingGroup::TELEGRAM) {
+                    return;
+                }
+
+                $botToken = trim((string) $this->input('bot_token', ''));
+                $hasExistingToken = app(SystemSettingsService::class)->hasTelegramBotToken();
+
+                if ($this->boolean('telegram_enabled') && $botToken === '' && ! $hasExistingToken) {
+                    $validator->errors()->add(
+                        'bot_token',
+                        __('validation.required', ['attribute' => __('settings.fields.bot_token')]),
+                    );
                 }
             },
             function ($validator): void {
@@ -353,6 +370,38 @@ class UpdateSystemSettingsRequest extends FormRequest
                 && preg_match('/^#[A-Za-z0-9_-]+$/', $normalized) !== 1
             ) {
                 $fail(__('validation.url', ['attribute' => $attribute]));
+            }
+        };
+    }
+
+    private function telegramBotTokenRule(): \Closure
+    {
+        return function (string $attribute, mixed $value, \Closure $fail): void {
+            if ($value === null || $value === '') {
+                return;
+            }
+
+            if (! is_string($value) || preg_match('/^\d{6,}:[A-Za-z0-9_-]{20,}$/', trim($value)) !== 1) {
+                $fail(__('validation.regex', ['attribute' => __('settings.fields.bot_token')]));
+            }
+        };
+    }
+
+    private function telegramChatTargetRule(): \Closure
+    {
+        return function (string $attribute, mixed $value, \Closure $fail): void {
+            if ($value === null || $value === '') {
+                return;
+            }
+
+            if (
+                ! is_string($value)
+                || (
+                    preg_match('/^-?\d+$/', trim($value)) !== 1
+                    && preg_match('/^@[A-Za-z][A-Za-z0-9_]{4,}$/', trim($value)) !== 1
+                )
+            ) {
+                $fail(__('validation.regex', ['attribute' => __('settings.fields.default_chat_target')]));
             }
         };
     }

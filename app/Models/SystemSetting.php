@@ -9,6 +9,7 @@ use App\Enums\SystemSettingGroup;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Models\Activity;
 use Spatie\Activitylog\Traits\LogsActivity;
 
 class SystemSetting extends Model
@@ -36,5 +37,22 @@ class SystemSetting extends Model
         return LogOptions::defaults()
             ->logOnly(['setting_group', 'setting_key', 'value'])
             ->logOnlyDirty();
+    }
+
+    public function tapActivity(Activity $activity, string $eventName): void
+    {
+        if ($this->setting_key !== 'bot_token') {
+            return;
+        }
+
+        $properties = $activity->properties->toArray();
+
+        foreach (['attributes', 'old'] as $propertyGroup) {
+            if (isset($properties[$propertyGroup]['value'])) {
+                $properties[$propertyGroup]['value'] = ['value' => '[REDACTED]'];
+            }
+        }
+
+        $activity->properties = $properties;
     }
 }

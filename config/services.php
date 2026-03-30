@@ -43,8 +43,10 @@ return [
     ],
 
     'telegram' => [
-        'driver' => env('TELEGRAM_DRIVER', 'log'),
+        'driver' => env('TELEGRAM_DRIVER'),
         'bot_token' => env('TELEGRAM_BOT_TOKEN'),
+        'bot_username' => env('TELEGRAM_BOT_USERNAME'),
+        'default_chat_target' => env('TELEGRAM_CHAT_ID'),
     ],
 
 ];

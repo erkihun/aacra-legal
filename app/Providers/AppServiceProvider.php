@@ -21,6 +21,7 @@ use App\Services\Sms\LogSmsGateway;
 use App\Services\Sms\NullSmsGateway;
 use App\Services\Sms\SmsGateway;
 use App\Services\SystemSettingsService;
+use App\Services\Telegram\ApiTelegramGateway;
 use App\Services\Telegram\LogTelegramGateway;
 use App\Services\Telegram\NullTelegramGateway;
 use App\Services\Telegram\TelegramGateway;
@@ -88,7 +89,16 @@ class AppServiceProvider extends ServiceProvider
 
     private function telegramGatewayClass(): string
     {
-        return match (config('services.telegram.driver', 'log')) {
+        $configuredDriver = config('services.telegram.driver');
+
+        if ($configuredDriver === null || $configuredDriver === '') {
+            return filled(config('services.telegram.bot_token'))
+                ? ApiTelegramGateway::class
+                : LogTelegramGateway::class;
+        }
+
+        return match ($configuredDriver) {
+            'api' => ApiTelegramGateway::class,
             'log' => LogTelegramGateway::class,
             'null' => NullTelegramGateway::class,
             default => LogTelegramGateway::class,
@@ -97,12 +107,16 @@ class AppServiceProvider extends ServiceProvider
 
     private function logUnsupportedGatewayDrivers(): void
     {
-        $supportedDrivers = ['log', 'null'];
+        $supportedDrivers = ['api', 'log', 'null'];
 
         foreach ([
             'sms' => config('services.sms.driver', 'log'),
-            'telegram' => config('services.telegram.driver', 'log'),
+            'telegram' => config('services.telegram.driver'),
         ] as $channel => $driver) {
+            if ($driver === null || $driver === '') {
+                continue;
+            }
+
             if (! in_array($driver, $supportedDrivers, true)) {
                 Log::warning('Unsupported notification gateway driver configured. Falling back to log driver.', [
                     'channel' => $channel,

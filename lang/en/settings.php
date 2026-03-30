@@ -50,6 +50,7 @@ return [
         'configuration_notes' => 'Configuration notes',
         'telegram_enabled' => 'Enable Telegram provider',
         'bot_username' => 'Bot username',
+        'bot_token' => 'Bot token',
         'default_chat_target' => 'Default chat target',
         'password_min_length' => 'Password minimum length',
         'password_complexity_enabled' => 'Password complexity enabled',

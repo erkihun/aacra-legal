@@ -118,6 +118,7 @@ class SystemSettingsService
         $localization = $this->group(SystemSettingGroup::LOCALIZATION);
         $email = $this->group(SystemSettingGroup::EMAIL);
         $security = $this->group(SystemSettingGroup::SECURITY);
+        $telegram = $this->telegramConfiguration();
 
         Config::set('app.name', $general['application_name'] ?? config('app.name'));
         Config::set('app.locale', $this->defaultLocale());
@@ -126,6 +127,9 @@ class SystemSettingsService
         Config::set('mail.from.name', $email['mail_from_name'] ?? config('mail.from.name'));
         Config::set('mail.from.address', $email['mail_from_address'] ?? config('mail.from.address'));
         Config::set('session.lifetime', max(5, (int) ($security['session_timeout_minutes'] ?? config('session.lifetime', 120))));
+        Config::set('services.telegram.bot_token', $telegram['bot_token']);
+        Config::set('services.telegram.bot_username', $telegram['bot_username']);
+        Config::set('services.telegram.default_chat_target', $telegram['default_chat_target']);
     }
 
     /**
@@ -416,6 +420,66 @@ class SystemSettingsService
     }
 
     /**
+     * @return array{enabled: bool, bot_token: ?string, bot_username: ?string, default_chat_target: ?string, has_bot_token: bool}
+     */
+    public function telegramConfiguration(): array
+    {
+        $telegram = $this->group(SystemSettingGroup::TELEGRAM);
+        $configuredToken = trim((string) ($telegram['bot_token'] ?? ''));
+        $fallbackToken = trim((string) config('services.telegram.bot_token'));
+        $botToken = $configuredToken !== '' ? $configuredToken : ($fallbackToken !== '' ? $fallbackToken : null);
+        $botUsername = trim((string) ($telegram['bot_username'] ?? config('services.telegram.bot_username', '')));
+        $defaultChatTarget = trim((string) ($telegram['default_chat_target'] ?? config('services.telegram.default_chat_target', '')));
+
+        return [
+            'enabled' => (bool) ($telegram['telegram_enabled'] ?? true),
+            'bot_token' => $botToken,
+            'bot_username' => $botUsername !== '' ? $botUsername : null,
+            'default_chat_target' => $defaultChatTarget !== '' ? $defaultChatTarget : null,
+            'has_bot_token' => $botToken !== null,
+        ];
+    }
+
+    public function telegramBotToken(): ?string
+    {
+        return $this->telegramConfiguration()['bot_token'];
+    }
+
+    public function hasTelegramBotToken(): bool
+    {
+        return $this->telegramConfiguration()['has_bot_token'];
+    }
+
+    public function maskedTelegramBotToken(): ?string
+    {
+        $token = $this->telegramBotToken();
+
+        if ($token === null || $token === '') {
+            return null;
+        }
+
+        return Str::mask($token, '*', 4, max(strlen($token) - 8, 0));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function telegramSettingsForSettings(): array
+    {
+        $telegram = $this->group(SystemSettingGroup::TELEGRAM);
+
+        return [
+            'telegram_enabled' => (bool) ($telegram['telegram_enabled'] ?? true),
+            'bot_username' => (string) ($telegram['bot_username'] ?? ''),
+            'bot_token' => '',
+            'bot_token_masked' => $this->maskedTelegramBotToken(),
+            'bot_token_configured' => $this->hasTelegramBotToken(),
+            'default_chat_target' => (string) ($telegram['default_chat_target'] ?? ''),
+            'configuration_notes' => (string) ($telegram['configuration_notes'] ?? ''),
+        ];
+    }
+
+    /**
      * @return array<string, array<string, mixed>>
      */
     public function defaults(): array
@@ -476,6 +540,7 @@ class SystemSettingsService
             SystemSettingGroup::TELEGRAM->value => [
                 'telegram_enabled' => true,
                 'bot_username' => '',
+                'bot_token' => null,
                 'default_chat_target' => '',
                 'configuration_notes' => '',
             ],
@@ -559,6 +624,20 @@ class SystemSettingsService
 
         if ($group === SystemSettingGroup::LOCALIZATION->value && isset($values['supported_locales'])) {
             $values['supported_locales'] = array_values(array_unique(Arr::wrap($values['supported_locales'])));
+        }
+
+        if ($group === SystemSettingGroup::TELEGRAM->value) {
+            $incomingBotToken = trim((string) ($values['bot_token'] ?? ''));
+
+            $values['bot_username'] = trim((string) ($values['bot_username'] ?? ''));
+            $values['default_chat_target'] = trim((string) ($values['default_chat_target'] ?? ''));
+            $values['configuration_notes'] = trim((string) ($values['configuration_notes'] ?? ''));
+
+            if ($incomingBotToken !== '') {
+                $values['bot_token'] = $incomingBotToken;
+            } else {
+                $values['bot_token'] = $currentValues['bot_token'] ?? null;
+            }
         }
 
         if ($group === SystemSettingGroup::APPEARANCE->value) {

@@ -106,6 +106,9 @@ export default function SystemSettingsIndex({
     const telegramForm = useForm({
         telegram_enabled: Boolean(settingsGroups.telegram.telegram_enabled ?? true),
         bot_username: settingsGroups.telegram.bot_username ?? '',
+        bot_token: '',
+        bot_token_masked: settingsGroups.telegram.bot_token_masked ?? '',
+        bot_token_configured: Boolean(settingsGroups.telegram.bot_token_configured ?? false),
         default_chat_target: settingsGroups.telegram.default_chat_target ?? '',
         configuration_notes: settingsGroups.telegram.configuration_notes ?? '',
     });
@@ -274,6 +277,7 @@ function SettingsGroupPanel({
     submitWithFiles: (form: any, routeName: string) => void;
 }) {
     const { t } = useI18n();
+    const telegramTestForm = useForm({});
 
     if (group === 'general') {
         const form = forms.generalForm;
@@ -508,12 +512,82 @@ function SettingsGroupPanel({
         return (
             <SurfaceCard>
                 <form onSubmit={(event) => { event.preventDefault(); form.put(routeName, { preserveScroll: true }); }} className="space-y-6">
-                    <ToggleField form={form} name="telegram_enabled" label={t('settings.fields.telegram_enabled')} />
-                    <div className="grid gap-4 md:grid-cols-2">
-                        <TextField form={form} name="bot_username" label={t('settings.fields.bot_username')} />
-                        <TextField form={form} name="default_chat_target" label={t('settings.fields.default_chat_target')} />
+                    <div className="space-y-4">
+                        <div>
+                            <h3 className="text-base font-semibold text-[color:var(--text)]">{t('settings.groups.telegram')}</h3>
+                            <p className="mt-1 text-sm text-[color:var(--muted)]">{t('settings.hints.telegram')}</p>
+                        </div>
+
+                        <div className="surface-muted space-y-3 px-4 py-4 text-sm text-[color:var(--muted-strong)]">
+                            <p>{t('settings.hints.telegram_overview')}</p>
+                            <p>{t('settings.hints.telegram_credentials')}</p>
+                            <p>{t('settings.hints.telegram_security')}</p>
+                        </div>
                     </div>
-                    <TextareaField form={form} name="configuration_notes" label={t('settings.fields.configuration_notes')} rows={4} />
+
+                    <ToggleField
+                        form={form}
+                        name="telegram_enabled"
+                        label={t('settings.fields.telegram_enabled')}
+                        hint={t('settings.hints.telegram_enabled')}
+                    />
+                    <div className="grid gap-4 md:grid-cols-2">
+                        <TextField
+                            form={form}
+                            name="bot_username"
+                            label={t('settings.fields.bot_username')}
+                            hint={t('settings.hints.bot_username')}
+                        />
+                        <TextField
+                            form={form}
+                            name="default_chat_target"
+                            label={t('settings.fields.default_chat_target')}
+                            hint={t('settings.hints.default_chat_target')}
+                        />
+                    </div>
+
+                    <FormField
+                        label={t('settings.fields.bot_token')}
+                        optional
+                        error={form.errors.bot_token}
+                        hint={t('settings.hints.bot_token')}
+                    >
+                        <div className="space-y-3">
+                            <input
+                                type="password"
+                                value={form.data.bot_token}
+                                onChange={(event) => form.setData('bot_token', event.target.value)}
+                                autoComplete="new-password"
+                                className="input-ui"
+                            />
+                            <p className="text-xs text-[color:var(--muted)]">
+                                {form.data.bot_token_configured && form.data.bot_token_masked
+                                    ? t('settings.hints.bot_token_configured').replace(':token', form.data.bot_token_masked)
+                                    : t('settings.hints.bot_token_missing')}
+                            </p>
+                        </div>
+                    </FormField>
+
+                    <TextareaField
+                        form={form}
+                        name="configuration_notes"
+                        label={t('settings.fields.configuration_notes')}
+                        hint={t('settings.hints.telegram_notes')}
+                        rows={4}
+                    />
+
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <p className="text-sm text-[color:var(--muted)]">{t('settings.hints.telegram_test')}</p>
+                        <button
+                            type="button"
+                            className="btn-base btn-secondary focus-ring"
+                            disabled={form.processing || telegramTestForm.processing || form.isDirty}
+                            onClick={() => telegramTestForm.post(route('settings.telegram.test'), { preserveScroll: true })}
+                        >
+                            {t('settings.actions.send_test_telegram')}
+                        </button>
+                    </div>
+
                     <SaveBar form={form} />
                 </form>
             </SurfaceCard>
@@ -823,15 +897,17 @@ function TextField({
     label,
     type = 'text',
     required = false,
+    hint,
 }: {
     form: any;
     name: string;
     label: string;
     type?: string;
     required?: boolean;
+    hint?: string;
 }) {
     return (
-        <FormField label={label} required={required} error={form.errors[name]}>
+        <FormField label={label} required={required} error={form.errors[name]} hint={hint}>
             <input
                 type={type}
                 value={form.data[name]}
@@ -897,15 +973,20 @@ function ToggleField({
     form,
     name,
     label,
+    hint,
 }: {
     form: any;
     name: string;
     label: string;
+    hint?: string;
 }) {
     return (
-        <label className="surface-muted flex items-center gap-3 px-4 py-4">
-            <Checkbox checked={Boolean(form.data[name])} onChange={(event) => form.setData(name, event.target.checked)} />
-            <span className="text-sm font-medium text-[color:var(--text)]">{label}</span>
+        <label className="surface-muted flex items-start gap-3 px-4 py-4">
+            <Checkbox checked={Boolean(form.data[name])} onChange={(event) => form.setData(name, event.target.checked)} className="mt-0.5" />
+            <span className="space-y-1">
+                <span className="block text-sm font-medium text-[color:var(--text)]">{label}</span>
+                {hint ? <span className="block text-xs leading-6 text-[color:var(--muted)]">{hint}</span> : null}
+            </span>
         </label>
     );
 }

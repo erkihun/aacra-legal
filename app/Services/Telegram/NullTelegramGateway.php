@@ -6,5 +6,8 @@ namespace App\Services\Telegram;
 
 class NullTelegramGateway implements TelegramGateway
 {
-    public function send(string $chatId, string $message): void {}
+    public function send(string $chatId, string $message): TelegramSendResult
+    {
+        return TelegramSendResult::failed('Telegram delivery is disabled by the configured driver.');
+    }
 }

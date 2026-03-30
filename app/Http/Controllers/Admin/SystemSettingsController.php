@@ -31,6 +31,7 @@ class SystemSettingsController extends Controller
         $allSettings = $this->settings->all();
         $allSettings[SystemSettingGroup::GENERAL->value]['system_logo_url'] = $this->settings->appMeta()['logo_url'];
         $allSettings[SystemSettingGroup::GENERAL->value]['favicon_url'] = $this->settings->appMeta()['favicon_url'];
+        $allSettings[SystemSettingGroup::TELEGRAM->value] = $this->settings->telegramSettingsForSettings();
         $allSettings[SystemSettingGroup::PUBLIC_WEBSITE->value]['hero_slides'] = $this->settings->publicWebsiteSlidesForSettings();
 
         return Inertia::render('Admin/SystemSettings/Index', [

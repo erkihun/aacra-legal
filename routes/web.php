@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\PublicPostController as AdminPublicPostController
 use App\Http\Controllers\Admin\RoleManagementController;
 use App\Http\Controllers\Admin\SystemSettingsController;
 use App\Http\Controllers\Admin\TeamController as AdminTeamController;
+use App\Http\Controllers\Admin\TelegramTestMessageController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\AdvisoryRequestController;
 use App\Http\Controllers\AttachmentController;
@@ -103,6 +104,7 @@ Route::middleware('auth')->group(function () {
         Route::patch('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
         Route::patch('/notifications/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
         Route::put('/settings/{group}', [SystemSettingsController::class, 'update'])->name('settings.update');
+        Route::post('/settings/telegram/test', TelegramTestMessageController::class)->name('settings.telegram.test');
     });
 });
 

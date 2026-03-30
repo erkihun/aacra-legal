@@ -50,6 +50,7 @@ return [
         'configuration_notes' => 'የውቅር ማስታወሻ',
         'telegram_enabled' => 'የቴሌግራም አቅራቢን አንቃ',
         'bot_username' => 'የቦት ተጠቃሚ ስም',
+        'bot_token' => 'የቦት ቶከን',
         'default_chat_target' => 'ነባሪ የቻት መዳረሻ',
         'password_min_length' => 'ዝቅተኛው የይለፍ ቃል ርዝመት',
         'password_complexity_enabled' => 'የይለፍ ቃል ውስብስብነትን አንቃ',

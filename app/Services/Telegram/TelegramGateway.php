@@ -6,5 +6,5 @@ namespace App\Services\Telegram;
 
 interface TelegramGateway
 {
-    public function send(string $chatId, string $message): void;
+    public function send(string $chatId, string $message): TelegramSendResult;
 }

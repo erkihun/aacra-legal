@@ -8,6 +8,7 @@ use App\Services\Telegram\TelegramGateway;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Throwable;
 
 class SendTelegramMessageJob implements ShouldQueue
@@ -23,7 +24,18 @@ class SendTelegramMessageJob implements ShouldQueue
 
     public function handle(TelegramGateway $gateway): void
     {
-        $gateway->send($this->chatId, $this->message);
+        $result = $gateway->send($this->chatId, $this->message);
+
+        if (! $result->sent && $result->retryable) {
+            throw new \RuntimeException($result->error ?? 'Telegram delivery failed.');
+        }
+
+        if (! $result->sent) {
+            Log::warning('Telegram delivery skipped.', [
+                'chat_id' => $this->chatId,
+                'reason' => $result->error,
+            ]);
+        }
     }
 
     /**
@@ -38,7 +50,7 @@ class SendTelegramMessageJob implements ShouldQueue
     {
         Log::error('Telegram delivery job failed.', [
             'chat_id' => $this->chatId,
-            'message' => $this->message,
+            'message_preview' => Str::limit($this->message, 120),
             'exception' => $exception::class,
             'error' => $exception->getMessage(),
         ]);
