@@ -260,7 +260,7 @@ export default function AdvisoryShow({
                             <div className="mt-5 flex flex-wrap justify-end gap-3">
                                 <button
                                     type="button"
-                                    onClick={() => assignForm.patch(route('advisory.assign', { advisoryRequest: requestItem.id }))}
+                                    onClick={() => assignForm.patch(route('advisory.assign', { id: requestItem.id }))}
                                     className="btn-base btn-primary focus-ring"
                                     disabled={assignForm.processing}
                                 >
@@ -331,7 +331,7 @@ export default function AdvisoryShow({
                             <div className="mt-5 flex flex-wrap justify-end gap-3">
                                 <button
                                     type="button"
-                                    onClick={() => responseForm.post(route('advisory.respond', { advisoryRequest: requestItem.id }))}
+                                    onClick={() => responseForm.post(route('advisory.respond', { id: requestItem.id }))}
                                     className="btn-base btn-primary focus-ring"
                                     disabled={responseForm.processing}
                                 >
@@ -369,7 +369,7 @@ export default function AdvisoryShow({
                     description={requestItem.description}
                     action={
                         isRequesterReturned ? (
-                            <Link href={route('advisory.edit', { advisoryRequest: requestItem.id })} className="btn-base btn-primary focus-ring">
+                            <Link href={route('advisory.edit', { id: requestItem.id })} className="btn-base btn-primary focus-ring">
                                 {t('advisory.resubmit_request')}
                             </Link>
                         ) : undefined
@@ -448,7 +448,7 @@ export default function AdvisoryShow({
                                                     ...data,
                                                     is_internal: !can.requester_comment_public,
                                                 }));
-                                                commentForm.post(route('advisory.comments.store', { advisoryRequest: requestItem.id }), {
+                                                commentForm.post(route('advisory.comments.store', { id: requestItem.id }), {
                                                     onFinish: () => commentForm.transform((data) => data),
                                                 });
                                             }}
@@ -506,7 +506,7 @@ export default function AdvisoryShow({
                                             type="button"
                                             onClick={() =>
                                                 attachmentForm.post(
-                                                    route('advisory.attachments.store', { advisoryRequest: requestItem.id }),
+                                                    route('advisory.attachments.store', { id: requestItem.id }),
                                                     { forceFormData: true },
                                                 )
                                             }
@@ -556,7 +556,7 @@ export default function AdvisoryShow({
                 confirmLabel={t('advisory.confirm_review_button')}
                 onCancel={() => setConfirmOpen(false)}
                 onConfirm={() => {
-                    reviewForm.patch(route('advisory.review', { advisoryRequest: requestItem.id }), {
+                    reviewForm.patch(route('advisory.review', { id: requestItem.id }), {
                         onSuccess: () => setConfirmOpen(false),
                     });
                 }}
