@@ -577,4 +577,143 @@ it('persists uploaded hero slide images for the public website settings', functi
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('settingsGroups.public_website.hero_slides.0.image_url', fn (?string $value) => is_string($value) && str_contains($value, '/branding-assets/')));
+
+    auth()->logout();
+
+    $this->get(route('home'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('slides.0.image_url', fn (?string $value) => is_string($value) && str_contains($value, '/branding-assets/')));
+});
+
+it('updates an existing hero slide image and keeps the new image visible after reload', function (): void {
+    $admin = User::query()->where('email', 'admin@ldms.test')->firstOrFail();
+    $publicWebsite = app(SystemSettingsService::class)->group('public_website');
+
+    $basePayload = [
+        '_method' => 'put',
+        'hero_eyebrow' => $publicWebsite['hero_eyebrow'],
+        'hero_title' => $publicWebsite['hero_title'],
+        'hero_description' => $publicWebsite['hero_description'],
+        'about_title' => $publicWebsite['about_title'],
+        'about_description' => $publicWebsite['about_description'],
+        'services_title' => $publicWebsite['services_title'],
+        'services_description' => $publicWebsite['services_description'],
+        'service_advisory_title' => $publicWebsite['service_advisory_title'],
+        'service_advisory_description' => $publicWebsite['service_advisory_description'],
+        'service_case_support_title' => $publicWebsite['service_case_support_title'],
+        'service_case_support_description' => $publicWebsite['service_case_support_description'],
+        'service_policy_title' => $publicWebsite['service_policy_title'],
+        'service_policy_description' => $publicWebsite['service_policy_description'],
+        'process_title' => $publicWebsite['process_title'],
+        'process_description' => $publicWebsite['process_description'],
+        'process_step_one_title' => $publicWebsite['process_step_one_title'],
+        'process_step_one_description' => $publicWebsite['process_step_one_description'],
+        'process_step_two_title' => $publicWebsite['process_step_two_title'],
+        'process_step_two_description' => $publicWebsite['process_step_two_description'],
+        'process_step_three_title' => $publicWebsite['process_step_three_title'],
+        'process_step_three_description' => $publicWebsite['process_step_three_description'],
+        'process_step_four_title' => $publicWebsite['process_step_four_title'],
+        'process_step_four_description' => $publicWebsite['process_step_four_description'],
+        'posts_title' => $publicWebsite['posts_title'],
+        'posts_description' => $publicWebsite['posts_description'],
+        'cta_title' => $publicWebsite['cta_title'],
+        'cta_description' => $publicWebsite['cta_description'],
+        'cta_primary_label' => $publicWebsite['cta_primary_label'],
+        'cta_secondary_label' => $publicWebsite['cta_secondary_label'],
+        'contact_title' => $publicWebsite['contact_title'],
+        'contact_description' => $publicWebsite['contact_description'],
+        'contact_hours_value' => $publicWebsite['contact_hours_value'],
+    ];
+
+    $this->actingAs($admin)
+        ->post(route('settings.update', 'public_website'), [
+            ...$basePayload,
+            'hero_slides' => [
+                [
+                    'title' => 'First upload',
+                    'subtitle' => 'Original image',
+                    'button_label' => 'Open updates',
+                    'button_url' => '/updates',
+                    'display_order' => 1,
+                    'is_active' => true,
+                    'image' => UploadedFile::fake()->image('hero-original.png', 1200, 800),
+                ],
+                [
+                    'title' => 'Second slide',
+                    'subtitle' => 'Second slide subtitle',
+                    'button_label' => 'Open login',
+                    'button_url' => '/login',
+                    'display_order' => 2,
+                    'is_active' => true,
+                ],
+                [
+                    'title' => 'Third slide',
+                    'subtitle' => 'Third slide subtitle',
+                    'button_label' => 'Contact',
+                    'button_url' => '/#contact',
+                    'display_order' => 3,
+                    'is_active' => true,
+                ],
+            ],
+        ])
+        ->assertRedirect();
+
+    $originalPath = app(SystemSettingsService::class)->group('public_website')['hero_slides'][0]['image_path'];
+
+    $this->actingAs($admin)
+        ->post(route('settings.update', 'public_website'), [
+            ...$basePayload,
+            'hero_slides' => [
+                [
+                    'title' => 'Updated upload',
+                    'subtitle' => 'Replacement image',
+                    'button_label' => 'Open updates',
+                    'button_url' => '/updates',
+                    'display_order' => 1,
+                    'is_active' => true,
+                    'image' => UploadedFile::fake()->image('hero-replacement.png', 1600, 900),
+                ],
+                [
+                    'title' => 'Second slide',
+                    'subtitle' => 'Second slide subtitle',
+                    'button_label' => 'Open login',
+                    'button_url' => '/login',
+                    'display_order' => 2,
+                    'is_active' => true,
+                ],
+                [
+                    'title' => 'Third slide',
+                    'subtitle' => 'Third slide subtitle',
+                    'button_label' => 'Contact',
+                    'button_url' => '/#contact',
+                    'display_order' => 3,
+                    'is_active' => true,
+                ],
+            ],
+        ])
+        ->assertRedirect();
+
+    $updatedSlides = app(SystemSettingsService::class)->group('public_website')['hero_slides'];
+    $updatedPath = $updatedSlides[0]['image_path'];
+
+    expect($updatedPath)->toBeString()
+        ->and($updatedPath)->toStartWith('branding/')
+        ->and($updatedPath)->not->toBe($originalPath);
+
+    Storage::disk('public')->assertMissing($originalPath);
+    Storage::disk('public')->assertExists($updatedPath);
+
+    $this->actingAs($admin)
+        ->get(route('settings.index'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('settingsGroups.public_website.hero_slides.0.image_url', fn (?string $value) => is_string($value) && str_contains($value, '/branding-assets/')));
+
+    auth()->logout();
+
+    $this->get(route('home'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('slides.0.image_url', fn (?string $value) => is_string($value) && str_contains($value, '/branding-assets/')));
 });
