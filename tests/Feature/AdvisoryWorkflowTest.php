@@ -39,7 +39,7 @@ it('moves an advisory request through requester director team leader and expert'
 
     expect($advisoryRequest->status)->toBe(AdvisoryRequestStatus::UNDER_DIRECTOR_REVIEW);
 
-    $this->actingAs($director)->patch(route('advisory.review', $advisoryRequest), [
+    $this->actingAs($director)->patch(route('advisory.review', $advisoryRequest->id), [
         'director_decision' => 'approved',
         'director_notes' => 'Proceed with advisory team leader review.',
         'assigned_team_leader_id' => $teamLeader->id,
@@ -50,7 +50,7 @@ it('moves an advisory request through requester director team leader and expert'
     expect($advisoryRequest->status)->toBe(AdvisoryRequestStatus::ASSIGNED_TO_TEAM_LEADER);
     expect($advisoryRequest->assigned_team_leader_id)->toBe($teamLeader->id);
 
-    $this->actingAs($teamLeader)->patch(route('advisory.assign', $advisoryRequest), [
+    $this->actingAs($teamLeader)->patch(route('advisory.assign', $advisoryRequest->id), [
         'assigned_legal_expert_id' => $expert->id,
         'notes' => 'Prepare written opinion.',
     ])->assertSessionHasNoErrors();
@@ -60,7 +60,7 @@ it('moves an advisory request through requester director team leader and expert'
     expect($advisoryRequest->status)->toBe(AdvisoryRequestStatus::ASSIGNED_TO_EXPERT);
     expect($advisoryRequest->assigned_legal_expert_id)->toBe($expert->id);
 
-    $this->actingAs($expert)->post(route('advisory.respond', $advisoryRequest), [
+    $this->actingAs($expert)->post(route('advisory.respond', $advisoryRequest->id), [
         'response_type' => 'written',
         'summary' => 'The department may proceed once notice and evaluation records are preserved.',
         'advice_text' => 'Keep the bid-evaluation memo, bidder communication record, and appeal timeline on file.',

@@ -69,7 +69,7 @@ it('prevents advisory assignment to an expert outside the advisory team', functi
     ]);
 
     $this->actingAs($teamLeader)
-        ->patch(route('advisory.assign', $advisoryRequest), [
+        ->patch(route('advisory.assign', $advisoryRequest->id), [
             'assigned_legal_expert_id' => $wrongExpert->id,
             'notes' => 'Invalid expert assignment.',
         ])
@@ -99,7 +99,7 @@ it('prevents duplicate advisory responses after a request is already completed',
     ]);
 
     $this->actingAs($expert)
-        ->post(route('advisory.respond', $advisoryRequest), [
+        ->post(route('advisory.respond', $advisoryRequest->id), [
             'response_type' => 'written',
             'summary' => 'Attempting a second response should fail.',
             'advice_text' => 'This is not allowed once the request is completed.',

@@ -50,8 +50,8 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/advisory', [AdvisoryRequestController::class, 'index'])->name('advisory.index');
     Route::get('/advisory/create', [AdvisoryRequestController::class, 'create'])->name('advisory.create');
-    Route::get('/advisory/{advisoryRequest}/edit', [AdvisoryRequestController::class, 'edit'])->name('advisory.edit');
-    Route::get('/advisory/{advisoryRequest}', [AdvisoryRequestController::class, 'show'])->name('advisory.show');
+    Route::get('/advisory/{id}/edit', [AdvisoryRequestController::class, 'edit'])->name('advisory.edit');
+    Route::get('/advisory/{id}', [AdvisoryRequestController::class, 'show'])->name('advisory.show');
 
     Route::get('/cases', [LegalCaseController::class, 'index'])->name('cases.index');
     Route::get('/cases/create', [LegalCaseController::class, 'create'])->name('cases.create');
@@ -86,12 +86,12 @@ Route::middleware('auth')->group(function () {
     // Authenticated mutation routes guarded by rate limiting.
     Route::middleware('throttle:legal-mutations')->group(function () {
         Route::post('/advisory', [AdvisoryRequestController::class, 'store'])->name('advisory.store');
-        Route::patch('/advisory/{advisoryRequest}', [AdvisoryRequestController::class, 'update'])->name('advisory.update');
-        Route::patch('/advisory/{advisoryRequest}/review', [AdvisoryRequestController::class, 'directorReview'])->name('advisory.review');
-        Route::patch('/advisory/{advisoryRequest}/assign', [AdvisoryRequestController::class, 'assign'])->name('advisory.assign');
-        Route::post('/advisory/{advisoryRequest}/responses', [AdvisoryRequestController::class, 'respond'])->name('advisory.respond');
-        Route::post('/advisory/{advisoryRequest}/comments', [AdvisoryRequestController::class, 'addComment'])->name('advisory.comments.store');
-        Route::post('/advisory/{advisoryRequest}/attachments', [AdvisoryRequestController::class, 'addAttachment'])->name('advisory.attachments.store');
+        Route::patch('/advisory/{id}', [AdvisoryRequestController::class, 'update'])->name('advisory.update');
+        Route::patch('/advisory/{id}/review', [AdvisoryRequestController::class, 'directorReview'])->name('advisory.review');
+        Route::patch('/advisory/{id}/assign', [AdvisoryRequestController::class, 'assign'])->name('advisory.assign');
+        Route::post('/advisory/{id}/responses', [AdvisoryRequestController::class, 'respond'])->name('advisory.respond');
+        Route::post('/advisory/{id}/comments', [AdvisoryRequestController::class, 'addComment'])->name('advisory.comments.store');
+        Route::post('/advisory/{id}/attachments', [AdvisoryRequestController::class, 'addAttachment'])->name('advisory.attachments.store');
 
         Route::post('/cases', [LegalCaseController::class, 'store'])->name('cases.store');
         Route::patch('/cases/{legalCase}/review', [LegalCaseController::class, 'review'])->name('cases.review');
