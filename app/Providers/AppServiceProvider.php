@@ -28,6 +28,7 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
@@ -46,6 +47,7 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->ensureRuntimeDirectories();
         $this->configureInfrastructureFallbacks();
 
         Vite::prefetch(concurrency: 3);
@@ -185,6 +187,24 @@ class AppServiceProvider extends ServiceProvider
             return Schema::hasTable($table);
         } catch (Throwable) {
             return false;
+        }
+    }
+
+    private function ensureRuntimeDirectories(): void
+    {
+        foreach ([
+            storage_path('framework/cache/data'),
+            storage_path('framework/sessions'),
+            storage_path('framework/views'),
+        ] as $path) {
+            try {
+                File::ensureDirectoryExists($path);
+            } catch (Throwable $exception) {
+                Log::warning('Unable to ensure runtime directory exists.', [
+                    'path' => $path,
+                    'message' => $exception->getMessage(),
+                ]);
+            }
         }
     }
 }

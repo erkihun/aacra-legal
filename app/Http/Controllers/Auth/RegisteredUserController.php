@@ -28,11 +28,13 @@ class RegisteredUserController extends Controller
     public function create(): Response
     {
         return Inertia::render('Auth/Register', [
-            'departments' => Department::query()
-                ->active()
-                ->where('code', '!=', 'LEG')
-                ->orderBy('name_en')
-                ->get(['id', 'name_en', 'name_am']),
+            'departments' => Department::tableExists()
+                ? Department::query()
+                    ->active()
+                    ->where('code', '!=', 'LEG')
+                    ->orderBy('name_en')
+                    ->get(['id', 'name_en', 'name_am'])
+                : [],
         ]);
     }
 
