@@ -494,3 +494,87 @@ it('persists public website content blocks for a single deployment and exposes t
             ->where('content.cta_primary_label', 'Open request portal')
             ->where('content.contact_description', 'Use the verified communication channels for this deployment.'));
 });
+
+it('persists uploaded hero slide images for the public website settings', function (): void {
+    $admin = User::query()->where('email', 'admin@ldms.test')->firstOrFail();
+    $publicWebsite = app(SystemSettingsService::class)->group('public_website');
+
+    $this->actingAs($admin)
+        ->post(route('settings.update', 'public_website'), [
+            '_method' => 'put',
+            'hero_eyebrow' => $publicWebsite['hero_eyebrow'],
+            'hero_title' => $publicWebsite['hero_title'],
+            'hero_description' => $publicWebsite['hero_description'],
+            'about_title' => $publicWebsite['about_title'],
+            'about_description' => $publicWebsite['about_description'],
+            'services_title' => $publicWebsite['services_title'],
+            'services_description' => $publicWebsite['services_description'],
+            'service_advisory_title' => $publicWebsite['service_advisory_title'],
+            'service_advisory_description' => $publicWebsite['service_advisory_description'],
+            'service_case_support_title' => $publicWebsite['service_case_support_title'],
+            'service_case_support_description' => $publicWebsite['service_case_support_description'],
+            'service_policy_title' => $publicWebsite['service_policy_title'],
+            'service_policy_description' => $publicWebsite['service_policy_description'],
+            'process_title' => $publicWebsite['process_title'],
+            'process_description' => $publicWebsite['process_description'],
+            'process_step_one_title' => $publicWebsite['process_step_one_title'],
+            'process_step_one_description' => $publicWebsite['process_step_one_description'],
+            'process_step_two_title' => $publicWebsite['process_step_two_title'],
+            'process_step_two_description' => $publicWebsite['process_step_two_description'],
+            'process_step_three_title' => $publicWebsite['process_step_three_title'],
+            'process_step_three_description' => $publicWebsite['process_step_three_description'],
+            'process_step_four_title' => $publicWebsite['process_step_four_title'],
+            'process_step_four_description' => $publicWebsite['process_step_four_description'],
+            'posts_title' => $publicWebsite['posts_title'],
+            'posts_description' => $publicWebsite['posts_description'],
+            'cta_title' => $publicWebsite['cta_title'],
+            'cta_description' => $publicWebsite['cta_description'],
+            'cta_primary_label' => $publicWebsite['cta_primary_label'],
+            'cta_secondary_label' => $publicWebsite['cta_secondary_label'],
+            'contact_title' => $publicWebsite['contact_title'],
+            'contact_description' => $publicWebsite['contact_description'],
+            'contact_hours_value' => $publicWebsite['contact_hours_value'],
+            'hero_slides' => [
+                [
+                    'title' => 'Updated hero slide',
+                    'subtitle' => 'Uploaded image should persist.',
+                    'button_label' => 'Open updates',
+                    'button_url' => '/updates',
+                    'display_order' => 1,
+                    'is_active' => true,
+                    'image' => UploadedFile::fake()->image('hero-slide-one.png', 1440, 900),
+                ],
+                [
+                    'title' => 'Second slide',
+                    'subtitle' => 'Existing image should remain available.',
+                    'button_label' => 'Open login',
+                    'button_url' => '/login',
+                    'display_order' => 2,
+                    'is_active' => true,
+                ],
+                [
+                    'title' => 'Third slide',
+                    'subtitle' => 'Contact section.',
+                    'button_label' => 'Contact',
+                    'button_url' => '/#contact',
+                    'display_order' => 3,
+                    'is_active' => true,
+                ],
+            ],
+        ])
+        ->assertRedirect();
+
+    $slides = app(SystemSettingsService::class)->group('public_website')['hero_slides'];
+    $firstSlide = $slides[0];
+
+    expect($firstSlide['image_path'])->toBeString()
+        ->and($firstSlide['image_path'])->toStartWith('branding/');
+
+    Storage::disk('public')->assertExists($firstSlide['image_path']);
+
+    $this->actingAs($admin)
+        ->get(route('settings.index'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('settingsGroups.public_website.hero_slides.0.image_url', fn (?string $value) => is_string($value) && str_contains($value, '/branding-assets/')));
+});

@@ -469,7 +469,7 @@ function SettingsGroupPanel({
 
         return (
             <SurfaceCard>
-                <form onSubmit={(event) => { event.preventDefault(); form.put(routeName, { preserveScroll: true }); }} className="space-y-6">
+                <form onSubmit={(event) => { event.preventDefault(); submitWithFiles(form, routeName); }} className="space-y-6">
                     <div className="grid gap-4 md:grid-cols-2">
                         <TextField form={form} name="mail_from_name" label={t('settings.fields.mail_from_name')} required />
                         <TextField form={form} name="mail_from_address" label={t('settings.fields.mail_from_address')} type="email" required />
@@ -719,7 +719,7 @@ function SettingsGroupPanel({
                                             ) : null}
                                             <input
                                                 type="file"
-                                                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                                                accept="image/png,image/jpeg,image/webp"
                                                 onChange={(event) => {
                                                     const file = event.target.files?.[0] ?? null;
 
