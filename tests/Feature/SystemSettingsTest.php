@@ -13,6 +13,7 @@ use App\Listeners\SendAdvisoryAssignedNotifications;
 use App\Models\AdvisoryCategory;
 use App\Models\AdvisoryRequest;
 use App\Models\Department;
+use App\Models\SystemSetting;
 use App\Models\User;
 use App\Services\SystemSettingsService;
 use Database\Seeders\DemoUserSeeder;
@@ -566,9 +567,15 @@ it('persists uploaded hero slide images for the public website settings', functi
 
     $slides = app(SystemSettingsService::class)->group('public_website')['hero_slides'];
     $firstSlide = $slides[0];
+    $persistedSlides = SystemSetting::query()
+        ->where('setting_group', 'public_website')
+        ->where('setting_key', 'hero_slides')
+        ->firstOrFail()
+        ->value;
 
     expect($firstSlide['image_path'])->toBeString()
-        ->and($firstSlide['image_path'])->toStartWith('branding/');
+        ->and($firstSlide['image_path'])->toStartWith('branding/')
+        ->and($persistedSlides[0]['image_path'] ?? null)->toBe($firstSlide['image_path']);
 
     Storage::disk('public')->assertExists($firstSlide['image_path']);
 

@@ -96,10 +96,20 @@ class SystemSettingsController extends Controller
      */
     private function heroSlideUploadsPersisted(UpdateSystemSettingsRequest $request, array $updated): bool
     {
-        $uploadedSlides = $request->file('hero_slides', []);
+        $uploadedSlides = data_get($request->allFiles(), 'hero_slides', []);
 
-        if (! is_array($uploadedSlides)) {
+        if (! is_array($uploadedSlides) || $uploadedSlides === []) {
             return true;
+        }
+
+        $persistedSlides = [];
+        $persistedHeroSlidesSetting = SystemSetting::query()
+            ->where('setting_group', SystemSettingGroup::PUBLIC_WEBSITE->value)
+            ->where('setting_key', 'hero_slides')
+            ->first();
+
+        if ($persistedHeroSlidesSetting !== null && is_array($persistedHeroSlidesSetting->value)) {
+            $persistedSlides = $persistedHeroSlidesSetting->value;
         }
 
         foreach ($uploadedSlides as $index => $slide) {
@@ -113,7 +123,9 @@ class SystemSettingsController extends Controller
                 continue;
             }
 
-            $savedPath = $updated['hero_slides'][$index]['image_path'] ?? null;
+            $savedPath = $persistedSlides[$index]['image_path']
+                ?? $updated['hero_slides'][$index]['image_path']
+                ?? null;
 
             if (! is_string($savedPath) || $savedPath === '' || ! Storage::disk('public')->exists($savedPath)) {
                 return false;

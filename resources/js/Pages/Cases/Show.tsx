@@ -51,7 +51,7 @@ export default function CasesShow({
 
     const { t, locale } = useI18n();
     const { formatDateTime } = useDateFormatter();
-    const [activePanel, setActivePanel] = useRemember<'hearing' | 'close' | 'comment' | 'attachments' | 'reopen' | null>(
+    const [activePanel, setActivePanel] = useRemember<'review' | 'assign' | 'hearing' | 'close' | 'comment' | 'attachments' | 'reopen' | null>(
         null,
         `cases-show-active-panel-${caseItem.id}`,
     );
@@ -731,6 +731,8 @@ export default function CasesShow({
     const hearingPanelEnabled = can.recordHearing || hearings.length > 0;
     const commentPanelEnabled = can.comment || comments.length > 0;
     const attachmentPanelEnabled = can.attach || attachments.length > 0;
+    const reviewActionEnabled = !isClosedCase && workspace.canAssignTeamLeader;
+    const assignActionEnabled = !isClosedCase && workspace.canAssignExpert;
     const hearingActionEnabled = !isClosedCase && hearingPanelEnabled;
     const closeActionEnabled = !isClosedCase && can.close;
     const commentActionEnabled = !isClosedCase && commentPanelEnabled;
@@ -744,6 +746,20 @@ export default function CasesShow({
                 </div>
 
                 <div className="flex flex-wrap gap-3">
+                    {reviewActionEnabled ? (
+                        <ActionToggleButton
+                            label={t('cases.director_review')}
+                            active={activePanel === 'review'}
+                            onClick={() => setActivePanel((current) => (current === 'review' ? null : 'review'))}
+                        />
+                    ) : null}
+                    {assignActionEnabled ? (
+                        <ActionToggleButton
+                            label={t('cases.assign_expert')}
+                            active={activePanel === 'assign'}
+                            onClick={() => setActivePanel((current) => (current === 'assign' ? null : 'assign'))}
+                        />
+                    ) : null}
                     {hearingActionEnabled ? (
                         <ActionToggleButton
                             label={t('cases.record_hearing')}
@@ -781,13 +797,202 @@ export default function CasesShow({
                     ) : null}
                 </div>
 
-                {!hearingActionEnabled && !closeActionEnabled && !commentActionEnabled && !attachmentActionEnabled && !(isClosedCase && can.reopen) ? (
+                {!reviewActionEnabled && !assignActionEnabled && !hearingActionEnabled && !closeActionEnabled && !commentActionEnabled && !attachmentActionEnabled && !(isClosedCase && can.reopen) ? (
                     <EmptyState
                         title={t('common.workspace')}
                         description={t('common.no_actions_available')}
                     />
                 ) : null}
             </SurfaceCard>
+
+            {activePanel === 'review' && reviewActionEnabled ? (
+                <SurfaceCard className="space-y-6 p-6">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="space-y-1">
+                            <h3 className="text-lg font-semibold text-[color:var(--text)]">
+                                {t('cases.director_review')}
+                            </h3>
+                            <p className="text-sm text-[color:var(--muted-strong)]">
+                                {t('advisory.confirm_review_description')}
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setActivePanel(null)}
+                            className="btn-base btn-secondary focus-ring"
+                        >
+                            {t('common.cancel')}
+                        </button>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                        <FormField label={t('cases.director_review')} required error={reviewForm.errors.director_decision}>
+                            <select
+                                value={reviewForm.data.director_decision}
+                                onChange={(event) => reviewForm.setData('director_decision', event.target.value)}
+                                className="select-ui"
+                            >
+                                <option value="approved">{t('common.approved')}</option>
+                                <option value="returned">{t('common.returned')}</option>
+                                <option value="rejected">{t('common.rejected')}</option>
+                            </select>
+                        </FormField>
+
+                        {reviewForm.data.director_decision === 'approved' ? (
+                            <FormField
+                                label={t('cases.team_leader')}
+                                required
+                                error={reviewForm.errors.assigned_team_leader_id}
+                            >
+                                <select
+                                    value={reviewForm.data.assigned_team_leader_id}
+                                    onChange={(event) => reviewForm.setData('assigned_team_leader_id', event.target.value)}
+                                    className="select-ui"
+                                >
+                                    <option value="">{t('common.unassigned')}</option>
+                                    {teamLeaders.map((leader) => (
+                                        <option key={leader.id} value={leader.id}>
+                                            {leader.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </FormField>
+                        ) : (
+                            <WorkspaceInfoRow
+                                label={t('cases.team_leader')}
+                                value={caseItem.assigned_team_leader?.name ?? t('common.unassigned')}
+                            />
+                        )}
+                    </div>
+
+                    <FormField
+                        label={t('advisory.director_notes')}
+                        optional
+                        error={reviewForm.errors.director_notes}
+                    >
+                        <textarea
+                            value={reviewForm.data.director_notes}
+                            onChange={(event) => reviewForm.setData('director_notes', event.target.value)}
+                            rows={6}
+                            className="textarea-ui"
+                        />
+                    </FormField>
+
+                    <div className="flex flex-wrap justify-end gap-3 border-t border-[color:var(--border)] pt-4">
+                        <button
+                            type="button"
+                            onClick={() => setActivePanel(null)}
+                            className="btn-base btn-secondary focus-ring"
+                        >
+                            {t('common.cancel')}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() =>
+                                reviewForm.patch(route('cases.review', { legalCase: caseItem.id }), {
+                                    onSuccess: () => {
+                                        finishSuccessfulSubmission(reviewForm, {
+                                            reset: true,
+                                            afterSuccess: () => {
+                                                setActivePanel(null);
+                                            },
+                                        });
+                                    },
+                                })
+                            }
+                            className="btn-base btn-primary focus-ring"
+                            disabled={reviewForm.processing}
+                        >
+                            {t('common.submit_review')}
+                        </button>
+                    </div>
+                </SurfaceCard>
+            ) : null}
+
+            {activePanel === 'assign' && assignActionEnabled ? (
+                <SurfaceCard className="space-y-6 p-6">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="space-y-1">
+                            <h3 className="text-lg font-semibold text-[color:var(--text)]">
+                                {t('cases.assign_expert')}
+                            </h3>
+                            <p className="text-sm text-[color:var(--muted-strong)]">
+                                {caseItem.assigned_team_leader?.name ?? t('common.unassigned')}
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setActivePanel(null)}
+                            className="btn-base btn-secondary focus-ring"
+                        >
+                            {t('common.cancel')}
+                        </button>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                        <FormField
+                            label={t('cases.expert')}
+                            required
+                            error={assignForm.errors.assigned_legal_expert_id}
+                        >
+                            <select
+                                value={assignForm.data.assigned_legal_expert_id}
+                                onChange={(event) => assignForm.setData('assigned_legal_expert_id', event.target.value)}
+                                className="select-ui"
+                            >
+                                <option value="">{t('common.unassigned')}</option>
+                                {experts.map((expert) => (
+                                    <option key={expert.id} value={expert.id}>
+                                        {expert.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </FormField>
+
+                        <FormField
+                            label={t('common.assignment_notes')}
+                            optional
+                            error={assignForm.errors.notes}
+                        >
+                            <textarea
+                                value={assignForm.data.notes}
+                                onChange={(event) => assignForm.setData('notes', event.target.value)}
+                                rows={6}
+                                className="textarea-ui"
+                            />
+                        </FormField>
+                    </div>
+
+                    <div className="flex flex-wrap justify-end gap-3 border-t border-[color:var(--border)] pt-4">
+                        <button
+                            type="button"
+                            onClick={() => setActivePanel(null)}
+                            className="btn-base btn-secondary focus-ring"
+                        >
+                            {t('common.cancel')}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() =>
+                                assignForm.patch(route('cases.assign', { legalCase: caseItem.id }), {
+                                    onSuccess: () => {
+                                        finishSuccessfulSubmission(assignForm, {
+                                            reset: true,
+                                            afterSuccess: () => {
+                                                setActivePanel(null);
+                                            },
+                                        });
+                                    },
+                                })
+                            }
+                            className="btn-base btn-primary focus-ring"
+                            disabled={assignForm.processing}
+                        >
+                            {t('common.assign')}
+                        </button>
+                    </div>
+                </SurfaceCard>
+            ) : null}
 
             {activePanel === 'reopen' && isClosedCase && can.reopen ? (
                 <SurfaceCard className="space-y-6 p-6">

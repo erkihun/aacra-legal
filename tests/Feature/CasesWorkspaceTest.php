@@ -295,6 +295,59 @@ it('hides case assignment workspace forms once assignment already exists', funct
         );
 });
 
+it('shows the correct case assignment action for the current role and workflow state', function (): void {
+    $registrar = createCaseUser(SystemRole::REGISTRAR, 'leg', 'ADM');
+    $director = createCaseUser(SystemRole::LEGAL_DIRECTOR, 'leg', 'ADM');
+    $teamLeader = createCaseUser(SystemRole::LITIGATION_TEAM_LEADER, 'leg', 'LIT');
+
+    $directorReviewCase = LegalCase::query()->create([
+        'case_number' => 'CASE-2026-9015',
+        'court_id' => Court::query()->firstOrFail()->id,
+        'case_type_id' => CaseType::query()->firstOrFail()->id,
+        'registered_by_id' => $registrar->id,
+        'plaintiff' => 'Director Visible',
+        'defendant' => 'Institution',
+        'status' => CaseStatus::UNDER_DIRECTOR_REVIEW,
+        'workflow_stage' => WorkflowStage::DIRECTOR,
+        'priority' => PriorityLevel::MEDIUM,
+        'director_decision' => 'pending',
+        'claim_summary' => 'Director should see the team leader assignment action.',
+        'filing_date' => now()->toDateString(),
+    ]);
+
+    $teamLeaderStageCase = LegalCase::query()->create([
+        'case_number' => 'CASE-2026-9016',
+        'court_id' => Court::query()->firstOrFail()->id,
+        'case_type_id' => CaseType::query()->firstOrFail()->id,
+        'registered_by_id' => $registrar->id,
+        'assigned_team_leader_id' => $teamLeader->id,
+        'plaintiff' => 'Team Leader Visible',
+        'defendant' => 'Institution',
+        'status' => CaseStatus::ASSIGNED_TO_TEAM_LEADER,
+        'workflow_stage' => WorkflowStage::TEAM_LEADER,
+        'priority' => PriorityLevel::MEDIUM,
+        'director_decision' => 'approved',
+        'claim_summary' => 'Assigned team leader should see the expert assignment action.',
+        'filing_date' => now()->toDateString(),
+    ]);
+
+    $this->actingAs($director)
+        ->get(route('cases.show', ['legalCase' => $directorReviewCase]))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Cases/Show')
+            ->where('workspace.canAssignTeamLeader', true)
+            ->where('workspace.canAssignExpert', false)
+        );
+
+    $this->actingAs($teamLeader)
+        ->get(route('cases.show', ['legalCase' => $teamLeaderStageCase]))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Cases/Show')
+            ->where('workspace.canAssignTeamLeader', false)
+            ->where('workspace.canAssignExpert', true)
+        );
+});
+
 it('updates and deletes case hearings comments and attachments through the workspace endpoints', function (): void {
     Storage::fake('public');
 

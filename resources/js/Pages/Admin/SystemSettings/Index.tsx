@@ -662,12 +662,12 @@ function SettingsGroupPanel({
     if (group === 'public_website') {
         const form = forms.publicWebsiteForm;
         const updateSlide = (index: number, field: string, value: any) => {
-            form.setData(
-                'hero_slides',
-                form.data.hero_slides.map((slide: any, slideIndex: number) =>
+            form.setData((data: typeof form.data) => ({
+                ...data,
+                hero_slides: data.hero_slides.map((slide: any, slideIndex: number) =>
                     slideIndex === index ? { ...slide, [field]: value } : slide,
                 ),
-            );
+            }));
         };
 
         return (
@@ -831,12 +831,18 @@ function SettingsGroupPanel({
                                                 accept="image/png,image/jpeg,image/webp"
                                                 onChange={(event) => {
                                                     const file = event.target.files?.[0] ?? null;
-
-                                                    updateSlide(index, 'image', file);
-
-                                                    if (file) {
-                                                        updateSlide(index, 'image_url', URL.createObjectURL(file));
-                                                    }
+                                                    form.setData((data: typeof form.data) => ({
+                                                        ...data,
+                                                        hero_slides: data.hero_slides.map((existingSlide: any, slideIndex: number) =>
+                                                            slideIndex === index
+                                                                ? {
+                                                                      ...existingSlide,
+                                                                      image: file,
+                                                                      image_url: file ? URL.createObjectURL(file) : existingSlide.image_url,
+                                                                  }
+                                                                : existingSlide,
+                                                        ),
+                                                    }));
                                                 }}
                                                 className="input-ui file:mr-4 file:rounded-full file:border-0 file:bg-[var(--primary-soft)] file:px-4 file:py-2 file:text-sm file:font-semibold file:text-[color:var(--primary)]"
                                             />
