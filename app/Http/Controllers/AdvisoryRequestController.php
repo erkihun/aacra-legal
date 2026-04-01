@@ -6,10 +6,13 @@ namespace App\Http\Controllers;
 
 use App\Actions\AddCommentAction;
 use App\Actions\AssignAdvisoryToExpertAction;
+use App\Actions\DeleteAdvisoryRequestAction;
+use App\Actions\DeleteAdvisoryResponseAction;
 use App\Actions\DirectorReviewAdvisoryAction;
 use App\Actions\RecordAdvisoryResponseAction;
 use App\Actions\StoreAttachmentAction;
 use App\Actions\SubmitAdvisoryRequestAction;
+use App\Actions\UpdateAdvisoryResponseAction;
 use App\Actions\UpdateReturnedAdvisoryRequestAction;
 use App\Enums\AdvisoryRequestStatus;
 use App\Enums\AdvisoryRequestType;
@@ -20,12 +23,14 @@ use App\Http\Requests\Advisory\AssignAdvisoryRequestRequest;
 use App\Http\Requests\Advisory\RecordAdvisoryResponseRequest;
 use App\Http\Requests\Advisory\ReviewAdvisoryRequestRequest;
 use App\Http\Requests\Advisory\StoreAdvisoryRequestRequest;
+use App\Http\Requests\Advisory\UpdateAdvisoryResponseRequest;
 use App\Http\Requests\Advisory\UpdateAdvisoryRequestRequest;
 use App\Http\Requests\StoreAttachmentRequest;
 use App\Http\Requests\StoreCommentRequest;
 use App\Http\Resources\AdvisoryRequestResource;
 use App\Models\AdvisoryCategory;
 use App\Models\AdvisoryRequest;
+use App\Models\AdvisoryResponse;
 use App\Models\Attachment;
 use App\Models\Department;
 use App\Models\Team;
@@ -122,21 +127,8 @@ class AdvisoryRequestController extends Controller
             'directorReviewer',
             'assignedTeamLeader',
             'assignedLegalExpert',
-            'assignments.assignedBy',
-            'assignments.assignedTo',
-            'responses.responder',
+            'responses' => fn ($query) => $query->with(['responder', 'attachments.uploadedBy'])->latest('responded_at'),
             'attachments.uploadedBy',
-            'activities.causer',
-        ]);
-
-        $advisoryRequest->load([
-            'comments' => function ($query) use ($user): void {
-                $query->with('user');
-
-                if ($user?->hasSystemRole(SystemRole::DEPARTMENT_REQUESTER)) {
-                    $query->where('is_internal', false);
-                }
-            },
         ]);
 
         return Inertia::render('Advisory/Show', [
@@ -156,10 +148,8 @@ class AdvisoryRequestController extends Controller
                 'review' => $canReview,
                 'assign' => $canAssign,
                 'respond' => request()->user()?->can('respond', $advisoryRequest) ?? false,
-                'comment' => request()->user()?->can('comment', $advisoryRequest) ?? false,
                 'attach' => request()->user()?->can('attach', $advisoryRequest) ?? false,
                 'update' => request()->user()?->can('update', $advisoryRequest) ?? false,
-                'requester_comment_public' => request()->user()?->hasSystemRole(SystemRole::DEPARTMENT_REQUESTER) ?? false,
             ],
             'workspace' => [
                 'canAssignTeamLeader' => $canReview
@@ -175,6 +165,90 @@ class AdvisoryRequestController extends Controller
                     && $advisoryRequest->assigned_legal_expert_id === null
                     && $advisoryRequest->status === AdvisoryRequestStatus::ASSIGNED_TO_TEAM_LEADER
                     && $advisoryRequest->workflow_stage === WorkflowStage::TEAM_LEADER,
+            ],
+        ]);
+    }
+
+    public function createResponse(AdvisoryRequest $advisoryRequest): Response
+    {
+        $this->authorize('respond', $advisoryRequest);
+
+        $advisoryRequest->load([
+            'department',
+            'category',
+            'requester',
+            'assignedTeamLeader',
+            'assignedLegalExpert',
+        ]);
+
+        return Inertia::render('Advisory/Responses/Create', [
+            'requestItem' => AdvisoryRequestResource::make($advisoryRequest)->resolve(),
+            'mode' => 'create',
+        ]);
+    }
+
+    public function editResponse(AdvisoryRequest $advisoryRequest, AdvisoryResponse $advisoryResponse): Response
+    {
+        abort_unless($advisoryResponse->advisory_request_id === $advisoryRequest->getKey(), 404);
+        $this->authorize('update', $advisoryResponse);
+
+        $advisoryRequest->load([
+            'department',
+            'category',
+            'requester',
+            'assignedTeamLeader',
+            'assignedLegalExpert',
+        ]);
+
+        $advisoryResponse->load(['attachments.uploadedBy']);
+
+        return Inertia::render('Advisory/Responses/Create', [
+            'requestItem' => AdvisoryRequestResource::make($advisoryRequest)->resolve(),
+            'responseItem' => [
+                'id' => $advisoryResponse->id,
+                'subject' => $advisoryResponse->subject ?? $advisoryResponse->summary,
+                'response' => $advisoryResponse->response ?? $advisoryResponse->advice_text ?? $advisoryResponse->summary,
+                'attachments' => \App\Http\Resources\AttachmentResource::collection($advisoryResponse->attachments)->resolve(request()),
+            ],
+            'mode' => 'edit',
+        ]);
+    }
+
+    public function showResponse(AdvisoryRequest $advisoryRequest, AdvisoryResponse $advisoryResponse): Response
+    {
+        abort_unless($advisoryResponse->advisory_request_id === $advisoryRequest->getKey(), 404);
+        $this->authorize('view', $advisoryResponse);
+
+        $advisoryRequest->load([
+            'department',
+            'requester',
+        ]);
+
+        $advisoryResponse->load([
+            'responder',
+            'attachments.uploadedBy',
+        ]);
+
+        return Inertia::render('Advisory/Responses/Show', [
+            'requestItem' => [
+                'id' => $advisoryRequest->id,
+                'request_number' => $advisoryRequest->request_number,
+                'subject' => $advisoryRequest->subject,
+                'requester' => [
+                    'name' => $advisoryRequest->requester?->name,
+                ],
+                'department' => [
+                    'name_en' => $advisoryRequest->department?->name_en,
+                    'name_am' => $advisoryRequest->department?->name_am,
+                ],
+            ],
+            'responseItem' => [
+                'id' => $advisoryResponse->id,
+                'subject' => $advisoryResponse->subject ?? $advisoryResponse->summary,
+                'response' => $advisoryResponse->response ?? $advisoryResponse->advice_text ?? $advisoryResponse->summary,
+                'responded_at' => $advisoryResponse->responded_at?->toIso8601String(),
+                'actor' => $advisoryResponse->responder?->name,
+                'attachments' => \App\Http\Resources\AttachmentResource::collection($advisoryResponse->attachments)->resolve(request()),
             ],
         ]);
     }
@@ -212,6 +286,15 @@ class AdvisoryRequestController extends Controller
         return to_route('advisory.show', $advisoryRequest)->with('success', __('Advisory request resubmitted successfully.'));
     }
 
+    public function destroy(AdvisoryRequest $advisoryRequest, DeleteAdvisoryRequestAction $action): RedirectResponse
+    {
+        $this->authorize('delete', $advisoryRequest);
+
+        $action->execute($advisoryRequest);
+
+        return back()->with('success', __('Advisory request deleted successfully.'));
+    }
+
     public function directorReview(ReviewAdvisoryRequestRequest $request, AdvisoryRequest $advisoryRequest, DirectorReviewAdvisoryAction $action): RedirectResponse
     {
         $action->execute($advisoryRequest, $request->validated(), $request->user());
@@ -228,9 +311,48 @@ class AdvisoryRequestController extends Controller
 
     public function respond(RecordAdvisoryResponseRequest $request, AdvisoryRequest $advisoryRequest, RecordAdvisoryResponseAction $action): RedirectResponse
     {
-        $action->execute($advisoryRequest, $request->validated(), $request->user());
+        $action->execute(
+            $advisoryRequest,
+            $request->safe()->except('attachments'),
+            $request->user(),
+            $request->file('attachments', []),
+        );
 
-        return back()->with('success', __('Advisory response recorded.'));
+        return to_route('advisory.show', $advisoryRequest)->with('success', __('Advisory response recorded.'));
+    }
+
+    public function updateResponse(
+        UpdateAdvisoryResponseRequest $request,
+        AdvisoryRequest $advisoryRequest,
+        AdvisoryResponse $advisoryResponse,
+        UpdateAdvisoryResponseAction $action,
+    ): RedirectResponse {
+        abort_unless($advisoryResponse->advisory_request_id === $advisoryRequest->getKey(), 404);
+
+        $action->execute(
+            $advisoryResponse,
+            $request->safe()->except('attachments'),
+            $request->user(),
+            $request->file('attachments', []),
+        );
+
+        return to_route('advisory.responses.show', [
+            'advisoryRequest' => $advisoryRequest,
+            'advisoryResponse' => $advisoryResponse,
+        ])->with('success', __('Advisory response updated successfully.'));
+    }
+
+    public function destroyResponse(
+        AdvisoryRequest $advisoryRequest,
+        AdvisoryResponse $advisoryResponse,
+        DeleteAdvisoryResponseAction $action,
+    ): RedirectResponse {
+        abort_unless($advisoryResponse->advisory_request_id === $advisoryRequest->getKey(), 404);
+        $this->authorize('delete', $advisoryResponse);
+
+        $action->execute($advisoryResponse);
+
+        return to_route('advisory.show', $advisoryRequest)->with('success', __('Advisory response deleted successfully.'));
     }
 
     public function addComment(StoreCommentRequest $request, AdvisoryRequest $advisoryRequest, AddCommentAction $action): RedirectResponse

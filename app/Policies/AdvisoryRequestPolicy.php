@@ -44,7 +44,30 @@ class AdvisoryRequestPolicy
     public function update(User $user, AdvisoryRequest $advisoryRequest): bool
     {
         return $advisoryRequest->requester_user_id === $user->getKey()
-            && $advisoryRequest->status === AdvisoryRequestStatus::RETURNED
+            && in_array($advisoryRequest->status, [
+                AdvisoryRequestStatus::UNDER_DIRECTOR_REVIEW,
+                AdvisoryRequestStatus::RETURNED,
+                AdvisoryRequestStatus::REJECTED,
+            ], true)
+            && $advisoryRequest->assigned_team_leader_id === null
+            && $advisoryRequest->assigned_legal_expert_id === null
+            && ($user->can('advisory.create') || $user->can('advisory-requests.create'));
+    }
+
+    public function delete(User $user, AdvisoryRequest $advisoryRequest): bool
+    {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        return $advisoryRequest->requester_user_id === $user->getKey()
+            && in_array($advisoryRequest->status, [
+                AdvisoryRequestStatus::UNDER_DIRECTOR_REVIEW,
+                AdvisoryRequestStatus::RETURNED,
+                AdvisoryRequestStatus::REJECTED,
+            ], true)
+            && $advisoryRequest->assigned_team_leader_id === null
+            && $advisoryRequest->assigned_legal_expert_id === null
             && ($user->can('advisory.create') || $user->can('advisory-requests.create'));
     }
 

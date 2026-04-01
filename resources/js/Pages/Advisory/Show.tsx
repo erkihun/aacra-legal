@@ -1,20 +1,18 @@
-import FileAttachmentCard from '@/Components/Ui/FileAttachmentCard';
-import CommentItem from '@/Components/Ui/CommentItem';
 import ConfirmationDialog from '@/Components/Ui/ConfirmationDialog';
 import EmptyState from '@/Components/Ui/EmptyState';
+import FileAttachmentCard from '@/Components/Ui/FileAttachmentCard';
 import FormField from '@/Components/Ui/FormField';
 import PageContainer from '@/Components/Ui/PageContainer';
 import SectionHeader from '@/Components/Ui/SectionHeader';
 import StatusBadge from '@/Components/Ui/StatusBadge';
 import SurfaceCard from '@/Components/Ui/SurfaceCard';
-import Tabs from '@/Components/Ui/Tabs';
-import Timeline from '@/Components/Ui/Timeline';
-import WorkflowProgress from '@/Components/Ui/WorkflowProgress';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useDateFormatter } from '@/lib/dates';
+import { finishSuccessfulSubmission } from '@/lib/form-submission';
 import { useI18n } from '@/lib/i18n';
+import { sanitizeRichTextHtml } from '@/lib/sanitize-rich-text';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { useMemo, useState } from 'react';
+import { type ReactNode, useMemo, useState } from 'react';
 
 type ShowAdvisoryProps = {
     requestItem: any;
@@ -28,10 +26,8 @@ type ShowAdvisoryProps = {
         review: boolean;
         assign: boolean;
         respond: boolean;
-        comment: boolean;
         attach: boolean;
         update: boolean;
-        requester_comment_public: boolean;
     };
 };
 
@@ -42,17 +38,14 @@ export default function AdvisoryShow({
     workspace,
     can,
 }: ShowAdvisoryProps) {
-    const normalizeArray = (value: any) => (Array.isArray(value) ? value : []);
-
-    const attachments = normalizeArray(requestItem.attachments);
-    const comments = normalizeArray(requestItem.comments);
-    const responses = normalizeArray(requestItem.responses);
-    const assignments = normalizeArray(requestItem.assignments);
-
     const { t, locale } = useI18n();
     const { formatDateTime } = useDateFormatter();
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [attachmentToDelete, setAttachmentToDelete] = useState<any | null>(null);
+    const [responseToDelete, setResponseToDelete] = useState<any | null>(null);
+
+    const attachments = Array.isArray(requestItem.attachments) ? requestItem.attachments : [];
+    const responses = Array.isArray(requestItem.responses) ? requestItem.responses : [];
 
     const reviewForm = useForm({
         director_decision: 'approved',
@@ -65,66 +58,8 @@ export default function AdvisoryShow({
         notes: '',
     });
 
-    const responseForm = useForm({
-        response_type: 'written',
-        summary: '',
-        advice_text: '',
-        follow_up_notes: '',
-    });
-
-    const commentForm = useForm({
-        body: '',
-        is_internal: !can.requester_comment_public,
-    });
-
-    const attachmentForm = useForm({
-        attachments: [] as File[],
-    });
     const deleteAttachmentForm = useForm({});
-
-    const stages = [
-        { label: t('advisory.workflow.requester'), complete: true, active: false },
-        {
-            label: t('advisory.workflow.director'),
-            complete: ['assigned_to_team_leader', 'assigned_to_expert', 'responded', 'completed', 'closed'].includes(requestItem.status),
-            active: requestItem.workflow_stage === 'director',
-        },
-        {
-            label: t('advisory.workflow.team_leader'),
-            complete: ['assigned_to_expert', 'responded', 'completed', 'closed'].includes(requestItem.status),
-            active: requestItem.workflow_stage === 'team_leader',
-        },
-        {
-            label: t('advisory.workflow.expert'),
-            complete: ['responded', 'completed', 'closed'].includes(requestItem.status),
-            active: requestItem.workflow_stage === 'expert',
-        },
-    ];
-
-    const timelineItems = useMemo(() => {
-        const assignmentItems = assignments.map((assignment: any) => ({
-            id: assignment.id,
-            title: `${assignment.assignment_role.replace('_', ' ')} ${t('common.assignment')}`,
-            body: `${assignment.assigned_by} ${t('common.assigned_to')} ${assignment.assigned_to}${assignment.notes ? `. ${assignment.notes}` : ''}`,
-            meta: assignment.assigned_at,
-        }));
-
-        const responseItems = responses.map((response: any) => ({
-            id: response.id,
-            title: `${response.response_type} ${t('advisory.response')}`,
-            body: `${response.responder}: ${response.summary}`,
-            meta: response.responded_at,
-        }));
-
-        const commentsItems = comments.map((comment: any) => ({
-            id: comment.id,
-            title: t('common.internal_comment'),
-            body: `${comment.user?.name ?? t('common.not_available')}: ${comment.body}`,
-            meta: comment.created_at,
-        }));
-
-        return [...assignmentItems, ...responseItems, ...commentsItems].sort((a, b) => `${b.meta}`.localeCompare(`${a.meta}`));
-    }, [assignments, responses, comments, t]);
+    const deleteResponseForm = useForm({});
 
     const departmentName =
         locale === 'am'
@@ -135,46 +70,125 @@ export default function AdvisoryShow({
             ? requestItem.category?.name_am ?? requestItem.category?.name_en
             : requestItem.category?.name_en;
 
-    const latestResponse = responses[0] ?? null;
     const isRequesterReturned = can.update && requestItem.status === 'returned';
-    const commentLabel = can.requester_comment_public ? t('advisory.follow_up_note') : t('common.add_internal_note');
+    const hasWorkspaceActions = workspace.canAssignTeamLeader || workspace.canAssignExpert || can.respond;
+    const sanitizedDescriptionHtml = useMemo(
+        () => sanitizeRichTextHtml(requestItem.description),
+        [requestItem.description],
+    );
 
-    const tabItems = [
-        {
-            key: 'overview',
-            label: t('common.overview'),
-            content: (
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                    <DetailCard label={t('advisory.department')} value={departmentName} />
-                    <DetailCard label={t('advisory.category')} value={categoryName} />
-                    <DetailCard label={t('advisory.requester')} value={requestItem.requester?.name} />
-                    <DetailCard label={t('advisory.request_type')} value={requestItem.request_type} />
-                    <DetailCard label={t('advisory.team_leader')} value={requestItem.assigned_team_leader?.name ?? t('common.unassigned')} />
-                    <DetailCard label={t('advisory.expert')} value={requestItem.assigned_legal_expert?.name ?? t('common.unassigned')} />
-                    <DetailCard label={t('advisory.priority')} value={requestItem.priority} />
-                    <DetailCard label={t('advisory.due_date')} value={requestItem.due_date} />
-                    <DetailCard label={t('reports.completed_at')} value={requestItem.completed_at} />
+    return (
+        <AuthenticatedLayout
+            breadcrumbs={[
+                { label: t('navigation.dashboard'), href: route('dashboard') },
+                { label: t('navigation.advisory_requests'), href: route('advisory.index') },
+                { label: requestItem.request_number },
+            ]}
+        >
+            <Head title={requestItem.request_number} />
+
+            <PageContainer className="space-y-6">
+                <SectionHeader
+                    eyebrow={requestItem.request_number}
+                    title={requestItem.subject}
+                    action={
+                        isRequesterReturned ? (
+                            <Link href={route('advisory.edit', { advisoryRequest: requestItem.id })} className="btn-base btn-primary focus-ring">
+                                {t('advisory.resubmit_request')}
+                            </Link>
+                        ) : undefined
+                    }
+                />
+
+                <div className="flex flex-wrap gap-2">
+                    <StatusBadge value={requestItem.status} />
+                    <StatusBadge value={requestItem.priority} />
+                    <StatusBadge value={requestItem.director_decision} />
                 </div>
-            ),
-        },
-        {
-            key: 'activity',
-            label: t('common.timeline'),
-            content: (
-                <SurfaceCard>
-                    <Timeline items={timelineItems} />
+
+                <SurfaceCard className="space-y-5 p-6">
+                    <div className="space-y-1">
+                        <h2 className="text-lg font-semibold text-[color:var(--text)]">
+                            {t('common.overview')}
+                        </h2>
+                    </div>
+
+                    <dl className="grid gap-x-8 gap-y-5 md:grid-cols-2 xl:grid-cols-3">
+                        <OverviewItem label={t('advisory.department')} value={departmentName} />
+                        <OverviewItem label={t('advisory.category')} value={categoryName} />
+                        <OverviewItem label={t('advisory.requester')} value={requestItem.requester?.name} />
+                        <OverviewItem label={t('advisory.request_type')} value={requestItem.request_type} />
+                        <OverviewItem label={t('advisory.priority')} value={requestItem.priority} />
+                        <OverviewItem label={t('advisory.due_date')} value={requestItem.due_date} />
+                        <OverviewItem label={t('common.status')} value={<StatusBadge value={requestItem.status} />} />
+                        <OverviewItem
+                            label={t('advisory.team_leader')}
+                            value={requestItem.assigned_team_leader?.name ?? t('common.unassigned')}
+                        />
+                        <OverviewItem
+                            label={t('advisory.expert')}
+                            value={requestItem.assigned_legal_expert?.name ?? t('common.unassigned')}
+                        />
+                    </dl>
+
+                    <div className="border-t border-[color:var(--border)] pt-5">
+                        <p className="text-sm font-semibold text-[color:var(--muted-strong)]">
+                            {t('common.description')}
+                        </p>
+                        {sanitizedDescriptionHtml ? (
+                            <div
+                                className="prose prose-sm mt-4 max-w-none text-[color:var(--text)] dark:prose-invert"
+                                dangerouslySetInnerHTML={{ __html: sanitizedDescriptionHtml }}
+                            />
+                        ) : (
+                            <p className="mt-3 text-sm leading-7 text-[color:var(--text)]">
+                                {t('common.not_available')}
+                            </p>
+                        )}
+                    </div>
                 </SurfaceCard>
-            ),
-        },
-        {
-            key: 'workspace',
-            label: t('common.workspace'),
-            content: (
-                <div className="grid gap-4">
+
+                <SurfaceCard className="space-y-6 p-6">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="space-y-1">
+                            <h2 className="text-lg font-semibold text-[color:var(--text)]">
+                                {t('common.workspace')}
+                            </h2>
+                            {!hasWorkspaceActions ? (
+                                <p className="text-sm text-[color:var(--muted-strong)]">
+                                    {t('common.no_actions_available')}
+                                </p>
+                            ) : null}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            {requestItem.assigned_team_leader?.name ? (
+                                <span className="rounded-full bg-[color:var(--surface-muted)] px-3 py-1 text-xs font-semibold text-[color:var(--muted-strong)]">
+                                    {t('advisory.team_leader')}: {requestItem.assigned_team_leader.name}
+                                </span>
+                            ) : null}
+                            {requestItem.assigned_legal_expert?.name ? (
+                                <span className="rounded-full bg-[color:var(--surface-muted)] px-3 py-1 text-xs font-semibold text-[color:var(--muted-strong)]">
+                                    {t('advisory.expert')}: {requestItem.assigned_legal_expert.name}
+                                </span>
+                            ) : null}
+                        </div>
+                    </div>
+
                     {workspace.canAssignTeamLeader ? (
-                        <SurfaceCard>
-                            <PanelTitle title={t('advisory.director_review')} />
-                            <div className="grid gap-4 md:grid-cols-2">
+                        <ActionSection
+                            title={t('advisory.director_review')}
+                            footer={
+                                <button
+                                    type="button"
+                                    onClick={() => setConfirmOpen(true)}
+                                    className="btn-base btn-primary focus-ring"
+                                    disabled={reviewForm.processing}
+                                >
+                                    {t('common.submit_review')}
+                                </button>
+                            }
+                        >
+                            <div className="grid gap-4 lg:grid-cols-2">
                                 <FormField label={t('advisory.director_review')} required error={reviewForm.errors.director_decision}>
                                     <select
                                         value={reviewForm.data.director_decision}
@@ -206,38 +220,52 @@ export default function AdvisoryShow({
                                             ))}
                                         </select>
                                     </FormField>
-                                ) : null}
+                                ) : (
+                                    <OverviewItem
+                                        label={t('advisory.team_leader')}
+                                        value={requestItem.assigned_team_leader?.name ?? t('common.unassigned')}
+                                    />
+                                )}
                             </div>
+
                             <FormField
                                 label={t('advisory.director_notes')}
                                 optional
                                 error={reviewForm.errors.director_notes}
-                                className="mt-4"
                             >
                                 <textarea
                                     value={reviewForm.data.director_notes}
                                     onChange={(event) => reviewForm.setData('director_notes', event.target.value)}
-                                    rows={4}
+                                    rows={5}
                                     className="textarea-ui"
                                 />
                             </FormField>
-                            <div className="mt-5 flex flex-wrap justify-end gap-3">
-                                <button
-                                    type="button"
-                                    onClick={() => setConfirmOpen(true)}
-                                    className="btn-base btn-primary focus-ring"
-                                    disabled={reviewForm.processing}
-                                >
-                                    {t('common.submit_review')}
-                                </button>
-                            </div>
-                        </SurfaceCard>
+                        </ActionSection>
                     ) : null}
 
                     {workspace.canAssignExpert ? (
-                        <SurfaceCard>
-                            <PanelTitle title={t('advisory.assign_expert')} />
-                            <div className="grid gap-4 md:grid-cols-2">
+                        <ActionSection
+                            title={t('advisory.assign_expert')}
+                            footer={
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        assignForm.patch(route('advisory.assign', { advisoryRequest: requestItem.id }), {
+                                            onSuccess: () => {
+                                                finishSuccessfulSubmission(assignForm, {
+                                                    reset: true,
+                                                });
+                                            },
+                                        })
+                                    }
+                                    className="btn-base btn-primary focus-ring"
+                                    disabled={assignForm.processing}
+                                >
+                                    {t('common.assign')}
+                                </button>
+                            }
+                        >
+                            <div className="grid gap-4 lg:grid-cols-2">
                                 <FormField
                                     label={t('advisory.expert')}
                                     required
@@ -256,289 +284,131 @@ export default function AdvisoryShow({
                                         ))}
                                     </select>
                                 </FormField>
-                                <FormField
-                                    label={t('common.assignment_notes')}
-                                    optional
-                                    error={assignForm.errors.notes}
-                                >
+
+                                <FormField label={t('common.assignment_notes')} optional error={assignForm.errors.notes}>
                                     <textarea
                                         value={assignForm.data.notes}
                                         onChange={(event) => assignForm.setData('notes', event.target.value)}
-                                        rows={4}
+                                        rows={5}
                                         className="textarea-ui"
                                     />
                                 </FormField>
                             </div>
-                            <div className="mt-5 flex flex-wrap justify-end gap-3">
-                                <button
-                                    type="button"
-                                    onClick={() => assignForm.patch(route('advisory.assign', { advisoryRequest: requestItem.id }))}
-                                    className="btn-base btn-primary focus-ring"
-                                    disabled={assignForm.processing}
-                                >
-                                    {t('common.assign')}
-                                </button>
-                            </div>
-                        </SurfaceCard>
+                        </ActionSection>
                     ) : null}
 
-                    {can.respond ? (
-                        <SurfaceCard>
-                            <PanelTitle title={t('advisory.record_response')} />
-                            <div className="grid gap-4 md:grid-cols-2">
-                                <FormField
-                                    label={t('advisory.request_type')}
-                                    required
-                                    error={responseForm.errors.response_type}
-                                >
-                                    <select
-                                        value={responseForm.data.response_type}
-                                        onChange={(event) => responseForm.setData('response_type', event.target.value)}
-                                        className="select-ui"
+                    <div className="space-y-6 border-t border-[color:var(--border)] pt-6">
+                        <section className="space-y-4">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                                <div className="space-y-1">
+                                    <h3 className="text-base font-semibold text-[color:var(--text)]">
+                                        {t('advisory.response')}
+                                    </h3>
+                                </div>
+
+                                {can.respond ? (
+                                    <Link
+                                        href={route('advisory.responses.create', { advisoryRequest: requestItem.id })}
+                                        className="btn-base btn-primary focus-ring"
                                     >
-                                        <option value="written">{t('common.written')}</option>
-                                        <option value="verbal">{t('common.verbal')}</option>
-                                    </select>
-                                </FormField>
-                                <FormField
-                                    label={t('advisory.response_summary')}
-                                    required
-                                    error={responseForm.errors.summary}
-                                >
-                                    <textarea
-                                        value={responseForm.data.summary}
-                                        onChange={(event) => responseForm.setData('summary', event.target.value)}
-                                        rows={4}
-                                        className="textarea-ui"
-                                    />
-                                </FormField>
+                                        {t('advisory.add_response')}
+                                    </Link>
+                                ) : null}
                             </div>
-                            <div className="mt-4 grid gap-4 md:grid-cols-2">
-                                <FormField
-                                    label={t('advisory.advice_text')}
-                                    optional={responseForm.data.response_type === 'verbal'}
-                                    required={responseForm.data.response_type === 'written'}
-                                    error={responseForm.errors.advice_text}
-                                >
-                                    <textarea
-                                        value={responseForm.data.advice_text}
-                                        onChange={(event) => responseForm.setData('advice_text', event.target.value)}
-                                        rows={6}
-                                        className="textarea-ui"
-                                    />
-                                </FormField>
-                                <FormField
-                                    label={t('common.assignment_notes')}
-                                    optional
-                                    error={responseForm.errors.follow_up_notes}
-                                >
-                                    <textarea
-                                        value={responseForm.data.follow_up_notes}
-                                        onChange={(event) => responseForm.setData('follow_up_notes', event.target.value)}
-                                        rows={6}
-                                        className="textarea-ui"
-                                    />
-                                </FormField>
-                            </div>
-                            <div className="mt-5 flex flex-wrap justify-end gap-3">
-                                <button
-                                    type="button"
-                                    onClick={() => responseForm.post(route('advisory.respond', { advisoryRequest: requestItem.id }))}
-                                    className="btn-base btn-primary focus-ring"
-                                    disabled={responseForm.processing}
-                                >
-                                    {t('common.save_response')}
-                                </button>
-                            </div>
-                        </SurfaceCard>
-                    ) : null}
 
-                    {!workspace.canAssignTeamLeader && !workspace.canAssignExpert && !can.respond ? (
-                        <EmptyState
-                            title={t('common.workspace')}
-                            description={t('common.no_actions_available')}
-                        />
-                    ) : null}
-                </div>
-            ),
-        },
-    ];
-
-    return (
-        <AuthenticatedLayout
-            breadcrumbs={[
-                { label: t('navigation.dashboard'), href: route('dashboard') },
-                { label: t('navigation.advisory_requests'), href: route('advisory.index') },
-                { label: requestItem.request_number },
-            ]}
-        >
-            <Head title={requestItem.request_number} />
-
-            <PageContainer>
-                <SectionHeader
-                    eyebrow={requestItem.request_number}
-                    title={requestItem.subject}
-                    description={requestItem.description}
-                    action={
-                        isRequesterReturned ? (
-                            <Link href={route('advisory.edit', { advisoryRequest: requestItem.id })} className="btn-base btn-primary focus-ring">
-                                {t('advisory.resubmit_request')}
-                            </Link>
-                        ) : undefined
-                    }
-                />
-
-                <div className="flex flex-wrap gap-2">
-                    <StatusBadge value={requestItem.status} />
-                    <StatusBadge value={requestItem.priority} />
-                    <StatusBadge value={requestItem.director_decision} />
-                </div>
-
-                <WorkflowProgress stages={stages} />
-
-                <div className="grid gap-4 2xl:grid-cols-[minmax(0,1.55fr),minmax(20rem,0.95fr)]">
-                    <div className="space-y-4">
-                        <Tabs items={tabItems} />
-                    </div>
-
-                    <div className="space-y-4">
-                        <SurfaceCard>
-                            <PanelTitle title={t('advisory.response')} />
-                            {latestResponse ? (
-                                <div className="space-y-4">
-                                    <div className="flex flex-wrap gap-2">
-                                        <StatusBadge value={latestResponse.response_type} />
-                                        <span className="rounded-full bg-[color:var(--surface-muted)] px-3 py-1 text-xs font-semibold uppercase text-[color:var(--muted-strong)]">
-                                            {latestResponse.responded_at ?? t('common.not_available')}
-                                        </span>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <p className="text-sm font-semibold text-[color:var(--text)]">
-                                            {latestResponse.summary}
-                                        </p>
-                                        {latestResponse.advice_text ? (
-                                            <p className="text-sm leading-6 text-[color:var(--muted-strong)]">
-                                                {latestResponse.advice_text}
-                                            </p>
-                                        ) : null}
-                                        {latestResponse.follow_up_notes ? (
-                                            <p className="text-sm leading-6 text-[color:var(--muted)]">
-                                                {latestResponse.follow_up_notes}
-                                            </p>
-                                        ) : null}
-                                    </div>
+                            {responses.length > 0 ? (
+                                <div className="overflow-x-auto rounded-[var(--radius-lg)] border border-[color:var(--border)]">
+                                    <table className="min-w-full divide-y divide-[color:var(--border)] text-sm">
+                                        <thead className="bg-[color:var(--surface-muted)]/70">
+                                            <tr className="text-left text-xs font-semibold uppercase text-[color:var(--muted)]">
+                                                <th className="px-4 py-3">#</th>
+                                                <th className="px-4 py-3">{t('common.date')}</th>
+                                                <th className="px-4 py-3">{t('advisory.request_code')}</th>
+                                                <th className="px-4 py-3">{t('advisory.requester')}</th>
+                                                <th className="px-4 py-3">{t('advisory.department')}</th>
+                                                <th className="px-4 py-3">{t('audit.actor')}</th>
+                                                <th className="px-4 py-3">{t('common.actions')}</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-[color:var(--border)] bg-[color:var(--surface)]">
+                                            {responses.map((response: any, index: number) => (
+                                                <tr key={response.id} className="align-top">
+                                                    <td className="px-4 py-4 font-medium text-[color:var(--text)]">
+                                                        {index + 1}
+                                                    </td>
+                                                    <td className="px-4 py-4 text-[color:var(--muted-strong)]">
+                                                        {response.responded_at
+                                                            ? formatDateTime(response.responded_at)
+                                                            : t('common.not_available')}
+                                                    </td>
+                                                    <td className="px-4 py-4 font-medium text-[color:var(--text)]">
+                                                        {requestItem.request_number}
+                                                    </td>
+                                                    <td className="px-4 py-4 text-[color:var(--text)]">
+                                                        {requestItem.requester?.name ?? t('common.not_available')}
+                                                    </td>
+                                                    <td className="px-4 py-4 text-[color:var(--text)]">
+                                                        {departmentName ?? t('common.not_available')}
+                                                    </td>
+                                                    <td className="px-4 py-4 font-medium text-[color:var(--text)]">
+                                                        {response.responder ?? t('common.not_available')}
+                                                    </td>
+                                                    <td className="px-4 py-4">
+                                                        <div className="flex flex-wrap gap-2">
+                                                            <Link
+                                                                href={route('advisory.responses.show', {
+                                                                    advisoryRequest: requestItem.id,
+                                                                    advisoryResponse: response.id,
+                                                                })}
+                                                                className="btn-base btn-secondary focus-ring"
+                                                            >
+                                                                {t('common.view')}
+                                                            </Link>
+                                                            {response.can_update ? (
+                                                                <Link
+                                                                    href={route('advisory.responses.edit', {
+                                                                        advisoryRequest: requestItem.id,
+                                                                        advisoryResponse: response.id,
+                                                                    })}
+                                                                    className="btn-base btn-secondary focus-ring"
+                                                                >
+                                                                    {t('common.edit')}
+                                                                </Link>
+                                                            ) : null}
+                                                            {response.can_delete ? (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setResponseToDelete(response)}
+                                                                    className="btn-base btn-danger focus-ring"
+                                                                >
+                                                                    {t('common.delete')}
+                                                                </button>
+                                                            ) : null}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
                                 </div>
                             ) : (
                                 <EmptyState
-                                    title={t('advisory.record_response')}
+                                    title={t('advisory.response')}
                                     description={t('common.not_available')}
                                 />
                             )}
-                        </SurfaceCard>
+                        </section>
 
-                        <SurfaceCard>
-                            <PanelTitle title={t('common.internal_comment')} />
-                            {can.comment ? (
-                                <div className="space-y-4">
-                                    <FormField
-                                        label={commentLabel}
-                                        required
-                                        error={commentForm.errors.body}
-                                    >
-                                        <textarea
-                                            value={commentForm.data.body}
-                                            onChange={(event) => commentForm.setData('body', event.target.value)}
-                                            rows={4}
-                                            className="textarea-ui"
-                                        />
-                                    </FormField>
-                                    <div className="flex flex-wrap justify-end gap-3">
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                commentForm.transform((data) => ({
-                                                    ...data,
-                                                    is_internal: !can.requester_comment_public,
-                                                }));
-                                                commentForm.post(route('advisory.comments.store', { advisoryRequest: requestItem.id }), {
-                                                    onFinish: () => commentForm.transform((data) => data),
-                                                });
-                                            }}
-                                            className="btn-base btn-secondary focus-ring"
-                                            disabled={commentForm.processing}
-                                        >
-                                            {t('common.add_comment')}
-                                        </button>
-                                    </div>
+                        {attachments.length > 0 ? (
+                            <section className="space-y-4 border-t border-[color:var(--border)] pt-6">
+                                <div className="space-y-1">
+                                    <h3 className="text-base font-semibold text-[color:var(--text)]">
+                                        {t('common.attachments')}
+                                    </h3>
                                 </div>
-                            ) : null}
 
-                            <div className="mt-4 space-y-3">
-                                {comments.length === 0 ? (
-                                    <EmptyState
-                                        title={t('common.internal_comment')}
-                                        description={t('common.no_comments')}
-                                    />
-                                ) : (
-                                    comments.map((comment: any) => (
-                                        <CommentItem
-                                            key={comment.id}
-                                            author={comment.user?.name}
-                                            body={comment.body}
-                                            date={formatDateTime(comment.created_at)}
-                                        />
-                                    ))
-                                )}
-                            </div>
-                        </SurfaceCard>
-
-                        <SurfaceCard>
-                            <PanelTitle title={t('common.attachments')} />
-                            {can.attach ? (
-                                <div className="space-y-4">
-                                    <FormField
-                                        label={t('common.attachments')}
-                                        optional
-                                        error={attachmentForm.errors.attachments as string | undefined}
-                                    >
-                                        <input
-                                            type="file"
-                                            multiple
-                                            onChange={(event) =>
-                                                attachmentForm.setData(
-                                                    'attachments',
-                                                    Array.from(event.target.files ?? []),
-                                                )
-                                            }
-                                            className="input-ui file:mr-4 file:rounded-full file:border-0 file:bg-[var(--primary-soft)] file:px-4 file:py-2 file:text-sm file:font-semibold file:text-[color:var(--primary)]"
-                                        />
-                                    </FormField>
-                                    <div className="flex flex-wrap justify-end gap-3">
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                attachmentForm.post(
-                                                    route('advisory.attachments.store', { advisoryRequest: requestItem.id }),
-                                                    { forceFormData: true },
-                                                )
-                                            }
-                                            className="btn-base btn-secondary focus-ring"
-                                            disabled={attachmentForm.processing}
-                                        >
-                                            {t('common.upload_files')}
-                                        </button>
-                                    </div>
-                                </div>
-                            ) : null}
-
-                            <div className="mt-4 space-y-3">
-                                {attachments.length === 0 ? (
-                                    <EmptyState
-                                        title={t('common.attachments')}
-                                        description={t('common.no_attachments')}
-                                    />
-                                ) : (
-                                    attachments.map((attachment: any) => (
+                                <div className="space-y-3">
+                                    {attachments.map((attachment: any) => (
                                         <FileAttachmentCard
                                             key={attachment.id}
                                             name={attachment.original_name}
@@ -553,12 +423,12 @@ export default function AdvisoryShow({
                                                     : undefined
                                             }
                                         />
-                                    ))
-                                )}
-                            </div>
-                        </SurfaceCard>
+                                    ))}
+                                </div>
+                            </section>
+                        ) : null}
                     </div>
-                </div>
+                </SurfaceCard>
             </PageContainer>
 
             <ConfirmationDialog
@@ -569,7 +439,14 @@ export default function AdvisoryShow({
                 onCancel={() => setConfirmOpen(false)}
                 onConfirm={() => {
                     reviewForm.patch(route('advisory.review', { advisoryRequest: requestItem.id }), {
-                        onSuccess: () => setConfirmOpen(false),
+                        onSuccess: () => {
+                            finishSuccessfulSubmission(reviewForm, {
+                                reset: true,
+                                afterSuccess: () => {
+                                    setConfirmOpen(false);
+                                },
+                            });
+                        },
                     });
                 }}
                 processing={reviewForm.processing}
@@ -588,30 +465,82 @@ export default function AdvisoryShow({
 
                     deleteAttachmentForm.delete(attachmentToDelete.delete_url, {
                         preserveScroll: true,
-                        onSuccess: () => setAttachmentToDelete(null),
+                        onSuccess: () => {
+                            finishSuccessfulSubmission(deleteAttachmentForm, {
+                                afterSuccess: () => {
+                                    setAttachmentToDelete(null);
+                                },
+                            });
+                        },
                     });
                 }}
                 processing={deleteAttachmentForm.processing}
+            />
+
+            <ConfirmationDialog
+                open={responseToDelete !== null}
+                title={t('advisory.delete_response_title')}
+                description={t('advisory.delete_response_description')}
+                confirmLabel={t('common.delete')}
+                onCancel={() => setResponseToDelete(null)}
+                onConfirm={() => {
+                    if (!responseToDelete) {
+                        return;
+                    }
+
+                    deleteResponseForm.delete(route('advisory.responses.destroy', {
+                        advisoryRequest: requestItem.id,
+                        advisoryResponse: responseToDelete.id,
+                    }), {
+                        preserveScroll: true,
+                        onSuccess: () => {
+                            finishSuccessfulSubmission(deleteResponseForm, {
+                                afterSuccess: () => {
+                                    setResponseToDelete(null);
+                                },
+                            });
+                        },
+                    });
+                }}
+                processing={deleteResponseForm.processing}
             />
         </AuthenticatedLayout>
     );
 }
 
-function DetailCard({ label, value }: { label: string; value?: string | null }) {
+function OverviewItem({ label, value }: { label: string; value?: ReactNode }) {
     const { t } = useI18n();
 
     return (
-        <div className="surface-muted px-4 py-4">
-            <p className="text-xs uppercase text-[color:var(--muted)]">{label}</p>
-            <p className="mt-2 text-sm font-semibold text-[color:var(--text)]">
+        <div className="space-y-1.5 border-b border-[color:var(--border)] pb-4 last:border-b-0 last:pb-0">
+            <dt className="text-xs font-semibold uppercase text-[color:var(--muted)]">
+                {label}
+            </dt>
+            <dd className="text-sm font-medium text-[color:var(--text)]">
                 {value ?? t('common.not_set')}
-            </p>
+            </dd>
         </div>
     );
 }
 
-function PanelTitle({ title }: { title: string }) {
-    return <h2 className="text-lg font-semibold text-[color:var(--text)]">{title}</h2>;
+function ActionSection({
+    title,
+    children,
+    footer,
+}: {
+    title: string;
+    children: ReactNode;
+    footer?: ReactNode;
+}) {
+    return (
+        <section className="space-y-4 border-t border-[color:var(--border)] pt-6 first:border-t-0 first:pt-0">
+            <div className="space-y-1">
+                <h3 className="text-base font-semibold text-[color:var(--text)]">{title}</h3>
+            </div>
+            <div className="space-y-4">{children}</div>
+            {footer ? <div className="flex justify-end pt-2">{footer}</div> : null}
+        </section>
+    );
 }
 
 function formatAttachmentMeta(

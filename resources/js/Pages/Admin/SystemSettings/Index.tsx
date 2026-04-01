@@ -5,6 +5,7 @@ import SectionHeader from '@/Components/Ui/SectionHeader';
 import SurfaceCard from '@/Components/Ui/SurfaceCard';
 import Tabs from '@/Components/Ui/Tabs';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { finishSuccessfulSubmission } from '@/lib/form-submission';
 import { useI18n } from '@/lib/i18n';
 import { Head, useForm } from '@inertiajs/react';
 
@@ -180,7 +181,7 @@ export default function SystemSettingsIndex({
         })),
     });
 
-    const submitWithFiles = (form: any, routeName: string) => {
+    const submitWithFiles = (form: any, routeName: string, resetFields: string[] = []) => {
         form.transform((data: any) => ({
             ...data,
             _method: 'put',
@@ -189,8 +190,26 @@ export default function SystemSettingsIndex({
         form.post(routeName, {
             preserveScroll: true,
             forceFormData: true,
+            onSuccess: () => {
+                finishSuccessfulSubmission(form, {
+                    preserveScroll: true,
+                    reset: resetFields,
+                });
+            },
             onFinish: () => {
                 form.transform((data: any) => data);
+            },
+        });
+    };
+
+    const submitSection = (form: any, routeName: string) => {
+        form.put(routeName, {
+            preserveScroll: true,
+            onSuccess: () => {
+                finishSuccessfulSubmission(form, {
+                    preserveScroll: true,
+                    syncDefaults: true,
+                });
             },
         });
     };
@@ -223,6 +242,7 @@ export default function SystemSettingsIndex({
                 tableDensityOptions={tableDensityOptions}
                 settingsGroups={settingsGroups}
                 submitWithFiles={submitWithFiles}
+                submitSection={submitSection}
             />
         ),
     }));
@@ -262,6 +282,7 @@ function SettingsGroupPanel({
     tableDensityOptions,
     settingsGroups,
     submitWithFiles,
+    submitSection,
 }: {
     group: SettingsGroupKey;
     routeName: string;
@@ -274,7 +295,8 @@ function SettingsGroupPanel({
     cardRadiusOptions: Array<{ value: string; label: string }>;
     tableDensityOptions: Array<{ value: string; label: string }>;
     settingsGroups: Record<SettingsGroupKey, Record<string, any>>;
-    submitWithFiles: (form: any, routeName: string) => void;
+    submitWithFiles: (form: any, routeName: string, resetFields?: string[]) => void;
+    submitSection: (form: any, routeName: string) => void;
 }) {
     const { t } = useI18n();
     const telegramTestForm = useForm({});
@@ -284,7 +306,7 @@ function SettingsGroupPanel({
 
         return (
             <SurfaceCard>
-                <form onSubmit={(event) => { event.preventDefault(); submitWithFiles(form, routeName); }} className="space-y-6">
+                <form onSubmit={(event) => { event.preventDefault(); submitWithFiles(form, routeName, ['system_logo', 'favicon']); }} className="space-y-6">
                     <div className="grid gap-6 xl:grid-cols-[1.1fr,0.9fr]">
                         <div className="grid gap-4 md:grid-cols-2">
                             <TextField form={form} name="application_name" label={t('settings.fields.application_name')} required />
@@ -396,6 +418,12 @@ function SettingsGroupPanel({
                         form.post(routeName, {
                             preserveScroll: true,
                             forceFormData: true,
+                            onSuccess: () => {
+                                finishSuccessfulSubmission(form, {
+                                    preserveScroll: true,
+                                    syncDefaults: true,
+                                });
+                            },
                             onFinish: () => form.transform((data: any) => data),
                         });
                     }}
@@ -492,7 +520,7 @@ function SettingsGroupPanel({
 
         return (
             <SurfaceCard>
-                <form onSubmit={(event) => { event.preventDefault(); form.put(routeName, { preserveScroll: true }); }} className="space-y-6">
+                <form onSubmit={(event) => { event.preventDefault(); submitSection(form, routeName); }} className="space-y-6">
                     <ToggleField form={form} name="sms_enabled" label={t('settings.fields.sms_enabled')} />
                     <div className="grid gap-4 md:grid-cols-2">
                         <TextField form={form} name="provider_name" label={t('settings.fields.provider_name')} />
@@ -511,7 +539,7 @@ function SettingsGroupPanel({
 
         return (
             <SurfaceCard>
-                <form onSubmit={(event) => { event.preventDefault(); form.put(routeName, { preserveScroll: true }); }} className="space-y-6">
+                <form onSubmit={(event) => { event.preventDefault(); submitSection(form, routeName); }} className="space-y-6">
                     <div className="space-y-4">
                         <div>
                             <h3 className="text-base font-semibold text-[color:var(--text)]">{t('settings.groups.telegram')}</h3>
@@ -582,7 +610,14 @@ function SettingsGroupPanel({
                             type="button"
                             className="btn-base btn-secondary focus-ring"
                             disabled={form.processing || telegramTestForm.processing || form.isDirty}
-                            onClick={() => telegramTestForm.post(route('settings.telegram.test'), { preserveScroll: true })}
+                            onClick={() => telegramTestForm.post(route('settings.telegram.test'), {
+                                preserveScroll: true,
+                                onSuccess: () => {
+                                    finishSuccessfulSubmission(telegramTestForm, {
+                                        preserveScroll: true,
+                                    });
+                                },
+                            })}
                         >
                             {t('settings.actions.send_test_telegram')}
                         </button>
@@ -599,7 +634,7 @@ function SettingsGroupPanel({
 
         return (
             <SurfaceCard>
-                <form onSubmit={(event) => { event.preventDefault(); form.put(routeName, { preserveScroll: true }); }} className="space-y-6">
+                <form onSubmit={(event) => { event.preventDefault(); submitSection(form, routeName); }} className="space-y-6">
                     <div className="grid gap-4 md:grid-cols-3">
                         <TextField form={form} name="password_min_length" label={t('settings.fields.password_min_length')} type="number" required />
                         <TextField form={form} name="session_timeout_minutes" label={t('settings.fields.session_timeout_minutes')} type="number" required />
@@ -820,7 +855,7 @@ function SettingsGroupPanel({
 
     return (
         <SurfaceCard>
-            <form onSubmit={(event) => { event.preventDefault(); form.put(routeName, { preserveScroll: true }); }} className="space-y-6">
+            <form onSubmit={(event) => { event.preventDefault(); submitSection(form, routeName); }} className="space-y-6">
                 <div className="grid gap-6 xl:grid-cols-[1.1fr,0.9fr]">
                     <div className="space-y-6">
                         <div className="grid gap-4 md:grid-cols-2">

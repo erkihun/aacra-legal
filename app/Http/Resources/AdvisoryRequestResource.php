@@ -62,16 +62,20 @@ class AdvisoryRequestResource extends JsonResource
             ])),
             'responses' => $this->whenLoaded('responses', fn () => $this->responses->map(fn ($response) => [
                 'id' => $response->id,
-                'response_type' => $response->response_type?->value,
-                'summary' => $response->summary,
-                'advice_text' => $response->advice_text,
-                'follow_up_notes' => $response->follow_up_notes,
+                'subject' => $response->subject ?? $response->summary,
+                'response' => $response->response ?? $response->advice_text ?? $response->summary,
                 'responded_at' => $response->responded_at?->toIso8601String(),
                 'responder' => $response->responder?->name,
+                'can_update' => $request->user()?->can('update', $response) ?? false,
+                'can_delete' => $request->user()?->can('delete', $response) ?? false,
+                'attachments' => $response->relationLoaded('attachments')
+                    ? AttachmentResource::collection($response->attachments)->resolve($request)
+                    : [],
             ])),
             'comments' => CommentResource::collection($this->whenLoaded('comments')),
             'attachments' => AttachmentResource::collection($this->whenLoaded('attachments')),
             'can_update' => $request->user()?->can('update', $this->resource) ?? false,
+            'can_delete' => $request->user()?->can('delete', $this->resource) ?? false,
         ];
     }
 }

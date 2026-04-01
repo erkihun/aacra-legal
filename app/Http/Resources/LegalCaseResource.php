@@ -15,11 +15,19 @@ class LegalCaseResource extends JsonResource
             'id' => $this->id,
             'case_number' => $this->case_number,
             'external_court_file_number' => $this->external_court_file_number,
+            'main_case_type' => $this->main_case_type?->value,
             'plaintiff' => $this->plaintiff,
             'defendant' => $this->defendant,
             'bench_or_chamber' => $this->bench_or_chamber,
             'claim_summary' => $this->claim_summary,
             'institution_position' => $this->institution_position,
+            'amount' => $this->amount,
+            'crime_scene' => $this->crime_scene,
+            'police_station' => $this->police_station,
+            'stolen_property_type' => $this->stolen_property_type,
+            'stolen_property_estimated_value' => $this->stolen_property_estimated_value,
+            'suspect_names' => $this->suspect_names,
+            'statement_date' => $this->statement_date?->toDateString(),
             'status' => $this->status?->value,
             'workflow_stage' => $this->workflow_stage?->value,
             'priority' => $this->priority?->value,
@@ -74,9 +82,19 @@ class LegalCaseResource extends JsonResource
                 'court_decision' => $hearing->court_decision,
                 'outcome' => $hearing->outcome,
                 'recorded_by' => $hearing->recordedBy?->name,
+                'can_update' => $request->user()?->can('update', $hearing) ?? false,
+                'can_delete' => $request->user()?->can('delete', $hearing) ?? false,
             ])),
-            'comments' => CommentResource::collection($this->whenLoaded('comments')),
-            'attachments' => AttachmentResource::collection($this->whenLoaded('attachments')),
+            'comments' => $this->whenLoaded('comments', fn () => $this->comments
+                ->map(fn ($comment) => CommentResource::make($comment)->resolve($request))
+                ->values()
+                ->all()),
+            'attachments' => $this->whenLoaded('attachments', fn () => $this->attachments
+                ->map(fn ($attachment) => AttachmentResource::make($attachment)->resolve($request))
+                ->values()
+                ->all()),
+            'can_update' => $request->user()?->can('update', $this->resource) ?? false,
+            'can_delete' => $request->user()?->can('delete', $this->resource) ?? false,
         ];
     }
 }

@@ -51,10 +51,14 @@ Route::middleware('auth')->group(function () {
     Route::get('/advisory', [AdvisoryRequestController::class, 'index'])->name('advisory.index');
     Route::get('/advisory/create', [AdvisoryRequestController::class, 'create'])->name('advisory.create');
     Route::get('/advisory/{advisoryRequest}/edit', [AdvisoryRequestController::class, 'edit'])->name('advisory.edit');
+    Route::get('/advisory/{advisoryRequest}/responses/create', [AdvisoryRequestController::class, 'createResponse'])->name('advisory.responses.create');
+    Route::get('/advisory/{advisoryRequest}/responses/{advisoryResponse}/edit', [AdvisoryRequestController::class, 'editResponse'])->name('advisory.responses.edit');
+    Route::get('/advisory/{advisoryRequest}/responses/{advisoryResponse}', [AdvisoryRequestController::class, 'showResponse'])->name('advisory.responses.show');
     Route::get('/advisory/{advisoryRequest}', [AdvisoryRequestController::class, 'show'])->name('advisory.show');
 
     Route::get('/cases', [LegalCaseController::class, 'index'])->name('cases.index');
     Route::get('/cases/create', [LegalCaseController::class, 'create'])->name('cases.create');
+    Route::get('/cases/{legalCase}/edit', [LegalCaseController::class, 'edit'])->name('cases.edit');
     Route::get('/cases/{legalCase}', [LegalCaseController::class, 'show'])->name('cases.show');
 
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
@@ -87,21 +91,31 @@ Route::middleware('auth')->group(function () {
     Route::middleware('throttle:legal-mutations')->group(function () {
         Route::post('/advisory', [AdvisoryRequestController::class, 'store'])->name('advisory.store');
         Route::patch('/advisory/{advisoryRequest}', [AdvisoryRequestController::class, 'update'])->name('advisory.update');
+        Route::delete('/advisory/{advisoryRequest}', [AdvisoryRequestController::class, 'destroy'])->name('advisory.destroy');
 
         Route::patch('/advisory/{advisoryRequest}/review', [AdvisoryRequestController::class, 'directorReview'])->name('advisory.review');
         Route::patch('/advisory/{advisoryRequest}/assign', [AdvisoryRequestController::class, 'assign'])->name('advisory.assign');
         Route::post('/advisory/{advisoryRequest}/responses', [AdvisoryRequestController::class, 'respond'])->name('advisory.respond');
+        Route::patch('/advisory/{advisoryRequest}/responses/{advisoryResponse}', [AdvisoryRequestController::class, 'updateResponse'])->name('advisory.responses.update');
+        Route::delete('/advisory/{advisoryRequest}/responses/{advisoryResponse}', [AdvisoryRequestController::class, 'destroyResponse'])->name('advisory.responses.destroy');
         
         Route::post('/advisory/{advisoryRequest}/comments', [AdvisoryRequestController::class, 'addComment'])->name('advisory.comments.store');
         Route::post('/advisory/{advisoryRequest}/attachments', [AdvisoryRequestController::class, 'addAttachment'])->name('advisory.attachments.store');
 
         Route::post('/cases', [LegalCaseController::class, 'store'])->name('cases.store');
+        Route::patch('/cases/{legalCase}', [LegalCaseController::class, 'update'])->name('cases.update');
+        Route::delete('/cases/{legalCase}', [LegalCaseController::class, 'destroy'])->name('cases.destroy');
         Route::patch('/cases/{legalCase}/review', [LegalCaseController::class, 'review'])->name('cases.review');
         Route::patch('/cases/{legalCase}/assign', [LegalCaseController::class, 'assign'])->name('cases.assign');
         Route::post('/cases/{legalCase}/hearings', [LegalCaseController::class, 'recordHearing'])->name('cases.hearings.store');
+        Route::patch('/cases/{legalCase}/hearings/{hearing}', [LegalCaseController::class, 'updateHearing'])->name('cases.hearings.update');
+        Route::delete('/cases/{legalCase}/hearings/{hearing}', [LegalCaseController::class, 'destroyHearing'])->name('cases.hearings.destroy');
         Route::patch('/cases/{legalCase}/close', [LegalCaseController::class, 'close'])->name('cases.close');
         Route::post('/cases/{legalCase}/comments', [LegalCaseController::class, 'addComment'])->name('cases.comments.store');
+        Route::patch('/cases/{legalCase}/comments/{comment}', [LegalCaseController::class, 'updateComment'])->name('cases.comments.update');
+        Route::delete('/cases/{legalCase}/comments/{comment}', [LegalCaseController::class, 'destroyComment'])->name('cases.comments.destroy');
         Route::post('/cases/{legalCase}/attachments', [LegalCaseController::class, 'addAttachment'])->name('cases.attachments.store');
+        Route::patch('/attachments/{attachment}', [AttachmentController::class, 'update'])->name('attachments.update');
         Route::delete('/attachments/{attachment}', [AttachmentController::class, 'destroy'])->name('attachments.destroy');
         Route::patch('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
         Route::patch('/notifications/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.read');

@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Concerns\HasUuidPrimaryKey;
 use App\Enums\CaseStatus;
 use App\Enums\DirectorDecision;
+use App\Enums\LegalCaseMainType;
 use App\Enums\PriorityLevel;
 use App\Enums\SystemRole;
 use App\Enums\WorkflowStage;
@@ -31,6 +32,7 @@ class LegalCase extends Model
         'external_court_file_number',
         'court_id',
         'case_type_id',
+        'main_case_type',
         'registered_by_id',
         'director_reviewer_id',
         'assigned_team_leader_id',
@@ -44,6 +46,13 @@ class LegalCase extends Model
         'director_decision',
         'claim_summary',
         'institution_position',
+        'amount',
+        'crime_scene',
+        'police_station',
+        'stolen_property_type',
+        'stolen_property_estimated_value',
+        'suspect_names',
+        'statement_date',
         'outcome',
         'director_notes',
         'filing_date',
@@ -60,8 +69,12 @@ class LegalCase extends Model
             'workflow_stage' => WorkflowStage::class,
             'priority' => PriorityLevel::class,
             'director_decision' => DirectorDecision::class,
+            'main_case_type' => LegalCaseMainType::class,
+            'amount' => 'decimal:2',
+            'stolen_property_estimated_value' => 'decimal:2',
             'filing_date' => 'date',
             'next_hearing_date' => 'date',
+            'statement_date' => 'date',
             'decision_date' => 'date',
             'appeal_deadline' => 'date',
             'completed_at' => 'datetime',

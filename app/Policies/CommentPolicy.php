@@ -30,4 +30,26 @@ class CommentPolicy
     {
         return $user->can('comments.create');
     }
+
+    public function update(User $user, Comment $comment): bool
+    {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        $commentable = $comment->commentable;
+
+        if (($commentable instanceof AdvisoryRequest || $commentable instanceof LegalCase)
+            && $user->can('view', $commentable)
+            && $comment->user_id === $user->getKey()) {
+            return $user->can('comments.create');
+        }
+
+        return false;
+    }
+
+    public function delete(User $user, Comment $comment): bool
+    {
+        return $this->update($user, $comment);
+    }
 }

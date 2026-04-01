@@ -15,7 +15,7 @@ type RegisterProps = {
 
 export default function Register({ departments }: RegisterProps) {
     const { t, locale } = useI18n();
-    const { data, setData, post, processing, errors, reset } = useForm({
+    const { data, setData, post, processing, errors } = useForm({
         name: '',
         email: '',
         phone: '',
@@ -28,9 +28,7 @@ export default function Register({ departments }: RegisterProps) {
     const submit: FormEventHandler = (event) => {
         event.preventDefault();
 
-        post(route('register'), {
-            onFinish: () => reset('password', 'password_confirmation'),
-        });
+        post(route('register'));
     };
 
     return (

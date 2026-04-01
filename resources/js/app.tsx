@@ -5,7 +5,8 @@ import { createInertiaApp, router } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { ComponentType, PropsWithChildren, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { ToastBatchSync, ToastMessage, ToastProvider } from './lib/toast';
+import { extractFirstErrorMessage } from './lib/form-submission';
+import { ToastBatchSync, ToastMessage, ToastProvider, useToast } from './lib/toast';
 import { initializeTheme } from './lib/theme';
 
 type AppMetaPayload = {
@@ -191,10 +192,36 @@ function AppShell({
 
     return (
         <ToastProvider>
+            <RouterToastSync />
             <ToastBatchSync batchKey={toastBatch.key} messages={toastBatch.messages} />
             <App {...appProps} />
         </ToastProvider>
     );
+}
+
+function RouterToastSync() {
+    const { pushToast } = useToast();
+
+    useEffect(() => {
+        const removeListener = router.on('error', (event: any) => {
+            const message = extractFirstErrorMessage(event?.detail?.errors);
+
+            if (!message) {
+                return;
+            }
+
+            pushToast({
+                variant: 'error',
+                message,
+            });
+        });
+
+        return () => {
+            removeListener();
+        };
+    }, [pushToast]);
+
+    return null;
 }
 
 createInertiaApp({

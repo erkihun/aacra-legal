@@ -9,6 +9,7 @@ use App\Enums\DirectorDecision;
 use App\Enums\WorkflowStage;
 use App\Models\AdvisoryRequest;
 use App\Models\User;
+use App\Support\RichTextSanitizer;
 use Illuminate\Support\Facades\DB;
 
 class SubmitAdvisoryRequestAction
@@ -16,6 +17,7 @@ class SubmitAdvisoryRequestAction
     public function __construct(
         private readonly GenerateSequenceNumberAction $sequenceNumberAction,
         private readonly StoreAttachmentAction $storeAttachmentAction,
+        private readonly RichTextSanitizer $richTextSanitizer,
     ) {}
 
     /**
@@ -26,6 +28,7 @@ class SubmitAdvisoryRequestAction
         return DB::transaction(function () use ($attributes, $requester): AdvisoryRequest {
             $request = AdvisoryRequest::query()->create([
                 ...$attributes,
+                'description' => $this->richTextSanitizer->sanitize($attributes['description'] ?? null),
                 'request_number' => $this->sequenceNumberAction->execute('ADV'),
                 'requester_user_id' => $requester->getKey(),
                 'status' => AdvisoryRequestStatus::UNDER_DIRECTOR_REVIEW,

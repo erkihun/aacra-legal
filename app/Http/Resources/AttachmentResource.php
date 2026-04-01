@@ -19,6 +19,8 @@ class AttachmentResource extends JsonResource
             'view_url' => route('attachments.view', $this->resource),
             'download_url' => route('attachments.download', $this->resource),
             'delete_url' => route('attachments.destroy', $this->resource),
+            'update_url' => route('attachments.update', $this->resource),
+            'can_update' => $request->user()?->can('update', $this->resource) ?? false,
             'can_delete' => $request->user()?->can('delete', $this->resource) ?? false,
             'uploaded_by' => $this->uploadedBy?->name,
             'created_at' => $this->created_at?->toIso8601String(),

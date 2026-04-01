@@ -15,7 +15,7 @@ export default function Login({
     canResetPassword: boolean;
 }) {
     const { t } = useI18n();
-    const { data, setData, post, processing, errors, reset } = useForm({
+    const { data, setData, post, processing, errors } = useForm({
         email: '',
         password: '',
         remember: false as boolean,
@@ -24,9 +24,7 @@ export default function Login({
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
 
-        post(route('login'), {
-            onFinish: () => reset('password'),
-        });
+        post(route('login'));
     };
 
     return (

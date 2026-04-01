@@ -9,6 +9,7 @@ use App\Enums\AdvisoryRequestType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class AdvisoryResponse extends Model
 {
@@ -18,6 +19,8 @@ class AdvisoryResponse extends Model
     protected $fillable = [
         'advisory_request_id',
         'responder_id',
+        'subject',
+        'response',
         'response_type',
         'summary',
         'advice_text',
@@ -41,5 +44,10 @@ class AdvisoryResponse extends Model
     public function responder(): BelongsTo
     {
         return $this->belongsTo(User::class, 'responder_id');
+    }
+
+    public function attachments(): MorphMany
+    {
+        return $this->morphMany(Attachment::class, 'attachable');
     }
 }

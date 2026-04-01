@@ -22,9 +22,7 @@ class RecordCaseHearingRequest extends FormRequest
             'next_hearing_date' => ['nullable', 'date', 'after_or_equal:hearing_date'],
             'appearance_status' => ['nullable', 'string', 'max:255'],
             'summary' => ['required', 'string', 'min:10'],
-            'institution_position' => ['nullable', 'string'],
             'court_decision' => ['nullable', 'string'],
-            'outcome' => ['nullable', 'string'],
         ];
     }
 }

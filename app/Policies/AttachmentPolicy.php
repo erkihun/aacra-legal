@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Policies;
 
 use App\Models\AdvisoryRequest;
+use App\Models\AdvisoryResponse;
 use App\Models\Attachment;
 use App\Models\LegalCase;
 use App\Models\User;
@@ -53,6 +54,37 @@ class AttachmentPolicy
             return $user->can('attach', $attachable);
         }
 
+        if ($attachable instanceof AdvisoryResponse) {
+            return $user->can('respond', $attachable->advisoryRequest);
+        }
+
+        return false;
+    }
+
+    public function update(User $user, Attachment $attachment): bool
+    {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        if (! $this->canAccessAttachable($user, $attachment)) {
+            return false;
+        }
+
+        if ($attachment->uploaded_by_id === $user->getKey()) {
+            return $user->can('attachments.create');
+        }
+
+        $attachable = $attachment->attachable;
+
+        if ($attachable instanceof AdvisoryRequest || $attachable instanceof LegalCase) {
+            return $user->can('attach', $attachable);
+        }
+
+        if ($attachable instanceof AdvisoryResponse) {
+            return $user->can('respond', $attachable->advisoryRequest);
+        }
+
         return false;
     }
 
@@ -62,6 +94,10 @@ class AttachmentPolicy
 
         if ($attachable instanceof AdvisoryRequest || $attachable instanceof LegalCase) {
             return $user->can('view', $attachable);
+        }
+
+        if ($attachable instanceof AdvisoryResponse) {
+            return $user->can('view', $attachable->advisoryRequest);
         }
 
         return false;

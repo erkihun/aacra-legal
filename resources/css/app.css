@@ -218,6 +218,51 @@ body[data-table-density='compact'] {
             background-color 180ms ease;
     }
 
+    .rich-text-editor .tox {
+        border-radius: var(--radius-input);
+        border: 1px solid var(--border);
+        background: color-mix(in srgb, var(--surface-strong) 92%, transparent);
+        color: var(--text);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    }
+
+    .rich-text-editor .tox .tox-editor-header,
+    .rich-text-editor .tox .tox-toolbar,
+    .rich-text-editor .tox .tox-toolbar__primary,
+    .rich-text-editor .tox .tox-menubar,
+    .rich-text-editor .tox .tox-sidebar-wrap,
+    .rich-text-editor .tox .tox-edit-area__iframe {
+        background: color-mix(in srgb, var(--surface-strong) 96%, transparent);
+    }
+
+    .rich-text-editor .tox .tox-toolbar-overlord,
+    .rich-text-editor .tox .tox-statusbar,
+    .rich-text-editor .tox .tox-edit-area::before {
+        border-color: var(--border);
+    }
+
+    .rich-text-editor .tox .tox-tbtn,
+    .rich-text-editor .tox .tox-tbtn svg,
+    .rich-text-editor .tox .tox-statusbar,
+    .rich-text-editor .tox .tox-statusbar a,
+    .rich-text-editor .tox .tox-statusbar__text-container,
+    .rich-text-editor .tox .tox-toolbar__group,
+    .rich-text-editor .tox .tox-mbtn__select-label {
+        color: var(--text);
+        fill: currentColor;
+    }
+
+    .rich-text-editor .tox .tox-tbtn:hover,
+    .rich-text-editor .tox .tox-tbtn--enabled,
+    .rich-text-editor .tox .tox-tbtn--enabled:hover {
+        background: var(--primary-soft);
+        color: var(--primary);
+    }
+
+    .rich-text-editor .tox .tox-edit-area__iframe {
+        border-radius: 0 0 var(--radius-input) var(--radius-input);
+    }
+
     .input-ui,
     .select-ui {
         @apply px-4 py-3 text-sm;

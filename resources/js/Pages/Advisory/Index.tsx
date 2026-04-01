@@ -1,9 +1,11 @@
+import ConfirmationDialog from '@/Components/Ui/ConfirmationDialog';
 import DataTable from '@/Components/Ui/DataTable';
 import FiltersToolbar from '@/Components/Ui/FiltersToolbar';
 import PageContainer from '@/Components/Ui/PageContainer';
 import SectionHeader from '@/Components/Ui/SectionHeader';
 import StatusBadge from '@/Components/Ui/StatusBadge';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { finishSuccessfulSubmission } from '@/lib/form-submission';
 import { useI18n } from '@/lib/i18n';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
@@ -23,6 +25,7 @@ type AdvisoryListProps = {
             status: string;
             priority: string;
             can_update?: boolean;
+            can_delete?: boolean;
             due_date?: string | null;
             department?: {
                 name_en: string;
@@ -49,11 +52,13 @@ export default function AdvisoryIndex({
 }: AdvisoryListProps) {
     const { t, locale } = useI18n();
     const [isFiltering, setIsFiltering] = useState(false);
+    const [requestToDelete, setRequestToDelete] = useState<AdvisoryListProps['requests']['data'][number] | null>(null);
     const { data, setData } = useForm({
         search: filters.search ?? '',
         status: filters.status ?? '',
         request_type: filters.request_type ?? '',
     });
+    const deleteForm = useForm({});
 
     const submitFilters = () => {
         setIsFiltering(true);
@@ -150,12 +155,6 @@ export default function AdvisoryIndex({
                     rowKey={(row) => row.id}
                     emptyTitle={t('advisory.empty_title')}
                     emptyDescription={t('advisory.empty_description')}
-                    actions={(row) => [
-                        { label: t('common.view'), href: route('advisory.show', { advisoryRequest: row.id }) },
-                        ...(row.can_update
-                            ? [{ label: t('common.edit'), href: route('advisory.edit', { advisoryRequest: row.id }) }]
-                            : []),
-                    ]}
                     columns={[
                         {
                             key: 'reference',
@@ -196,9 +195,66 @@ export default function AdvisoryIndex({
                             header: t('reports.status'),
                             cell: (row) => <StatusBadge value={row.status} />,
                         },
+                        {
+                            key: 'actions',
+                            header: t('common.actions'),
+                            className: 'w-64',
+                            cell: (row) => (
+                                <div className="flex flex-wrap gap-2">
+                                    <Link
+                                        href={route('advisory.show', { advisoryRequest: row.id })}
+                                        className="btn-base btn-secondary focus-ring"
+                                    >
+                                        {t('common.view')}
+                                    </Link>
+                                    {row.can_update ? (
+                                        <Link
+                                            href={route('advisory.edit', { advisoryRequest: row.id })}
+                                            className="btn-base btn-secondary focus-ring"
+                                        >
+                                            {t('common.edit')}
+                                        </Link>
+                                    ) : null}
+                                    {row.can_delete ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => setRequestToDelete(row)}
+                                            className="btn-base btn-danger focus-ring"
+                                        >
+                                            {t('common.delete')}
+                                        </button>
+                                    ) : null}
+                                </div>
+                            ),
+                        },
                     ]}
                 />
             </PageContainer>
+
+            <ConfirmationDialog
+                open={requestToDelete !== null}
+                title={t('advisory.delete_request_title')}
+                description={t('advisory.delete_request_description')}
+                confirmLabel={t('common.delete')}
+                onCancel={() => setRequestToDelete(null)}
+                onConfirm={() => {
+                    if (!requestToDelete) {
+                        return;
+                    }
+
+                    deleteForm.delete(route('advisory.destroy', { advisoryRequest: requestToDelete.id }), {
+                        preserveScroll: true,
+                        onSuccess: () => {
+                            finishSuccessfulSubmission(deleteForm, {
+                                afterSuccess: () => {
+                                    setRequestToDelete(null);
+                                },
+                            });
+                        },
+                    });
+                }}
+                processing={deleteForm.processing}
+            />
         </AuthenticatedLayout>
     );
 }

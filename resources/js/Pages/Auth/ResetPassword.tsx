@@ -15,7 +15,7 @@ export default function ResetPassword({
     email: string;
 }) {
     const { t } = useI18n();
-    const { data, setData, post, processing, errors, reset } = useForm({
+    const { data, setData, post, processing, errors } = useForm({
         token: token,
         email: email,
         password: '',
@@ -25,9 +25,7 @@ export default function ResetPassword({
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
 
-        post(route('password.store'), {
-            onFinish: () => reset('password', 'password_confirmation'),
-        });
+        post(route('password.store'));
     };
 
     return (

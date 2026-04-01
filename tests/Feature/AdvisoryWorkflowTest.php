@@ -6,6 +6,7 @@ use App\Enums\AdvisoryRequestStatus;
 use App\Enums\SystemRole;
 use App\Models\AdvisoryCategory;
 use App\Models\AdvisoryRequest;
+use App\Models\AdvisoryResponse;
 use App\Models\Department;
 use App\Models\Team;
 use App\Models\User;
@@ -62,11 +63,10 @@ it('moves an advisory request through requester director team leader and expert'
     expect($advisoryRequest->assigned_legal_expert_id)->toBe($expert->id);
 
     $this->actingAs($expert)->post(route('advisory.respond', $advisoryRequest), [
-        'response_type' => 'written',
-        'summary' => 'The department may proceed once notice and evaluation records are preserved.',
-        'advice_text' => 'Keep the bid-evaluation memo, bidder communication record, and appeal timeline on file.',
-        'follow_up_notes' => 'Brief procurement team this week.',
-    ])->assertSessionHasNoErrors();
+        'subject' => 'Written opinion on procurement review steps',
+        'response' => 'Keep the bid-evaluation memo, bidder communication record, and appeal timeline on file.',
+    ])->assertRedirect(route('advisory.show', $advisoryRequest))
+        ->assertSessionHasNoErrors();
 
     $advisoryRequest->refresh();
 
@@ -181,6 +181,266 @@ it('hides advisory assignment workspace forms once assignment already exists', f
             ->where('workspace.canAssignTeamLeader', false)
             ->where('workspace.canAssignExpert', false)
         );
+});
+
+it('renders the advisory response create page for the assigned expert', function (): void {
+    $teamLeader = createUserWithRole(
+        SystemRole::ADVISORY_TEAM_LEADER,
+        Department::query()->where('code', 'LEG')->firstOrFail(),
+        Team::query()->where('code', 'ADV')->firstOrFail(),
+    );
+
+    $expert = createUserWithRole(
+        SystemRole::LEGAL_EXPERT,
+        Department::query()->where('code', 'LEG')->firstOrFail(),
+        Team::query()->where('code', 'ADV')->firstOrFail(),
+    );
+
+    $requester = createUserWithRole(
+        SystemRole::DEPARTMENT_REQUESTER,
+        Department::query()->where('code', 'HR')->firstOrFail(),
+    );
+
+    $advisoryRequest = AdvisoryRequest::query()->create([
+        'request_number' => 'ADV-2026-9010',
+        'department_id' => $requester->department_id,
+        'category_id' => AdvisoryCategory::query()->firstOrFail()->id,
+        'requester_user_id' => $requester->id,
+        'assigned_team_leader_id' => $teamLeader->id,
+        'assigned_legal_expert_id' => $expert->id,
+        'subject' => 'Response create page',
+        'request_type' => 'written',
+        'status' => AdvisoryRequestStatus::ASSIGNED_TO_EXPERT,
+        'workflow_stage' => 'expert',
+        'priority' => 'medium',
+        'director_decision' => 'approved',
+        'description' => 'The assigned expert should be able to open the dedicated response create page.',
+        'date_submitted' => now()->toDateString(),
+    ]);
+
+    $this->actingAs($expert)
+        ->get(route('advisory.responses.create', $advisoryRequest))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Advisory/Responses/Create')
+            ->where('requestItem.id', $advisoryRequest->id)
+            ->where('requestItem.request_number', $advisoryRequest->request_number)
+        );
+});
+
+it('shows advisory request delete availability on the list and allows deleting an eligible request', function (): void {
+    $requester = createUserWithRole(
+        SystemRole::DEPARTMENT_REQUESTER,
+        Department::query()->where('code', 'HR')->firstOrFail(),
+    );
+
+    $advisoryRequest = AdvisoryRequest::query()->create([
+        'request_number' => 'ADV-2026-9020',
+        'department_id' => $requester->department_id,
+        'category_id' => AdvisoryCategory::query()->firstOrFail()->id,
+        'requester_user_id' => $requester->id,
+        'subject' => 'Delete eligible advisory request',
+        'request_type' => 'written',
+        'status' => AdvisoryRequestStatus::RETURNED,
+        'workflow_stage' => 'requester',
+        'priority' => 'medium',
+        'director_decision' => 'returned',
+        'description' => 'This returned request should be deletable by the original requester.',
+        'date_submitted' => now()->toDateString(),
+    ]);
+
+    $this->actingAs($requester)
+        ->get(route('advisory.index'))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Advisory/Index')
+            ->where('requests.data.0.id', $advisoryRequest->id)
+            ->where('requests.data.0.can_delete', true)
+        );
+
+    $this->actingAs($requester)
+        ->delete(route('advisory.destroy', $advisoryRequest))
+        ->assertRedirect();
+
+    $this->assertSoftDeleted('advisory_requests', [
+        'id' => $advisoryRequest->id,
+    ]);
+});
+
+it('shows advisory request edit availability on the list for requester-owned unassigned requests', function (): void {
+    $requester = createUserWithRole(
+        SystemRole::DEPARTMENT_REQUESTER,
+        Department::query()->where('code', 'HR')->firstOrFail(),
+    );
+
+    $advisoryRequest = AdvisoryRequest::query()->create([
+        'request_number' => 'ADV-2026-9020A',
+        'department_id' => $requester->department_id,
+        'category_id' => AdvisoryCategory::query()->firstOrFail()->id,
+        'requester_user_id' => $requester->id,
+        'subject' => 'Editable advisory request',
+        'request_type' => 'written',
+        'status' => AdvisoryRequestStatus::UNDER_DIRECTOR_REVIEW,
+        'workflow_stage' => 'director',
+        'priority' => 'medium',
+        'director_decision' => 'pending',
+        'description' => 'This unassigned request should expose the edit action on the requester list.',
+        'date_submitted' => now()->toDateString(),
+    ]);
+
+    $this->actingAs($requester)
+        ->get(route('advisory.index'))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Advisory/Index')
+            ->where('requests.data.0.id', $advisoryRequest->id)
+            ->where('requests.data.0.can_update', true)
+        );
+});
+
+it('renders the advisory response edit page and updates the response for the original responder', function (): void {
+    $teamLeader = createUserWithRole(
+        SystemRole::ADVISORY_TEAM_LEADER,
+        Department::query()->where('code', 'LEG')->firstOrFail(),
+        Team::query()->where('code', 'ADV')->firstOrFail(),
+    );
+
+    $expert = createUserWithRole(
+        SystemRole::LEGAL_EXPERT,
+        Department::query()->where('code', 'LEG')->firstOrFail(),
+        Team::query()->where('code', 'ADV')->firstOrFail(),
+    );
+
+    $requester = createUserWithRole(
+        SystemRole::DEPARTMENT_REQUESTER,
+        Department::query()->where('code', 'HR')->firstOrFail(),
+    );
+
+    $advisoryRequest = AdvisoryRequest::query()->create([
+        'request_number' => 'ADV-2026-9021',
+        'department_id' => $requester->department_id,
+        'category_id' => AdvisoryCategory::query()->firstOrFail()->id,
+        'requester_user_id' => $requester->id,
+        'assigned_team_leader_id' => $teamLeader->id,
+        'assigned_legal_expert_id' => $expert->id,
+        'subject' => 'Editable advisory response',
+        'request_type' => 'written',
+        'status' => AdvisoryRequestStatus::RESPONDED,
+        'workflow_stage' => 'completed',
+        'priority' => 'medium',
+        'director_decision' => 'approved',
+        'description' => 'The original responder should be able to edit the saved response.',
+        'date_submitted' => now()->toDateString(),
+        'completed_at' => now(),
+    ]);
+
+    $response = $advisoryRequest->responses()->create([
+        'responder_id' => $expert->id,
+        'subject' => 'Original subject',
+        'response' => '<p>Original response body.</p>',
+        'summary' => 'Original subject',
+        'advice_text' => '<p>Original response body.</p>',
+        'responded_at' => now(),
+    ]);
+
+    $this->actingAs($expert)
+        ->get(route('advisory.responses.edit', [
+            'advisoryRequest' => $advisoryRequest,
+            'advisoryResponse' => $response,
+        ]))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Advisory/Responses/Create')
+            ->where('mode', 'edit')
+            ->where('responseItem.id', $response->id)
+        );
+
+    $this->actingAs($expert)
+        ->patch(route('advisory.responses.update', [
+            'advisoryRequest' => $advisoryRequest,
+            'advisoryResponse' => $response,
+        ]), [
+            'subject' => 'Updated subject',
+            'response' => '<p>Updated response body.</p>',
+        ])
+        ->assertRedirect(route('advisory.responses.show', [
+            'advisoryRequest' => $advisoryRequest,
+            'advisoryResponse' => $response,
+        ]))
+        ->assertSessionHasNoErrors();
+
+    $response->refresh();
+    $advisoryRequest->refresh();
+
+    expect($response->subject)->toBe('Updated subject');
+    expect($response->response)->toBe('<p>Updated response body.</p>');
+    expect($advisoryRequest->internal_summary)->toBe('Updated subject');
+});
+
+it('shows advisory response edit and delete capabilities and allows deleting a response', function (): void {
+    $teamLeader = createUserWithRole(
+        SystemRole::ADVISORY_TEAM_LEADER,
+        Department::query()->where('code', 'LEG')->firstOrFail(),
+        Team::query()->where('code', 'ADV')->firstOrFail(),
+    );
+
+    $expert = createUserWithRole(
+        SystemRole::LEGAL_EXPERT,
+        Department::query()->where('code', 'LEG')->firstOrFail(),
+        Team::query()->where('code', 'ADV')->firstOrFail(),
+    );
+
+    $requester = createUserWithRole(
+        SystemRole::DEPARTMENT_REQUESTER,
+        Department::query()->where('code', 'HR')->firstOrFail(),
+    );
+
+    $advisoryRequest = AdvisoryRequest::query()->create([
+        'request_number' => 'ADV-2026-9022',
+        'department_id' => $requester->department_id,
+        'category_id' => AdvisoryCategory::query()->firstOrFail()->id,
+        'requester_user_id' => $requester->id,
+        'assigned_team_leader_id' => $teamLeader->id,
+        'assigned_legal_expert_id' => $expert->id,
+        'subject' => 'Deletable advisory response',
+        'request_type' => 'written',
+        'status' => AdvisoryRequestStatus::RESPONDED,
+        'workflow_stage' => 'completed',
+        'priority' => 'medium',
+        'director_decision' => 'approved',
+        'description' => 'The original responder should be able to delete the response and reopen the request.',
+        'date_submitted' => now()->toDateString(),
+        'completed_at' => now(),
+    ]);
+
+    $response = $advisoryRequest->responses()->create([
+        'responder_id' => $expert->id,
+        'subject' => 'Response subject',
+        'response' => '<p>Response body.</p>',
+        'summary' => 'Response subject',
+        'advice_text' => '<p>Response body.</p>',
+        'responded_at' => now(),
+    ]);
+
+    $this->actingAs($expert)
+        ->get(route('advisory.show', $advisoryRequest))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Advisory/Show')
+            ->where('requestItem.responses.0.id', $response->id)
+            ->where('requestItem.responses.0.can_update', true)
+            ->where('requestItem.responses.0.can_delete', true)
+        );
+
+    $this->actingAs($expert)
+        ->delete(route('advisory.responses.destroy', [
+            'advisoryRequest' => $advisoryRequest,
+            'advisoryResponse' => $response,
+        ]))
+        ->assertRedirect(route('advisory.show', $advisoryRequest))
+        ->assertSessionHasNoErrors();
+
+    expect(AdvisoryResponse::query()->whereKey($response->id)->exists())->toBeFalse();
+
+    $advisoryRequest->refresh();
+
+    expect($advisoryRequest->status)->toBe(AdvisoryRequestStatus::ASSIGNED_TO_EXPERT);
+    expect($advisoryRequest->completed_at)->toBeNull();
 });
 
 function createUserWithRole(SystemRole $role, Department $department, ?Team $team = null): User

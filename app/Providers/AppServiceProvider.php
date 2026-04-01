@@ -6,6 +6,7 @@ namespace App\Providers;
 
 use App\Models\AdvisoryCategory;
 use App\Models\AdvisoryRequest;
+use App\Models\AdvisoryResponse;
 use App\Models\Attachment;
 use App\Models\CaseType;
 use App\Models\Comment;
@@ -67,6 +68,7 @@ class AppServiceProvider extends ServiceProvider
             'case_type' => CaseType::class,
             'legal_case_type' => LegalCaseType::class,
             'advisory_request' => AdvisoryRequest::class,
+            'advisory_response' => AdvisoryResponse::class,
             'legal_case' => LegalCase::class,
             'attachment' => Attachment::class,
             'comment' => Comment::class,

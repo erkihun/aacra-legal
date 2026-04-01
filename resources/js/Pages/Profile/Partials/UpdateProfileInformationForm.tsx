@@ -1,6 +1,7 @@
 import PrimaryButton from '@/Components/PrimaryButton';
 import FormField from '@/Components/Ui/FormField';
 import TextInput from '@/Components/TextInput';
+import { finishSuccessfulSubmission } from '@/lib/form-submission';
 import { useI18n } from '@/lib/i18n';
 import { PageProps } from '@/types';
 import { Link, useForm, usePage } from '@inertiajs/react';
@@ -20,7 +21,7 @@ export default function UpdateProfileInformation({
     const user = page.props.auth.user!;
     const locales = page.props.availableLocales ?? [];
 
-    const { data, setData, patch, errors, processing } = useForm({
+    const form = useForm({
         name: user.name,
         email: user.email,
         phone: user.phone ?? '',
@@ -30,7 +31,14 @@ export default function UpdateProfileInformation({
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
 
-        patch(route('profile.update'));
+        form.patch(route('profile.update'), {
+            onSuccess: () => {
+                finishSuccessfulSubmission(form, {
+                    preserveScroll: true,
+                    syncDefaults: true,
+                });
+            },
+        });
     };
 
     return (
@@ -41,42 +49,42 @@ export default function UpdateProfileInformation({
             </header>
 
             <form onSubmit={submit} className="mt-6 space-y-6">
-                <FormField label={t('auth.name')} required error={errors.name}>
+                <FormField label={t('auth.name')} required error={form.errors.name}>
                     <TextInput
                         id="name"
                         className="block w-full"
-                        value={data.name}
-                        onChange={(e) => setData('name', e.target.value)}
+                        value={form.data.name}
+                        onChange={(e) => form.setData('name', e.target.value)}
                         required
                         isFocused
                         autoComplete="name"
                     />
                 </FormField>
-                <FormField label={t('auth.email')} required error={errors.email}>
+                <FormField label={t('auth.email')} required error={form.errors.email}>
                     <TextInput
                         id="email"
                         type="email"
                         className="block w-full"
-                        value={data.email}
-                        onChange={(e) => setData('email', e.target.value)}
+                        value={form.data.email}
+                        onChange={(e) => form.setData('email', e.target.value)}
                         required
                         autoComplete="username"
                     />
                 </FormField>
-                <FormField label={t('profile.phone')} optional error={errors.phone}>
+                <FormField label={t('profile.phone')} optional error={form.errors.phone}>
                     <TextInput
                         id="phone"
                         className="block w-full"
-                        value={data.phone}
-                        onChange={(e) => setData('phone', e.target.value)}
+                        value={form.data.phone}
+                        onChange={(e) => form.setData('phone', e.target.value)}
                     />
                 </FormField>
-                <FormField label={t('common.language')} required error={errors.locale}>
+                <FormField label={t('common.language')} required error={form.errors.locale}>
                     <select
                         id="locale"
                         className="select-ui"
-                        value={data.locale}
-                        onChange={(e) => setData('locale', e.target.value)}
+                        value={form.data.locale}
+                        onChange={(e) => form.setData('locale', e.target.value)}
                     >
                         {locales.map((locale: { value: string; label: string }) => (
                             <option key={locale.value} value={locale.value}>
@@ -103,7 +111,7 @@ export default function UpdateProfileInformation({
                 ) : null}
 
                 <div className="flex flex-wrap items-center gap-4">
-                    <PrimaryButton disabled={processing}>{t('profile.save')}</PrimaryButton>
+                    <PrimaryButton disabled={form.processing}>{t('profile.save')}</PrimaryButton>
                 </div>
             </form>
         </section>

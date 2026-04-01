@@ -11,6 +11,7 @@ use App\Enums\SystemRole;
 use App\Enums\WorkflowStage;
 use App\Models\AdvisoryCategory;
 use App\Models\AdvisoryRequest;
+use App\Models\AdvisoryResponse;
 use App\Models\CaseType;
 use App\Models\Court;
 use App\Models\Department;
@@ -169,11 +170,97 @@ it('prevents duplicate advisory responses after a request is already completed',
 
     $this->actingAs($expert)
         ->post(route('advisory.respond', $advisoryRequest), [
-            'response_type' => 'written',
-            'summary' => 'Attempting a second response should fail.',
-            'advice_text' => 'This is not allowed once the request is completed.',
+            'subject' => 'Second response attempt',
+            'response' => 'This is not allowed once the request is completed.',
         ])
         ->assertSessionHasErrors('status');
+});
+
+it('prevents deleting an advisory request once it has already been assigned into the workflow', function (): void {
+    $requester = createGuardrailUser(SystemRole::DEPARTMENT_REQUESTER, 'delete-locked-requester@ldms.test', 'HR');
+    $teamLeader = createGuardrailUser(SystemRole::ADVISORY_TEAM_LEADER, 'delete-locked-leader@ldms.test', 'LEG', 'ADV');
+
+    $advisoryRequest = AdvisoryRequest::query()->create([
+        'request_number' => 'ADV-GUARD-0005',
+        'department_id' => $requester->department_id,
+        'category_id' => AdvisoryCategory::query()->firstOrFail()->id,
+        'requester_user_id' => $requester->id,
+        'assigned_team_leader_id' => $teamLeader->id,
+        'subject' => 'Delete locked request',
+        'request_type' => AdvisoryRequestType::WRITTEN,
+        'status' => AdvisoryRequestStatus::ASSIGNED_TO_TEAM_LEADER,
+        'workflow_stage' => WorkflowStage::TEAM_LEADER,
+        'priority' => PriorityLevel::MEDIUM,
+        'director_decision' => DirectorDecision::APPROVED,
+        'description' => 'Assigned requests must not be deletable from the normal requester list flow.',
+        'date_submitted' => now()->toDateString(),
+    ]);
+
+    $this->actingAs($requester)
+        ->delete(route('advisory.destroy', $advisoryRequest))
+        ->assertForbidden();
+
+    expect($advisoryRequest->fresh())->not->toBeNull();
+});
+
+it('prevents non-responders from editing or deleting advisory responses', function (): void {
+    $teamLeader = createGuardrailUser(SystemRole::ADVISORY_TEAM_LEADER, 'response-owner-leader@ldms.test', 'LEG', 'ADV');
+    $expert = createGuardrailUser(SystemRole::LEGAL_EXPERT, 'response-owner@ldms.test', 'LEG', 'ADV');
+    $otherExpert = createGuardrailUser(SystemRole::LEGAL_EXPERT, 'other-response-owner@ldms.test', 'LEG', 'ADV');
+    $requester = createGuardrailUser(SystemRole::DEPARTMENT_REQUESTER, 'response-owner-requester@ldms.test', 'HR');
+
+    $advisoryRequest = AdvisoryRequest::query()->create([
+        'request_number' => 'ADV-GUARD-0006',
+        'department_id' => $requester->department_id,
+        'category_id' => AdvisoryCategory::query()->firstOrFail()->id,
+        'requester_user_id' => $requester->id,
+        'assigned_team_leader_id' => $teamLeader->id,
+        'assigned_legal_expert_id' => $expert->id,
+        'subject' => 'Response ownership guard',
+        'request_type' => AdvisoryRequestType::WRITTEN,
+        'status' => AdvisoryRequestStatus::RESPONDED,
+        'workflow_stage' => WorkflowStage::COMPLETED,
+        'priority' => PriorityLevel::MEDIUM,
+        'director_decision' => DirectorDecision::APPROVED,
+        'description' => 'Only the original responder should be able to edit or delete the saved response.',
+        'date_submitted' => now()->toDateString(),
+        'completed_at' => now(),
+    ]);
+
+    $response = $advisoryRequest->responses()->create([
+        'responder_id' => $expert->id,
+        'subject' => 'Protected response',
+        'response' => '<p>Protected response body.</p>',
+        'summary' => 'Protected response',
+        'advice_text' => '<p>Protected response body.</p>',
+        'responded_at' => now(),
+    ]);
+
+    $this->actingAs($otherExpert)
+        ->get(route('advisory.responses.edit', [
+            'advisoryRequest' => $advisoryRequest,
+            'advisoryResponse' => $response,
+        ]))
+        ->assertForbidden();
+
+    $this->actingAs($otherExpert)
+        ->patch(route('advisory.responses.update', [
+            'advisoryRequest' => $advisoryRequest,
+            'advisoryResponse' => $response,
+        ]), [
+            'subject' => 'Tampered subject',
+            'response' => '<p>Tampered body.</p>',
+        ])
+        ->assertForbidden();
+
+    $this->actingAs($otherExpert)
+        ->delete(route('advisory.responses.destroy', [
+            'advisoryRequest' => $advisoryRequest,
+            'advisoryResponse' => $response,
+        ]))
+        ->assertForbidden();
+
+    expect(AdvisoryResponse::query()->whereKey($response->id)->exists())->toBeTrue();
 });
 
 it('prevents closing a case before it reaches an expert-handling stage', function (): void {
@@ -203,6 +290,53 @@ it('prevents closing a case before it reaches an expert-handling stage', functio
         ->assertSessionHasErrors('status');
 
     expect($legalCase->fresh()->status)->toBe(CaseStatus::UNDER_DIRECTOR_REVIEW);
+});
+
+it('prevents deleting a legal case that is already assigned into the workflow or owned by another registrar', function (): void {
+    $owner = createGuardrailUser(SystemRole::REGISTRAR, 'case-owner@ldms.test', 'LEG', 'ADM');
+    $otherRegistrar = createGuardrailUser(SystemRole::REGISTRAR, 'case-other@ldms.test', 'LEG', 'ADM');
+    $teamLeader = createGuardrailUser(SystemRole::LITIGATION_TEAM_LEADER, 'case-locked-leader@ldms.test', 'LEG', 'LIT');
+
+    $lockedCase = LegalCase::query()->create([
+        'case_number' => 'CASE-GUARD-LOCKED',
+        'main_case_type' => 'civil-law',
+        'court_id' => Court::query()->firstOrFail()->id,
+        'case_type_id' => CaseType::query()->firstOrFail()->id,
+        'registered_by_id' => $owner->id,
+        'assigned_team_leader_id' => $teamLeader->id,
+        'plaintiff' => 'Locked Plaintiff',
+        'defendant' => 'Locked Defendant',
+        'status' => CaseStatus::ASSIGNED_TO_TEAM_LEADER,
+        'workflow_stage' => WorkflowStage::TEAM_LEADER,
+        'priority' => PriorityLevel::HIGH,
+        'director_decision' => DirectorDecision::APPROVED,
+        'claim_summary' => 'Assigned case should not be deletable through the normal list flow.',
+    ]);
+
+    $foreignCase = LegalCase::query()->create([
+        'case_number' => 'CASE-GUARD-FOREIGN',
+        'main_case_type' => 'labour-dispute',
+        'court_id' => Court::query()->firstOrFail()->id,
+        'registered_by_id' => $owner->id,
+        'plaintiff' => 'Foreign Plaintiff',
+        'defendant' => 'Foreign Defendant',
+        'status' => CaseStatus::UNDER_DIRECTOR_REVIEW,
+        'workflow_stage' => WorkflowStage::DIRECTOR,
+        'priority' => PriorityLevel::MEDIUM,
+        'director_decision' => DirectorDecision::PENDING,
+        'claim_summary' => 'Another registrar should not be able to delete this case.',
+    ]);
+
+    $this->actingAs($owner)
+        ->delete(route('cases.destroy', ['legalCase' => $lockedCase]))
+        ->assertForbidden();
+
+    $this->actingAs($otherRegistrar)
+        ->delete(route('cases.destroy', ['legalCase' => $foreignCase]))
+        ->assertForbidden();
+
+    expect($lockedCase->fresh())->not->toBeNull();
+    expect($foreignCase->fresh())->not->toBeNull();
 });
 
 function createGuardrailUser(

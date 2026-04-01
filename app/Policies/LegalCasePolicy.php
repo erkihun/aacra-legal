@@ -43,6 +43,24 @@ class LegalCasePolicy
         return $user->can('cases.create') || $user->can('legal-cases.create');
     }
 
+    public function update(User $user, LegalCase $legalCase): bool
+    {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        return $legalCase->registered_by_id === $user->getKey()
+            && in_array($legalCase->status, [\App\Enums\CaseStatus::INTAKE, \App\Enums\CaseStatus::UNDER_DIRECTOR_REVIEW], true)
+            && $legalCase->assigned_team_leader_id === null
+            && $legalCase->assigned_legal_expert_id === null
+            && ($user->can('cases.create') || $user->can('legal-cases.create'));
+    }
+
+    public function delete(User $user, LegalCase $legalCase): bool
+    {
+        return $this->update($user, $legalCase);
+    }
+
     public function review(User $user, LegalCase $legalCase): bool
     {
         return ($user->isSuperAdmin() || $user->hasSystemRole(SystemRole::LEGAL_DIRECTOR))

@@ -1,6 +1,7 @@
 import PrimaryButton from '@/Components/PrimaryButton';
 import FormField from '@/Components/Ui/FormField';
 import TextInput from '@/Components/TextInput';
+import { finishSuccessfulSubmission } from '@/lib/form-submission';
 import { useI18n } from '@/lib/i18n';
 import { useForm } from '@inertiajs/react';
 import { FormEventHandler, useRef } from 'react';
@@ -32,15 +33,25 @@ export default function UpdatePasswordForm({
 
         put(route('password.update'), {
             preserveScroll: true,
-            onSuccess: () => reset(),
+            onSuccess: () => {
+                finishSuccessfulSubmission(
+                    {
+                        data,
+                        reset,
+                        clearErrors: () => undefined,
+                    },
+                    {
+                        preserveScroll: true,
+                        reset: true,
+                    },
+                );
+            },
             onError: (formErrors) => {
                 if (formErrors.password) {
-                    reset('password', 'password_confirmation');
                     passwordInput.current?.focus();
                 }
 
                 if (formErrors.current_password) {
-                    reset('current_password');
                     currentPasswordInput.current?.focus();
                 }
             },

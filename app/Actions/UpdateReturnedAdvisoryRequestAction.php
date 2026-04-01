@@ -9,6 +9,7 @@ use App\Enums\DirectorDecision;
 use App\Enums\WorkflowStage;
 use App\Models\AdvisoryRequest;
 use App\Models\User;
+use App\Support\RichTextSanitizer;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -16,6 +17,7 @@ class UpdateReturnedAdvisoryRequestAction
 {
     public function __construct(
         private readonly StoreAttachmentAction $storeAttachmentAction,
+        private readonly RichTextSanitizer $richTextSanitizer,
     ) {}
 
     /**
@@ -23,9 +25,18 @@ class UpdateReturnedAdvisoryRequestAction
      */
     public function execute(AdvisoryRequest $advisoryRequest, array $attributes, User $requester): AdvisoryRequest
     {
-        if ($advisoryRequest->requester_user_id !== $requester->getKey() || $advisoryRequest->status !== AdvisoryRequestStatus::RETURNED) {
+        if (
+            $advisoryRequest->requester_user_id !== $requester->getKey()
+            || ! in_array($advisoryRequest->status, [
+                AdvisoryRequestStatus::UNDER_DIRECTOR_REVIEW,
+                AdvisoryRequestStatus::RETURNED,
+                AdvisoryRequestStatus::REJECTED,
+            ], true)
+            || $advisoryRequest->assigned_team_leader_id !== null
+            || $advisoryRequest->assigned_legal_expert_id !== null
+        ) {
             throw ValidationException::withMessages([
-                'status' => __('The advisory request is not ready for requester resubmission.'),
+                'status' => __('The advisory request is not available for editing.'),
             ]);
         }
 
@@ -36,7 +47,7 @@ class UpdateReturnedAdvisoryRequestAction
                 'subject' => $attributes['subject'],
                 'request_type' => $attributes['request_type'],
                 'priority' => $attributes['priority'],
-                'description' => $attributes['description'],
+                'description' => $this->richTextSanitizer->sanitize($attributes['description'] ?? null),
                 'due_date' => $attributes['due_date'] ?? null,
                 'status' => AdvisoryRequestStatus::UNDER_DIRECTOR_REVIEW,
                 'workflow_stage' => WorkflowStage::DIRECTOR,
@@ -54,11 +65,11 @@ class UpdateReturnedAdvisoryRequestAction
             activity()
                 ->performedOn($advisoryRequest)
                 ->causedBy($requester)
-                ->event('resubmitted')
+                ->event('updated')
                 ->withProperties([
                     'status' => AdvisoryRequestStatus::UNDER_DIRECTOR_REVIEW->value,
                 ])
-                ->log('Requester resubmitted advisory request');
+                ->log('Requester updated advisory request');
 
             return $advisoryRequest->fresh([
                 'department',

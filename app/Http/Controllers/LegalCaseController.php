@@ -7,11 +7,14 @@ namespace App\Http\Controllers;
 use App\Actions\AddCommentAction;
 use App\Actions\AssignCaseToExpertAction;
 use App\Actions\CloseCaseAction;
+use App\Actions\DeleteLegalCaseAction;
 use App\Actions\DirectorReviewCaseAction;
 use App\Actions\OpenLegalCaseAction;
 use App\Actions\RecordCaseHearingAction;
 use App\Actions\StoreAttachmentAction;
+use App\Actions\UpdateLegalCaseAction;
 use App\Enums\CaseStatus;
+use App\Enums\LegalCaseMainType;
 use App\Enums\PriorityLevel;
 use App\Enums\SystemRole;
 use App\Enums\WorkflowStage;
@@ -20,11 +23,16 @@ use App\Http\Requests\Cases\CloseLegalCaseRequest;
 use App\Http\Requests\Cases\RecordCaseHearingRequest;
 use App\Http\Requests\Cases\ReviewLegalCaseRequest;
 use App\Http\Requests\Cases\StoreLegalCaseRequest;
+use App\Http\Requests\Cases\UpdateCaseHearingRequest;
+use App\Http\Requests\Cases\UpdateLegalCaseRequest;
 use App\Http\Requests\StoreAttachmentRequest;
 use App\Http\Requests\StoreCommentRequest;
+use App\Http\Requests\UpdateCommentRequest;
 use App\Http\Resources\LegalCaseResource;
 use App\Models\Attachment;
+use App\Models\CaseHearing;
 use App\Models\CaseType;
+use App\Models\Comment;
 use App\Models\Court;
 use App\Models\LegalCase;
 use App\Models\Team;
@@ -44,6 +52,7 @@ class LegalCaseController extends Controller
         $filters = $request->validate([
             'search' => ['nullable', 'string', 'max:255'],
             'status' => ['nullable', Rule::in(array_column(CaseStatus::cases(), 'value'))],
+            'main_case_type' => ['nullable', Rule::in(array_column(LegalCaseMainType::cases(), 'value'))],
         ]);
 
         $cases = LegalCase::query()
@@ -55,10 +64,13 @@ class LegalCaseController extends Controller
                         ->where('case_number', 'like', "%{$search}%")
                         ->orWhere('external_court_file_number', 'like', "%{$search}%")
                         ->orWhere('plaintiff', 'like', "%{$search}%")
-                        ->orWhere('defendant', 'like', "%{$search}%");
+                        ->orWhere('defendant', 'like', "%{$search}%")
+                        ->orWhere('police_station', 'like', "%{$search}%")
+                        ->orWhere('stolen_property_type', 'like', "%{$search}%");
                 });
             })
             ->when($filters['status'] ?? null, fn ($query, string $status) => $query->where('status', $status))
+            ->when($filters['main_case_type'] ?? null, fn ($query, string $mainCaseType) => $query->where('main_case_type', $mainCaseType))
             ->latest('created_at')
             ->paginate(10)
             ->withQueryString();
@@ -73,6 +85,10 @@ class LegalCaseController extends Controller
                 'label' => __("status.{$case->value}"),
                 'value' => $case->value,
             ]),
+            'mainCaseTypeOptions' => collect(LegalCaseMainType::cases())->map(fn (LegalCaseMainType $type) => [
+                'label' => __("cases.main_case_type.{$type->value}"),
+                'value' => $type->value,
+            ]),
         ]);
     }
 
@@ -80,14 +96,7 @@ class LegalCaseController extends Controller
     {
         $this->authorize('create', LegalCase::class);
 
-        return Inertia::render('Cases/Create', [
-            'courts' => Court::query()->where('is_active', true)->orderBy('name_en')->get(['id', 'name_en', 'name_am']),
-            'caseTypes' => CaseType::query()->where('is_active', true)->orderBy('name_en')->get(['id', 'name_en', 'name_am']),
-            'priorityOptions' => collect(PriorityLevel::cases())->map(fn ($case) => [
-                'label' => __("status.{$case->value}"),
-                'value' => $case->value,
-            ]),
-        ]);
+        return Inertia::render('Cases/Create', $this->caseFormPayload());
     }
 
     public function store(StoreLegalCaseRequest $request, OpenLegalCaseAction $action): RedirectResponse
@@ -95,6 +104,38 @@ class LegalCaseController extends Controller
         $legalCase = $action->execute($request->validated(), $request->user());
 
         return to_route('cases.show', $legalCase)->with('success', __('Legal case registered successfully.'));
+    }
+
+    public function edit(LegalCase $legalCase): Response
+    {
+        $this->authorize('update', $legalCase);
+
+        $legalCase->load(['court', 'caseType', 'attachments.uploadedBy']);
+
+        return Inertia::render('Cases/Create', [
+            ...$this->caseFormPayload(),
+            'mode' => 'edit',
+            'caseItem' => LegalCaseResource::make($legalCase)->resolve(),
+        ]);
+    }
+
+    public function update(
+        UpdateLegalCaseRequest $request,
+        LegalCase $legalCase,
+        UpdateLegalCaseAction $action,
+    ): RedirectResponse {
+        $action->execute($legalCase, $request->validated(), $request->user());
+
+        return to_route('cases.show', $legalCase)->with('success', __('Legal case updated successfully.'));
+    }
+
+    public function destroy(LegalCase $legalCase, DeleteLegalCaseAction $action): RedirectResponse
+    {
+        $this->authorize('delete', $legalCase);
+
+        $action->execute($legalCase);
+
+        return back()->with('success', __('Legal case deleted successfully.'));
     }
 
     public function show(LegalCase $legalCase): Response
@@ -179,6 +220,30 @@ class LegalCaseController extends Controller
         return back()->with('success', __('Case hearing recorded.'));
     }
 
+    public function updateHearing(UpdateCaseHearingRequest $request, LegalCase $legalCase, CaseHearing $hearing): RedirectResponse
+    {
+        abort_unless($hearing->legal_case_id === $legalCase->id, 404);
+        $this->authorize('update', $hearing);
+
+        $hearing->update($request->validated());
+
+        $legalCase->update([
+            'next_hearing_date' => $request->validated('next_hearing_date'),
+        ]);
+
+        return back()->with('success', __('Case hearing updated.'));
+    }
+
+    public function destroyHearing(LegalCase $legalCase, CaseHearing $hearing): RedirectResponse
+    {
+        abort_unless($hearing->legal_case_id === $legalCase->id, 404);
+        $this->authorize('delete', $hearing);
+
+        $hearing->delete();
+
+        return back()->with('success', __('Case hearing deleted.'));
+    }
+
     public function close(CloseLegalCaseRequest $request, LegalCase $legalCase, CloseCaseAction $action): RedirectResponse
     {
         $action->execute($legalCase, $request->validated());
@@ -200,6 +265,28 @@ class LegalCaseController extends Controller
         return back()->with('success', __('Comment added.'));
     }
 
+    public function updateComment(UpdateCommentRequest $request, LegalCase $legalCase, Comment $comment): RedirectResponse
+    {
+        abort_unless($comment->commentable instanceof LegalCase && $comment->commentable->is($legalCase), 404);
+        $this->authorize('update', $comment);
+
+        $comment->update([
+            'body' => $request->string('body')->trim()->toString(),
+        ]);
+
+        return back()->with('success', __('Comment updated.'));
+    }
+
+    public function destroyComment(LegalCase $legalCase, Comment $comment): RedirectResponse
+    {
+        abort_unless($comment->commentable instanceof LegalCase && $comment->commentable->is($legalCase), 404);
+        $this->authorize('delete', $comment);
+
+        $comment->delete();
+
+        return back()->with('success', __('Comment deleted.'));
+    }
+
     public function addAttachment(StoreAttachmentRequest $request, LegalCase $legalCase, StoreAttachmentAction $action): RedirectResponse
     {
         $this->authorize('create', Attachment::class);
@@ -208,5 +295,35 @@ class LegalCaseController extends Controller
         $action->execute($legalCase, $request->file('attachments'), $request->user());
 
         return back()->with('success', __('Attachment uploaded.'));
+    }
+
+    private function caseFormPayload(): array
+    {
+        return [
+            'courts' => Court::query()->where('is_active', true)->orderBy('name_en')->get(['id', 'name_en', 'name_am']),
+            'caseTypes' => CaseType::query()
+                ->where('is_active', true)
+                ->orderBy('name_en')
+                ->get(['id', 'code', 'name_en', 'name_am'])
+                ->map(fn (CaseType $caseType) => [
+                    'id' => $caseType->id,
+                    'code' => $caseType->code,
+                    'name_en' => $caseType->name_en,
+                    'name_am' => $caseType->name_am,
+                    'main_case_type' => LegalCaseMainType::inferFromCaseTypeCode($caseType->code)->value,
+                ]),
+            'mainCaseTypeOptions' => collect(LegalCaseMainType::cases())->map(fn (LegalCaseMainType $type) => [
+                'label' => __("cases.main_case_type.{$type->value}"),
+                'value' => $type->value,
+            ]),
+            'statusOptions' => collect([CaseStatus::INTAKE, CaseStatus::UNDER_DIRECTOR_REVIEW])->map(fn (CaseStatus $status) => [
+                'label' => __("status.{$status->value}"),
+                'value' => $status->value,
+            ]),
+            'priorityOptions' => collect(PriorityLevel::cases())->map(fn ($case) => [
+                'label' => __("status.{$case->value}"),
+                'value' => $case->value,
+            ]),
+        ];
     }
 }

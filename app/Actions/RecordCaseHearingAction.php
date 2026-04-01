@@ -34,15 +34,12 @@ class RecordCaseHearingAction
                 'next_hearing_date' => $attributes['next_hearing_date'] ?? null,
                 'appearance_status' => $attributes['appearance_status'] ?? null,
                 'summary' => $attributes['summary'],
-                'institution_position' => $attributes['institution_position'] ?? null,
                 'court_decision' => $attributes['court_decision'] ?? null,
-                'outcome' => $attributes['outcome'] ?? null,
             ]);
 
             $legalCase->update([
                 'next_hearing_date' => $attributes['next_hearing_date'] ?? null,
-                'outcome' => $attributes['outcome'] ?? $legalCase->outcome,
-                'status' => filled($attributes['outcome'] ?? null) && empty($attributes['next_hearing_date'])
+                'status' => filled($attributes['court_decision'] ?? null) && empty($attributes['next_hearing_date'])
                     ? CaseStatus::DECIDED
                     : CaseStatus::IN_PROGRESS,
             ]);

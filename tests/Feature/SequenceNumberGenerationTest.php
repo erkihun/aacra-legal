@@ -50,21 +50,20 @@ it('generates the next advisory request number when demo data already seeded the
             ->where('requests.data.0.request_number', 'ADV-2026-0002'));
 });
 
-it('generates the next legal case number when demo data already seeded the first number', function (): void {
-    SequenceCounter::query()->where('scope', 'CASE')->delete();
-
+it('stores a manually supplied legal case number through the case intake flow', function (): void {
     $registrar = User::query()->where('email', 'registrar@ldms.test')->firstOrFail();
 
     $this->actingAs($registrar)
         ->post(route('cases.store'), [
+            'case_number' => 'CASE-2026-0002',
+            'main_case_type' => 'civil-law',
             'court_id' => Court::query()->firstOrFail()->id,
-            'case_type_id' => CaseType::query()->firstOrFail()->id,
+            'case_type_id' => CaseType::query()->where('code', '!=', 'LAB')->firstOrFail()->id,
             'plaintiff' => 'Sequence Recovery Plaintiff',
             'defendant' => 'Institution',
-            'claim_summary' => 'This filing validates that the case sequence counter resumes after existing seeded records.',
-            'institution_position' => 'The institution denies liability.',
+            'claim_summary' => '<p>This filing validates that a manually supplied case number is accepted.</p>',
+            'status' => 'under_director_review',
             'filing_date' => now()->subDay()->toDateString(),
-            'next_hearing_date' => now()->addWeek()->toDateString(),
             'priority' => 'medium',
         ])
         ->assertRedirect();
