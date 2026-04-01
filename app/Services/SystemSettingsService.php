@@ -252,6 +252,10 @@ class SystemSettingsService
 
         foreach ($fallbackSlides as $index => $defaultSlide) {
             $configured = Arr::wrap($configuredSlides[$index] ?? []);
+            $imagePath = $this->normalizeAssetPath(
+                $configured['image_path'] ?? $defaultSlide['image_path'],
+                ['branding/'],
+            ) ?? $defaultSlide['image_path'];
 
             $slides[] = [
                 'title' => (string) ($configured['title'] ?? $defaultSlide['title']),
@@ -260,8 +264,8 @@ class SystemSettingsService
                 'button_url' => SafeUrl::appRelativePath((string) ($configured['button_url'] ?? $defaultSlide['button_url'])) ?? '',
                 'display_order' => (int) ($configured['display_order'] ?? $defaultSlide['display_order']),
                 'is_active' => (bool) ($configured['is_active'] ?? $defaultSlide['is_active']),
-                'image_path' => $configured['image_path'] ?? $defaultSlide['image_path'],
-                'image_url' => $this->assetUrl($configured['image_path'] ?? $defaultSlide['image_path']),
+                'image_path' => $imagePath,
+                'image_url' => $this->assetUrl($imagePath),
             ];
         }
 
@@ -283,7 +287,10 @@ class SystemSettingsService
 
         foreach ($fallbackSlides as $index => $defaultSlide) {
             $configured = Arr::wrap($configuredSlides[$index] ?? []);
-            $imagePath = $configured['image_path'] ?? $defaultSlide['image_path'];
+            $imagePath = $this->normalizeAssetPath(
+                $configured['image_path'] ?? $defaultSlide['image_path'],
+                ['branding/'],
+            ) ?? $defaultSlide['image_path'];
 
             $slides[] = [
                 'title' => (string) ($configured['title'] ?? $defaultSlide['title']),
@@ -660,10 +667,15 @@ class SystemSettingsService
                         $slideData['image_path'] = $this->storeAsset(
                             $slideData['image'],
                             "hero-slide-{$index}",
-                            is_string($currentSlide['image_path'] ?? null) ? $currentSlide['image_path'] : null,
+                            is_string($currentSlide['image_path'] ?? null)
+                                ? $this->normalizeAssetPath($currentSlide['image_path'], ['branding/'])
+                                : null,
                         );
                     } else {
-                        $slideData['image_path'] = $slideData['image_path'] ?? $currentSlide['image_path'] ?? null;
+                        $slideData['image_path'] = $this->normalizeAssetPath(
+                            $slideData['image_path'] ?? $currentSlide['image_path'] ?? null,
+                            ['branding/'],
+                        );
                     }
 
                     unset($slideData['image'], $slideData['image_url']);
@@ -700,19 +712,62 @@ class SystemSettingsService
 
     private function assetUrl(?string $path): ?string
     {
-        if ($path === null || $path === '') {
+        $normalizedPath = $this->normalizeAssetPath($path, ['branding/', 'public-posts/']);
+
+        if ($normalizedPath === null || $normalizedPath === '') {
             return null;
         }
 
-        if (Str::startsWith($path, '/')) {
-            return url($path);
+        if (Str::startsWith($normalizedPath, '/')) {
+            return url($normalizedPath);
         }
 
-        $storagePath = SafeUrl::storageAssetPath($path, ['branding/', 'public-posts/']);
+        return route('branding-assets.show', ['path' => $normalizedPath]);
+    }
 
-        return $storagePath !== null
-            ? route('branding-assets.show', ['path' => $storagePath])
-            : null;
+    /**
+     * @param  array<int, string>  $allowedStoragePrefixes
+     */
+    private function normalizeAssetPath(mixed $path, array $allowedStoragePrefixes): ?string
+    {
+        if (! is_string($path)) {
+            return null;
+        }
+
+        $normalized = trim($path);
+
+        if ($normalized === '') {
+            return null;
+        }
+
+        if (str_starts_with($normalized, '/images/')) {
+            return $normalized;
+        }
+
+        $pathOnly = parse_url($normalized, PHP_URL_PATH);
+        $candidate = is_string($pathOnly) && $pathOnly !== '' ? trim($pathOnly) : $normalized;
+
+        foreach (['/branding-assets/', 'branding-assets/'] as $prefix) {
+            if (str_starts_with($candidate, $prefix)) {
+                $candidate = Str::after($candidate, $prefix);
+                break;
+            }
+        }
+
+        foreach (['/storage/', 'storage/'] as $prefix) {
+            if (str_starts_with($candidate, $prefix)) {
+                $candidate = Str::after($candidate, $prefix);
+                break;
+            }
+        }
+
+        $storagePath = SafeUrl::storageAssetPath($candidate, $allowedStoragePrefixes);
+
+        if ($storagePath !== null) {
+            return $storagePath;
+        }
+
+        return SafeUrl::appRelativePath($candidate);
     }
 
     /**

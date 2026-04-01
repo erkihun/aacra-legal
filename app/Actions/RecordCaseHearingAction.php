@@ -17,6 +17,12 @@ class RecordCaseHearingAction
      */
     public function execute(LegalCase $legalCase, array $attributes, User $expert): LegalCase
     {
+        if ($legalCase->isClosed()) {
+            throw ValidationException::withMessages([
+                'status' => __('Closed cases cannot accept new hearing records.'),
+            ]);
+        }
+
         if (! in_array($legalCase->status, [
             CaseStatus::ASSIGNED_TO_EXPERT,
             CaseStatus::IN_PROGRESS,

@@ -38,6 +38,8 @@ class LegalCaseResource extends JsonResource
             'decision_date' => $this->decision_date?->toDateString(),
             'appeal_deadline' => $this->appeal_deadline?->toDateString(),
             'completed_at' => $this->completed_at?->toIso8601String(),
+            'reopened_at' => $this->reopened_at?->toIso8601String(),
+            'reopen_reason' => $this->reopen_reason,
             'court' => $this->whenLoaded('court', fn () => [
                 'id' => $this->court?->id,
                 'name_en' => $this->court?->name_en,
@@ -63,6 +65,10 @@ class LegalCaseResource extends JsonResource
             'assigned_legal_expert' => $this->whenLoaded('assignedLegalExpert', fn () => [
                 'id' => $this->assignedLegalExpert?->id,
                 'name' => $this->assignedLegalExpert?->name,
+            ]),
+            'reopened_by' => $this->whenLoaded('reopenedBy', fn () => [
+                'id' => $this->reopenedBy?->id,
+                'name' => $this->reopenedBy?->name,
             ]),
             'assignments' => $this->whenLoaded('assignments', fn () => $this->assignments->map(fn ($assignment) => [
                 'id' => $assignment->id,

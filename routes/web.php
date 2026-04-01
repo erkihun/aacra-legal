@@ -111,6 +111,7 @@ Route::middleware('auth')->group(function () {
         Route::patch('/cases/{legalCase}/hearings/{hearing}', [LegalCaseController::class, 'updateHearing'])->name('cases.hearings.update');
         Route::delete('/cases/{legalCase}/hearings/{hearing}', [LegalCaseController::class, 'destroyHearing'])->name('cases.hearings.destroy');
         Route::patch('/cases/{legalCase}/close', [LegalCaseController::class, 'close'])->name('cases.close');
+        Route::patch('/cases/{legalCase}/reopen', [LegalCaseController::class, 'reopen'])->name('cases.reopen');
         Route::post('/cases/{legalCase}/comments', [LegalCaseController::class, 'addComment'])->name('cases.comments.store');
         Route::patch('/cases/{legalCase}/comments/{comment}', [LegalCaseController::class, 'updateComment'])->name('cases.comments.update');
         Route::delete('/cases/{legalCase}/comments/{comment}', [LegalCaseController::class, 'destroyComment'])->name('cases.comments.destroy');

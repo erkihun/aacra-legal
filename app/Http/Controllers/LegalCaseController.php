@@ -10,6 +10,7 @@ use App\Actions\CloseCaseAction;
 use App\Actions\DeleteLegalCaseAction;
 use App\Actions\DirectorReviewCaseAction;
 use App\Actions\OpenLegalCaseAction;
+use App\Actions\ReopenCaseAction;
 use App\Actions\RecordCaseHearingAction;
 use App\Actions\StoreAttachmentAction;
 use App\Actions\UpdateLegalCaseAction;
@@ -21,6 +22,7 @@ use App\Enums\WorkflowStage;
 use App\Http\Requests\Cases\AssignLegalCaseRequest;
 use App\Http\Requests\Cases\CloseLegalCaseRequest;
 use App\Http\Requests\Cases\RecordCaseHearingRequest;
+use App\Http\Requests\Cases\ReopenLegalCaseRequest;
 use App\Http\Requests\Cases\ReviewLegalCaseRequest;
 use App\Http\Requests\Cases\StoreLegalCaseRequest;
 use App\Http\Requests\Cases\UpdateCaseHearingRequest;
@@ -152,6 +154,7 @@ class LegalCaseController extends Controller
             'directorReviewer',
             'assignedTeamLeader',
             'assignedLegalExpert',
+            'reopenedBy',
             'assignments.assignedBy',
             'assignments.assignedTo',
             'hearings.recordedBy',
@@ -178,15 +181,18 @@ class LegalCaseController extends Controller
                 'assign' => $canAssign,
                 'recordHearing' => request()->user()?->can('recordHearing', $legalCase) ?? false,
                 'close' => request()->user()?->can('close', $legalCase) ?? false,
+                'reopen' => request()->user()?->can('reopen', $legalCase) ?? false,
                 'comment' => request()->user()?->can('comment', $legalCase) ?? false,
                 'attach' => request()->user()?->can('attach', $legalCase) ?? false,
             ],
             'workspace' => [
                 'canAssignTeamLeader' => $canReview
+                    && ! $legalCase->isClosed()
                     && $legalCase->assigned_team_leader_id === null
                     && in_array($legalCase->status, [CaseStatus::UNDER_DIRECTOR_REVIEW, CaseStatus::INTAKE], true)
                     && $legalCase->workflow_stage === WorkflowStage::DIRECTOR,
                 'canAssignExpert' => $canAssign
+                    && ! $legalCase->isClosed()
                     && $legalCase->assigned_team_leader_id !== null
                     && (
                         $user?->isSuperAdmin()
@@ -249,6 +255,13 @@ class LegalCaseController extends Controller
         $action->execute($legalCase, $request->validated());
 
         return back()->with('success', __('Legal case closed.'));
+    }
+
+    public function reopen(ReopenLegalCaseRequest $request, LegalCase $legalCase, ReopenCaseAction $action): RedirectResponse
+    {
+        $action->execute($legalCase, $request->validated(), $request->user());
+
+        return back()->with('success', __('Legal case reopened.'));
     }
 
     public function addComment(StoreCommentRequest $request, LegalCase $legalCase, AddCommentAction $action): RedirectResponse

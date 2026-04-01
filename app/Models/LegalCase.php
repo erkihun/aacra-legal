@@ -60,6 +60,9 @@ class LegalCase extends Model
         'decision_date',
         'appeal_deadline',
         'completed_at',
+        'reopened_at',
+        'reopened_by_id',
+        'reopen_reason',
     ];
 
     protected function casts(): array
@@ -78,6 +81,7 @@ class LegalCase extends Model
             'decision_date' => 'date',
             'appeal_deadline' => 'date',
             'completed_at' => 'datetime',
+            'reopened_at' => 'datetime',
         ];
     }
 
@@ -109,6 +113,11 @@ class LegalCase extends Model
     public function assignedLegalExpert(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_legal_expert_id');
+    }
+
+    public function reopenedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reopened_by_id');
     }
 
     public function assignments(): HasMany
@@ -160,5 +169,10 @@ class LegalCase extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()->logFillable()->logOnlyDirty();
+    }
+
+    public function isClosed(): bool
+    {
+        return $this->status === CaseStatus::CLOSED;
     }
 }

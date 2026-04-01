@@ -16,6 +16,12 @@ class CloseCaseAction
      */
     public function execute(LegalCase $legalCase, array $attributes): LegalCase
     {
+        if ($legalCase->isClosed()) {
+            throw ValidationException::withMessages([
+                'status' => __('The case is already closed.'),
+            ]);
+        }
+
         if (! in_array($legalCase->status, [
             CaseStatus::ASSIGNED_TO_EXPERT,
             CaseStatus::IN_PROGRESS,

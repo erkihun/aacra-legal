@@ -16,6 +16,10 @@ class CaseHearingPolicy
 
     public function update(User $user, CaseHearing $hearing): bool
     {
+        if ($hearing->legalCase->isClosed()) {
+            return false;
+        }
+
         if ($user->isSuperAdmin()) {
             return true;
         }

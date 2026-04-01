@@ -40,6 +40,7 @@ class CommentPolicy
         $commentable = $comment->commentable;
 
         if (($commentable instanceof AdvisoryRequest || $commentable instanceof LegalCase)
+            && ! ($commentable instanceof LegalCase && $commentable->isClosed())
             && $user->can('view', $commentable)
             && $comment->user_id === $user->getKey()) {
             return $user->can('comments.create');

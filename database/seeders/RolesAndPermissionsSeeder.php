@@ -79,6 +79,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'cases.assign_expert',
             'cases.record_hearing',
             'cases.close',
+            'cases.reopen',
+            'case-reopen',
             'cases.comment',
             'cases.attach',
             'cases.export',

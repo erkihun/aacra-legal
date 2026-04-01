@@ -85,6 +85,15 @@ it('executes the full legal case workspace actions', function (): void {
     $legalCase->refresh();
     expect(in_array($legalCase->status, [CaseStatus::IN_PROGRESS, CaseStatus::DECIDED], true))->toBeTrue();
 
+    $this->actingAs($director)->post(route('cases.comments.store', ['legalCase' => $legalCase]), [
+        'body' => 'Case note recorded before closure.',
+        'is_internal' => true,
+    ])->assertSessionHasNoErrors();
+
+    $this->actingAs($director)->post(route('cases.attachments.store', ['legalCase' => $legalCase]), [
+        'attachments' => [UploadedFile::fake()->create('settlement.pdf', 100, 'application/pdf')],
+    ])->assertSessionHasNoErrors();
+
     $this->actingAs($director)->patch(route('cases.close', ['legalCase' => $legalCase]), [
         'outcome' => 'Settled',
         'decision_date' => now()->toDateString(),
@@ -93,15 +102,6 @@ it('executes the full legal case workspace actions', function (): void {
 
     $legalCase->refresh();
     expect($legalCase->status)->toBe(CaseStatus::CLOSED);
-
-    $this->actingAs($director)->post(route('cases.comments.store', ['legalCase' => $legalCase]), [
-        'body' => 'Case closed after settlement.',
-        'is_internal' => true,
-    ])->assertSessionHasNoErrors();
-
-    $this->actingAs($director)->post(route('cases.attachments.store', ['legalCase' => $legalCase]), [
-        'attachments' => [UploadedFile::fake()->create('settlement.pdf', 100, 'application/pdf')],
-    ])->assertSessionHasNoErrors();
 
     $legalCase->refresh();
     expect($legalCase->comments()->count())->toBe(1);
@@ -390,6 +390,166 @@ it('updates and deletes case hearings comments and attachments through the works
     expect($legalCase->hearings()->count())->toBe(0);
     expect(Comment::query()->whereKey($comment->id)->exists())->toBeFalse();
     expect(Attachment::query()->whereKey($attachment->id)->exists())->toBeFalse();
+});
+
+it('rejects normal case workspace actions once a case is closed', function (): void {
+    Storage::fake('public');
+
+    $registrar = createCaseUser(SystemRole::REGISTRAR, 'leg', 'ADM');
+    $director = createCaseUser(SystemRole::LEGAL_DIRECTOR, 'leg', 'ADM');
+    $teamLeader = createCaseUser(SystemRole::LITIGATION_TEAM_LEADER, 'leg', 'LIT');
+    $expert = createCaseUser(SystemRole::LEGAL_EXPERT, 'leg', 'LIT');
+
+    $director->givePermissionTo(['comments.create', 'attachments.create']);
+
+    $legalCase = LegalCase::query()->create([
+        'case_number' => 'CASE-2026-9011',
+        'court_id' => Court::query()->firstOrFail()->id,
+        'case_type_id' => CaseType::query()->firstOrFail()->id,
+        'registered_by_id' => $registrar->id,
+        'assigned_team_leader_id' => $teamLeader->id,
+        'assigned_legal_expert_id' => $expert->id,
+        'plaintiff' => 'Closed Case',
+        'defendant' => 'Institution',
+        'status' => CaseStatus::CLOSED,
+        'workflow_stage' => WorkflowStage::COMPLETED,
+        'priority' => PriorityLevel::HIGH,
+        'director_decision' => 'approved',
+        'claim_summary' => 'Closed cases must reject normal workspace actions.',
+        'outcome' => 'Final judgment recorded.',
+        'completed_at' => now(),
+    ]);
+
+    $this->actingAs($expert)->post(route('cases.hearings.store', ['legalCase' => $legalCase]), [
+        'hearing_date' => now()->toDateString(),
+        'summary' => 'Attempted hearing after closure.',
+    ])->assertForbidden();
+
+    $this->actingAs($director)->post(route('cases.comments.store', ['legalCase' => $legalCase]), [
+        'body' => 'Attempted comment after closure.',
+        'is_internal' => true,
+    ])->assertForbidden();
+
+    $this->actingAs($director)->post(route('cases.attachments.store', ['legalCase' => $legalCase]), [
+        'attachments' => [UploadedFile::fake()->create('closed.pdf', 10, 'application/pdf')],
+    ])->assertForbidden();
+
+    $this->actingAs($director)->patch(route('cases.review', ['legalCase' => $legalCase]), [
+        'director_decision' => 'approved',
+        'assigned_team_leader_id' => $teamLeader->id,
+    ])->assertForbidden();
+
+    $this->actingAs($teamLeader)->patch(route('cases.assign', ['legalCase' => $legalCase]), [
+        'assigned_legal_expert_id' => $expert->id,
+    ])->assertForbidden();
+});
+
+it('requires the case-reopen permission and a reason to reopen a closed case', function (): void {
+    $registrar = createCaseUser(SystemRole::REGISTRAR, 'leg', 'ADM');
+    $director = createCaseUser(SystemRole::LEGAL_DIRECTOR, 'leg', 'ADM');
+
+    $legalCase = LegalCase::query()->create([
+        'case_number' => 'CASE-2026-9012',
+        'court_id' => Court::query()->firstOrFail()->id,
+        'case_type_id' => CaseType::query()->firstOrFail()->id,
+        'registered_by_id' => $registrar->id,
+        'plaintiff' => 'Reopen Permission',
+        'defendant' => 'Institution',
+        'status' => CaseStatus::CLOSED,
+        'workflow_stage' => WorkflowStage::COMPLETED,
+        'priority' => PriorityLevel::MEDIUM,
+        'director_decision' => 'approved',
+        'claim_summary' => 'Only authorized users may reopen.',
+        'outcome' => 'Closed.',
+        'completed_at' => now(),
+    ]);
+
+    $this->actingAs($director)->patch(route('cases.reopen', ['legalCase' => $legalCase]), [
+        'reopen_reason' => 'Need further proceedings.',
+    ])->assertForbidden();
+
+    $superAdmin = createCaseUser(SystemRole::SUPER_ADMIN, 'leg', 'ADM');
+
+    $this->actingAs($superAdmin)->patch(route('cases.reopen', ['legalCase' => $legalCase]), [])
+        ->assertSessionHasErrors('reopen_reason');
+});
+
+it('reopens a closed case with a required reason and restores active case actions', function (): void {
+    $registrar = createCaseUser(SystemRole::REGISTRAR, 'leg', 'ADM');
+    $teamLeader = createCaseUser(SystemRole::LITIGATION_TEAM_LEADER, 'leg', 'LIT');
+    $expert = createCaseUser(SystemRole::LEGAL_EXPERT, 'leg', 'LIT');
+    $superAdmin = createCaseUser(SystemRole::SUPER_ADMIN, 'leg', 'ADM');
+
+    $legalCase = LegalCase::query()->create([
+        'case_number' => 'CASE-2026-9013',
+        'court_id' => Court::query()->firstOrFail()->id,
+        'case_type_id' => CaseType::query()->firstOrFail()->id,
+        'registered_by_id' => $registrar->id,
+        'assigned_team_leader_id' => $teamLeader->id,
+        'assigned_legal_expert_id' => $expert->id,
+        'plaintiff' => 'Reopened Case',
+        'defendant' => 'Institution',
+        'status' => CaseStatus::CLOSED,
+        'workflow_stage' => WorkflowStage::COMPLETED,
+        'priority' => PriorityLevel::HIGH,
+        'director_decision' => 'approved',
+        'claim_summary' => 'A closed case should become active again after reopen.',
+        'outcome' => 'Closed after hearing.',
+        'completed_at' => now(),
+    ]);
+
+    $this->actingAs($superAdmin)->patch(route('cases.reopen', ['legalCase' => $legalCase]), [
+        'reopen_reason' => 'Additional filings were submitted after closure.',
+    ])->assertSessionHasNoErrors();
+
+    $legalCase->refresh();
+
+    expect($legalCase->status)->toBe(CaseStatus::IN_PROGRESS);
+    expect($legalCase->workflow_stage)->toBe(WorkflowStage::EXPERT);
+    expect($legalCase->completed_at)->toBeNull();
+    expect($legalCase->reopened_by_id)->toBe($superAdmin->id);
+    expect($legalCase->reopen_reason)->toBe('Additional filings were submitted after closure.');
+
+    $this->actingAs($superAdmin)
+        ->get(route('cases.show', ['legalCase' => $legalCase]))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Cases/Show')
+            ->where('caseItem.status', 'in_progress')
+            ->where('can.reopen', false)
+            ->where('can.recordHearing', true)
+        );
+});
+
+it('shows only the reopen action on the case show page when the case is closed', function (): void {
+    $registrar = createCaseUser(SystemRole::REGISTRAR, 'leg', 'ADM');
+    $superAdmin = createCaseUser(SystemRole::SUPER_ADMIN, 'leg', 'ADM');
+
+    $legalCase = LegalCase::query()->create([
+        'case_number' => 'CASE-2026-9014',
+        'court_id' => Court::query()->firstOrFail()->id,
+        'case_type_id' => CaseType::query()->firstOrFail()->id,
+        'registered_by_id' => $registrar->id,
+        'plaintiff' => 'Closed UI',
+        'defendant' => 'Institution',
+        'status' => CaseStatus::CLOSED,
+        'workflow_stage' => WorkflowStage::COMPLETED,
+        'priority' => PriorityLevel::LOW,
+        'director_decision' => 'approved',
+        'claim_summary' => 'The show page should expose only reopen for authorized users.',
+        'outcome' => 'Closed.',
+        'completed_at' => now(),
+    ]);
+
+    $this->actingAs($superAdmin)
+        ->get(route('cases.show', ['legalCase' => $legalCase]))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Cases/Show')
+            ->where('can.recordHearing', false)
+            ->where('can.close', false)
+            ->where('can.comment', false)
+            ->where('can.attach', false)
+            ->where('can.reopen', true)
+        );
 });
 
 function createCaseUser(SystemRole $role, string $departmentCode, ?string $teamCode = null): User

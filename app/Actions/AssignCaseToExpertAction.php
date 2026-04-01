@@ -22,6 +22,12 @@ class AssignCaseToExpertAction
      */
     public function execute(LegalCase $legalCase, array $attributes, User $actor): LegalCase
     {
+        if ($legalCase->isClosed()) {
+            throw ValidationException::withMessages([
+                'status' => __('Closed cases cannot be assigned.'),
+            ]);
+        }
+
         if (! in_array($legalCase->status, [
             CaseStatus::ASSIGNED_TO_TEAM_LEADER,
             CaseStatus::ASSIGNED_TO_EXPERT,

@@ -45,12 +45,16 @@ class AttachmentPolicy
         }
 
         if ($attachment->uploaded_by_id === $user->getKey()) {
-            return true;
+            return ! ($attachment->attachable instanceof LegalCase && $attachment->attachable->isClosed());
         }
 
         $attachable = $attachment->attachable;
 
         if ($attachable instanceof AdvisoryRequest || $attachable instanceof LegalCase) {
+            if ($attachable instanceof LegalCase && $attachable->isClosed()) {
+                return false;
+            }
+
             return $user->can('attach', $attachable);
         }
 
@@ -72,12 +76,17 @@ class AttachmentPolicy
         }
 
         if ($attachment->uploaded_by_id === $user->getKey()) {
-            return $user->can('attachments.create');
+            return $user->can('attachments.create')
+                && ! ($attachment->attachable instanceof LegalCase && $attachment->attachable->isClosed());
         }
 
         $attachable = $attachment->attachable;
 
         if ($attachable instanceof AdvisoryRequest || $attachable instanceof LegalCase) {
+            if ($attachable instanceof LegalCase && $attachable->isClosed()) {
+                return false;
+            }
+
             return $user->can('attach', $attachable);
         }
 

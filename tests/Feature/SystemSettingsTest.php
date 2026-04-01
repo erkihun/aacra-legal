@@ -717,3 +717,57 @@ it('updates an existing hero slide image and keeps the new image visible after r
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('slides.0.image_url', fn (?string $value) => is_string($value) && str_contains($value, '/branding-assets/')));
 });
+
+it('normalizes legacy hero slide image paths for admin preview and public hero display', function (): void {
+    $admin = User::query()->where('email', 'admin@ldms.test')->firstOrFail();
+
+    Storage::disk('public')->put('branding/legacy-hero.png', 'legacy');
+
+    app(SystemSettingsService::class)->updateGroup('public_website', [
+        ...app(SystemSettingsService::class)->group('public_website'),
+        'hero_slides' => [
+            [
+                'title' => 'Legacy upload',
+                'subtitle' => 'Stored with an old storage URL format.',
+                'button_label' => 'Open updates',
+                'button_url' => '/updates',
+                'display_order' => 1,
+                'is_active' => true,
+                'image_path' => '/storage/branding/legacy-hero.png',
+            ],
+            [
+                'title' => 'Second slide',
+                'subtitle' => 'Second slide subtitle',
+                'button_label' => 'Open login',
+                'button_url' => '/login',
+                'display_order' => 2,
+                'is_active' => true,
+                'image_path' => '/images/home/hero-slide-2.svg',
+            ],
+            [
+                'title' => 'Third slide',
+                'subtitle' => 'Third slide subtitle',
+                'button_label' => 'Contact',
+                'button_url' => '/#contact',
+                'display_order' => 3,
+                'is_active' => true,
+                'image_path' => '/images/home/hero-slide-3.svg',
+            ],
+        ],
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('settings.index'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('settingsGroups.public_website.hero_slides.0.image_path', 'branding/legacy-hero.png')
+            ->where('settingsGroups.public_website.hero_slides.0.image_url', fn (?string $value) => is_string($value) && str_contains($value, '/branding-assets/branding/legacy-hero.png')));
+
+    auth()->logout();
+
+    $this->get(route('home'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('slides.0.image_path', 'branding/legacy-hero.png')
+            ->where('slides.0.image_url', fn (?string $value) => is_string($value) && str_contains($value, '/branding-assets/branding/legacy-hero.png')));
+});

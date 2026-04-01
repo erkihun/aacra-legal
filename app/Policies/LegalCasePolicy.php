@@ -10,6 +10,11 @@ use App\Models\User;
 
 class LegalCasePolicy
 {
+    private function isLocked(LegalCase $legalCase): bool
+    {
+        return $legalCase->isClosed();
+    }
+
     public function viewAny(User $user): bool
     {
         return $user->can('cases.view_any')
@@ -45,6 +50,10 @@ class LegalCasePolicy
 
     public function update(User $user, LegalCase $legalCase): bool
     {
+        if ($this->isLocked($legalCase)) {
+            return false;
+        }
+
         if ($user->isSuperAdmin()) {
             return true;
         }
@@ -63,12 +72,20 @@ class LegalCasePolicy
 
     public function review(User $user, LegalCase $legalCase): bool
     {
+        if ($this->isLocked($legalCase)) {
+            return false;
+        }
+
         return ($user->isSuperAdmin() || $user->hasSystemRole(SystemRole::LEGAL_DIRECTOR))
             && ($user->can('cases.review') || $user->can('legal-cases.review'));
     }
 
     public function assign(User $user, LegalCase $legalCase): bool
     {
+        if ($this->isLocked($legalCase)) {
+            return false;
+        }
+
         if ($user->isSuperAdmin() || $user->hasSystemRole(SystemRole::LEGAL_DIRECTOR)) {
             return $user->can('cases.assign_team_leader') || $user->can('legal-cases.assign');
         }
@@ -80,6 +97,10 @@ class LegalCasePolicy
 
     public function recordHearing(User $user, LegalCase $legalCase): bool
     {
+        if ($this->isLocked($legalCase)) {
+            return false;
+        }
+
         if ($user->isSuperAdmin() || $user->hasSystemRole(SystemRole::LITIGATION_TEAM_LEADER)) {
             return $user->can('cases.record_hearing') || $user->can('legal-cases.update');
         }
@@ -90,6 +111,10 @@ class LegalCasePolicy
 
     public function close(User $user, LegalCase $legalCase): bool
     {
+        if ($this->isLocked($legalCase)) {
+            return false;
+        }
+
         return (
             $user->isSuperAdmin()
             || $user->hasSystemRole(SystemRole::LEGAL_DIRECTOR)
@@ -99,11 +124,28 @@ class LegalCasePolicy
 
     public function comment(User $user, LegalCase $legalCase): bool
     {
+        if ($this->isLocked($legalCase)) {
+            return false;
+        }
+
         return $user->can('comments.create') && $this->view($user, $legalCase);
     }
 
     public function attach(User $user, LegalCase $legalCase): bool
     {
+        if ($this->isLocked($legalCase)) {
+            return false;
+        }
+
         return $user->can('attachments.create') && $this->view($user, $legalCase);
+    }
+
+    public function reopen(User $user, LegalCase $legalCase): bool
+    {
+        if (! $legalCase->isClosed()) {
+            return false;
+        }
+
+        return $user->can('cases.reopen') || $user->can('case-reopen');
     }
 }

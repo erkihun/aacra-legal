@@ -23,6 +23,12 @@ class DirectorReviewCaseAction
      */
     public function execute(LegalCase $legalCase, array $attributes, User $director): LegalCase
     {
+        if ($legalCase->isClosed()) {
+            throw ValidationException::withMessages([
+                'status' => __('Closed cases cannot be reviewed.'),
+            ]);
+        }
+
         if (! in_array($legalCase->status, [CaseStatus::UNDER_DIRECTOR_REVIEW, CaseStatus::INTAKE], true)) {
             throw ValidationException::withMessages([
                 'status' => __('The case is not awaiting director review.'),

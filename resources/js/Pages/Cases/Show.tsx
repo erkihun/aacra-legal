@@ -30,6 +30,7 @@ type ShowCaseProps = {
         assign: boolean;
         recordHearing: boolean;
         close: boolean;
+        reopen: boolean;
         comment: boolean;
         attach: boolean;
     };
@@ -50,7 +51,7 @@ export default function CasesShow({
 
     const { t, locale } = useI18n();
     const { formatDateTime } = useDateFormatter();
-    const [activePanel, setActivePanel] = useRemember<'hearing' | 'close' | 'comment' | 'attachments' | null>(
+    const [activePanel, setActivePanel] = useRemember<'hearing' | 'close' | 'comment' | 'attachments' | 'reopen' | null>(
         null,
         `cases-show-active-panel-${caseItem.id}`,
     );
@@ -92,6 +93,9 @@ export default function CasesShow({
         decision_date: caseItem.decision_date ?? '',
         appeal_deadline: caseItem.appeal_deadline ?? '',
     });
+    const reopenForm = useForm({
+        reopen_reason: '',
+    });
 
     const commentForm = useForm({
         body: '',
@@ -116,6 +120,7 @@ export default function CasesShow({
             : caseItem.case_type?.name_en;
 
     const latestHearing = hearings[0] ?? null;
+    const isClosedCase = caseItem.status === 'closed';
     const availableActionCount = [workspace.canAssignTeamLeader, workspace.canAssignExpert, can.recordHearing, can.close].filter(Boolean).length;
     const pageTitle =
         caseItem.plaintiff || caseItem.defendant
@@ -726,6 +731,10 @@ export default function CasesShow({
     const hearingPanelEnabled = can.recordHearing || hearings.length > 0;
     const commentPanelEnabled = can.comment || comments.length > 0;
     const attachmentPanelEnabled = can.attach || attachments.length > 0;
+    const hearingActionEnabled = !isClosedCase && hearingPanelEnabled;
+    const closeActionEnabled = !isClosedCase && can.close;
+    const commentActionEnabled = !isClosedCase && commentPanelEnabled;
+    const attachmentActionEnabled = !isClosedCase && attachmentPanelEnabled;
 
     const workspaceContent = (
         <div className="space-y-4">
@@ -735,37 +744,44 @@ export default function CasesShow({
                 </div>
 
                 <div className="flex flex-wrap gap-3">
-                    {hearingPanelEnabled ? (
+                    {hearingActionEnabled ? (
                         <ActionToggleButton
                             label={t('cases.record_hearing')}
                             active={activePanel === 'hearing'}
                             onClick={() => setActivePanel((current) => (current === 'hearing' ? null : 'hearing'))}
                         />
                     ) : null}
-                    {can.close ? (
+                    {closeActionEnabled ? (
                         <ActionToggleButton
                             label={t('cases.close_case')}
                             active={activePanel === 'close'}
                             onClick={() => setActivePanel((current) => (current === 'close' ? null : 'close'))}
                         />
                     ) : null}
-                    {commentPanelEnabled ? (
+                    {commentActionEnabled ? (
                         <ActionToggleButton
                             label={t('common.internal_comment')}
                             active={activePanel === 'comment'}
                             onClick={() => setActivePanel((current) => (current === 'comment' ? null : 'comment'))}
                         />
                     ) : null}
-                    {attachmentPanelEnabled ? (
+                    {attachmentActionEnabled ? (
                         <ActionToggleButton
                             label={t('common.attachments')}
                             active={activePanel === 'attachments'}
                             onClick={() => setActivePanel((current) => (current === 'attachments' ? null : 'attachments'))}
                         />
                     ) : null}
+                    {isClosedCase && can.reopen ? (
+                        <ActionToggleButton
+                            label={t('cases.reopen_case')}
+                            active={activePanel === 'reopen'}
+                            onClick={() => setActivePanel((current) => (current === 'reopen' ? null : 'reopen'))}
+                        />
+                    ) : null}
                 </div>
 
-                {!hearingPanelEnabled && !can.close && !commentPanelEnabled && !attachmentPanelEnabled ? (
+                {!hearingActionEnabled && !closeActionEnabled && !commentActionEnabled && !attachmentActionEnabled && !(isClosedCase && can.reopen) ? (
                     <EmptyState
                         title={t('common.workspace')}
                         description={t('common.no_actions_available')}
@@ -773,7 +789,67 @@ export default function CasesShow({
                 ) : null}
             </SurfaceCard>
 
-            {activePanel === 'hearing' ? (
+            {activePanel === 'reopen' && isClosedCase && can.reopen ? (
+                <SurfaceCard className="space-y-6 p-6">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="space-y-1">
+                            <h3 className="text-lg font-semibold text-[color:var(--text)]">
+                                {t('cases.reopen_case')}
+                            </h3>
+                            <p className="text-sm text-[color:var(--muted-strong)]">
+                                {t('cases.reopen_reason_help')}
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setActivePanel(null)}
+                            className="btn-base btn-secondary focus-ring"
+                        >
+                            {t('common.cancel')}
+                        </button>
+                    </div>
+
+                    <FormField label={t('cases.reopen_reason')} required error={reopenForm.errors.reopen_reason}>
+                        <textarea
+                            value={reopenForm.data.reopen_reason}
+                            onChange={(event) => reopenForm.setData('reopen_reason', event.target.value)}
+                            rows={6}
+                            className="textarea-ui"
+                        />
+                    </FormField>
+
+                    <div className="flex flex-wrap justify-end gap-3 border-t border-[color:var(--border)] pt-4">
+                        <button
+                            type="button"
+                            onClick={() => setActivePanel(null)}
+                            className="btn-base btn-secondary focus-ring"
+                        >
+                            {t('common.cancel')}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() =>
+                                reopenForm.patch(route('cases.reopen', { legalCase: caseItem.id }), {
+                                    onSuccess: () => {
+                                        finishSuccessfulSubmission(reopenForm, {
+                                            reset: true,
+                                            afterSuccess: () => {
+                                                setActivePanel(null);
+                                            },
+                                        });
+                                    },
+                                })
+                            }
+                            className="btn-base btn-primary focus-ring"
+                            disabled={reopenForm.processing}
+                        >
+                            {t('cases.reopen_case')}
+                        </button>
+                    </div>
+                </SurfaceCard>
+            ) : null}
+
+            {activePanel === 'hearing' && !isClosedCase ? (
                 <SurfaceCard className="space-y-6 p-6">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="space-y-1">
@@ -863,7 +939,7 @@ export default function CasesShow({
                 </SurfaceCard>
             ) : null}
 
-            {activePanel === 'close' ? (
+            {activePanel === 'close' && !isClosedCase ? (
                 <SurfaceCard className="space-y-6 p-6">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="space-y-1">
@@ -940,7 +1016,7 @@ export default function CasesShow({
                 </SurfaceCard>
             ) : null}
 
-            {activePanel === 'comment' ? (
+            {activePanel === 'comment' && !isClosedCase ? (
                 <SurfaceCard className="space-y-6 p-6">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="space-y-1">
@@ -1026,7 +1102,7 @@ export default function CasesShow({
                 </SurfaceCard>
             ) : null}
 
-            {activePanel === 'attachments' ? (
+            {activePanel === 'attachments' && !isClosedCase ? (
                 <SurfaceCard className="space-y-6 p-6">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="space-y-1">
