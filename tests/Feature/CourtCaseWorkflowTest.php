@@ -57,6 +57,7 @@ it('moves a court case through registrar director team leader expert and closure
     $legalCase->refresh();
 
     expect($legalCase->status)->toBe(CaseStatus::ASSIGNED_TO_TEAM_LEADER);
+    expect($legalCase->workflow_stage)->toBe(WorkflowStage::TEAM_LEADER);
 
     $this->actingAs($teamLeader)->patch(route('cases.assign', $legalCase), [
         'assigned_legal_expert_id' => $expert->id,
@@ -66,6 +67,7 @@ it('moves a court case through registrar director team leader expert and closure
     $legalCase->refresh();
 
     expect($legalCase->status)->toBe(CaseStatus::ASSIGNED_TO_EXPERT);
+    expect($legalCase->workflow_stage)->toBe(WorkflowStage::EXPERT);
 
     $this->actingAs($expert)->post(route('cases.hearings.store', $legalCase), [
         'hearing_date' => now()->toDateString(),
@@ -90,6 +92,54 @@ it('moves a court case through registrar director team leader expert and closure
     $legalCase->refresh();
 
     expect($legalCase->status)->toBe(CaseStatus::CLOSED);
+});
+
+it('shows the updated assignment status after each court case assignment step', function (): void {
+    $registrar = createCaseUserWithRole(SystemRole::REGISTRAR, Department::query()->where('code', 'LEG')->firstOrFail(), Team::query()->where('code', 'ADM')->firstOrFail());
+    $director = createCaseUserWithRole(SystemRole::LEGAL_DIRECTOR, Department::query()->where('code', 'LEG')->firstOrFail(), Team::query()->where('code', 'ADM')->firstOrFail());
+    $teamLeader = createCaseUserWithRole(SystemRole::LITIGATION_TEAM_LEADER, Department::query()->where('code', 'LEG')->firstOrFail(), Team::query()->where('code', 'LIT')->firstOrFail());
+    $expert = createCaseUserWithRole(SystemRole::LEGAL_EXPERT, Department::query()->where('code', 'LEG')->firstOrFail(), Team::query()->where('code', 'LIT')->firstOrFail());
+
+    $legalCase = LegalCase::query()->create([
+        'case_number' => 'CASE-2026-STATUS-1',
+        'court_id' => Court::query()->firstOrFail()->id,
+        'case_type_id' => CaseType::query()->firstOrFail()->id,
+        'registered_by_id' => $registrar->id,
+        'plaintiff' => 'Status Plaintiff',
+        'defendant' => 'Status Defendant',
+        'status' => CaseStatus::UNDER_DIRECTOR_REVIEW,
+        'workflow_stage' => WorkflowStage::DIRECTOR,
+        'priority' => PriorityLevel::HIGH,
+        'director_decision' => 'pending',
+        'claim_summary' => '<p>Status should change automatically during assignment.</p>',
+    ]);
+
+    $this->actingAs($director)->patch(route('cases.review', $legalCase), [
+        'director_decision' => 'approved',
+        'director_notes' => 'Move to litigation lead.',
+        'assigned_team_leader_id' => $teamLeader->id,
+    ])->assertSessionHasNoErrors();
+
+    $this->actingAs($director)
+        ->get(route('cases.show', ['legalCase' => $legalCase]))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Cases/Show')
+            ->where('caseItem.status', CaseStatus::ASSIGNED_TO_TEAM_LEADER->value)
+            ->where('caseItem.workflow_stage', WorkflowStage::TEAM_LEADER->value)
+        );
+
+    $this->actingAs($teamLeader)->patch(route('cases.assign', $legalCase), [
+        'assigned_legal_expert_id' => $expert->id,
+        'notes' => 'Move to expert handling.',
+    ])->assertSessionHasNoErrors();
+
+    $this->actingAs($teamLeader)
+        ->get(route('cases.show', ['legalCase' => $legalCase]))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Cases/Show')
+            ->where('caseItem.status', CaseStatus::ASSIGNED_TO_EXPERT->value)
+            ->where('caseItem.workflow_stage', WorkflowStage::EXPERT->value)
+        );
 });
 
 it('creates and saves a civil-law case with the dynamic form payload', function (): void {
