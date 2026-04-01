@@ -2,7 +2,6 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import FormField from '@/Components/Ui/FormField';
 import TextInput from '@/Components/TextInput';
 import { useI18n } from '@/lib/i18n';
-import { Transition } from '@headlessui/react';
 import { useForm } from '@inertiajs/react';
 import { FormEventHandler, useRef } from 'react';
 
@@ -22,7 +21,6 @@ export default function UpdatePasswordForm({
         put,
         reset,
         processing,
-        recentlySuccessful,
     } = useForm({
         current_password: '',
         password: '',
@@ -92,16 +90,6 @@ export default function UpdatePasswordForm({
 
                 <div className="flex flex-wrap items-center gap-4">
                     <PrimaryButton disabled={processing}>{t('profile.save')}</PrimaryButton>
-
-                    <Transition
-                        show={recentlySuccessful}
-                        enter="transition ease-in-out"
-                        enterFrom="opacity-0"
-                        leave="transition ease-in-out"
-                        leaveTo="opacity-0"
-                    >
-                        <p className="text-sm text-[color:var(--muted)]">{t('profile.saved')}</p>
-                    </Transition>
                 </div>
             </form>
         </section>

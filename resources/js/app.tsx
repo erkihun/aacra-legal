@@ -3,7 +3,9 @@ import './bootstrap';
 
 import { createInertiaApp, router } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
+import { ComponentType, PropsWithChildren, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { ToastBatchSync, ToastMessage, ToastProvider } from './lib/toast';
 import { initializeTheme } from './lib/theme';
 
 type AppMetaPayload = {
@@ -22,6 +24,19 @@ type AppMetaPayload = {
         accent_color?: string;
         button_style?: 'pill' | 'rounded' | 'square';
         card_radius?: 'soft' | 'rounded' | 'square';
+    };
+};
+
+type SharedPageProps = {
+    locale?: string;
+    appMeta?: AppMetaPayload;
+    csrf_token?: string;
+    status?: string;
+    flash?: {
+        success?: string;
+        error?: string;
+        warning?: string;
+        info?: string;
     };
 };
 
@@ -108,6 +123,80 @@ function syncAppMeta(appMeta?: AppMetaPayload) {
     initializeTheme();
 }
 
+function extractToastMessages(pageProps?: SharedPageProps): ToastMessage[] {
+    if (!pageProps) {
+        return [];
+    }
+
+    const messages: ToastMessage[] = [];
+
+    if (pageProps.flash?.success) {
+        messages.push({ variant: 'success', message: pageProps.flash.success });
+    }
+
+    if (pageProps.flash?.error) {
+        messages.push({ variant: 'error', message: pageProps.flash.error });
+    }
+
+    if (pageProps.flash?.warning) {
+        messages.push({ variant: 'warning', message: pageProps.flash.warning });
+    }
+
+    if (pageProps.flash?.info) {
+        messages.push({ variant: 'info', message: pageProps.flash.info });
+    }
+
+    if (pageProps.status) {
+        messages.push({
+            variant: 'success',
+            message: pageProps.status === 'verification-link-sent' ? 'Verification Link Sent' : pageProps.status,
+        });
+    }
+
+    return messages;
+}
+
+function AppShell({
+    App,
+    appProps,
+    initialPageProps,
+}: PropsWithChildren<{
+    App: ComponentType<any>;
+    appProps: any;
+    initialPageProps: SharedPageProps;
+}>) {
+    const [toastBatch, setToastBatch] = useState(() => ({
+        key: 1,
+        messages: extractToastMessages(initialPageProps),
+    }));
+
+    useEffect(() => {
+        const removeListener = router.on('success', (event) => {
+            const pageProps = event.detail.page.props as SharedPageProps;
+
+            syncDocumentLocale(pageProps.locale);
+            syncAppMeta(pageProps.appMeta);
+            syncCsrfToken(pageProps.csrf_token);
+
+            setToastBatch((current) => ({
+                key: current.key + 1,
+                messages: extractToastMessages(pageProps),
+            }));
+        });
+
+        return () => {
+            removeListener();
+        };
+    }, []);
+
+    return (
+        <ToastProvider>
+            <ToastBatchSync batchKey={toastBatch.key} messages={toastBatch.messages} />
+            <App {...appProps} />
+        </ToastProvider>
+    );
+}
+
 createInertiaApp({
     title: (title) => (title ? `${title} - ${currentAppName}` : currentAppName),
     resolve: (name) =>
@@ -116,22 +205,15 @@ createInertiaApp({
             import.meta.glob('./Pages/**/*.tsx'),
         ),
     setup({ el, App, props }) {
-        const initialProps = props.initialPage.props as { locale?: string; appMeta?: AppMetaPayload; csrf_token?: string };
+        const initialProps = props.initialPage.props as SharedPageProps;
 
         syncDocumentLocale(initialProps.locale);
         syncAppMeta(initialProps.appMeta);
         syncCsrfToken(initialProps.csrf_token);
-        router.on('success', (event) => {
-            const pageProps = event.detail.page.props as { locale?: string; appMeta?: AppMetaPayload; csrf_token?: string };
-
-            syncDocumentLocale(pageProps.locale);
-            syncAppMeta(pageProps.appMeta);
-            syncCsrfToken(pageProps.csrf_token);
-        });
 
         const root = createRoot(el);
 
-        root.render(<App {...props} />);
+        root.render(<AppShell App={App} appProps={props} initialPageProps={initialProps} />);
     },
     progress: {
         color: '#4B5563',

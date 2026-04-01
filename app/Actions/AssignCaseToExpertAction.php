@@ -32,6 +32,12 @@ class AssignCaseToExpertAction
             ]);
         }
 
+        if ($legalCase->assigned_legal_expert_id !== null) {
+            throw ValidationException::withMessages([
+                'assigned_legal_expert_id' => __('A legal expert has already been assigned to this case.'),
+            ]);
+        }
+
         /** @var User $expert */
         $expert = User::query()->with('team')->findOrFail($attributes['assigned_legal_expert_id']);
         $expectedTeamId = $legalCase->assignedTeamLeader?->team_id ?? $actor->team_id;

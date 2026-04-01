@@ -11,6 +11,7 @@ use App\Models\Team;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\ReferenceDataSeeder;
+use Inertia\Testing\AssertableInertia;
 
 beforeEach(function (): void {
     $this->seed([
@@ -39,7 +40,7 @@ it('moves an advisory request through requester director team leader and expert'
 
     expect($advisoryRequest->status)->toBe(AdvisoryRequestStatus::UNDER_DIRECTOR_REVIEW);
 
-    $this->actingAs($director)->patch(route('advisory.review', $advisoryRequest->id), [
+    $this->actingAs($director)->patch(route('advisory.review', $advisoryRequest), [
         'director_decision' => 'approved',
         'director_notes' => 'Proceed with advisory team leader review.',
         'assigned_team_leader_id' => $teamLeader->id,
@@ -50,7 +51,7 @@ it('moves an advisory request through requester director team leader and expert'
     expect($advisoryRequest->status)->toBe(AdvisoryRequestStatus::ASSIGNED_TO_TEAM_LEADER);
     expect($advisoryRequest->assigned_team_leader_id)->toBe($teamLeader->id);
 
-    $this->actingAs($teamLeader)->patch(route('advisory.assign', $advisoryRequest->id), [
+    $this->actingAs($teamLeader)->patch(route('advisory.assign', $advisoryRequest), [
         'assigned_legal_expert_id' => $expert->id,
         'notes' => 'Prepare written opinion.',
     ])->assertSessionHasNoErrors();
@@ -60,7 +61,7 @@ it('moves an advisory request through requester director team leader and expert'
     expect($advisoryRequest->status)->toBe(AdvisoryRequestStatus::ASSIGNED_TO_EXPERT);
     expect($advisoryRequest->assigned_legal_expert_id)->toBe($expert->id);
 
-    $this->actingAs($expert)->post(route('advisory.respond', $advisoryRequest->id), [
+    $this->actingAs($expert)->post(route('advisory.respond', $advisoryRequest), [
         'response_type' => 'written',
         'summary' => 'The department may proceed once notice and evaluation records are preserved.',
         'advice_text' => 'Keep the bid-evaluation memo, bidder communication record, and appeal timeline on file.',
@@ -71,6 +72,115 @@ it('moves an advisory request through requester director team leader and expert'
 
     expect($advisoryRequest->status)->toBe(AdvisoryRequestStatus::RESPONDED);
     expect($advisoryRequest->responses)->toHaveCount(1);
+});
+
+it('provides the advisory id to the advisory show page props', function (): void {
+    $director = createUserWithRole(
+        SystemRole::LEGAL_DIRECTOR,
+        Department::query()->where('code', 'LEG')->firstOrFail(),
+        Team::query()->where('code', 'ADM')->firstOrFail(),
+    );
+
+    $requester = createUserWithRole(
+        SystemRole::DEPARTMENT_REQUESTER,
+        Department::query()->where('code', 'HR')->firstOrFail(),
+    );
+
+    $advisoryRequest = AdvisoryRequest::query()->create([
+        'request_number' => 'ADV-2026-9001',
+        'department_id' => $requester->department_id,
+        'category_id' => AdvisoryCategory::query()->firstOrFail()->id,
+        'requester_user_id' => $requester->id,
+        'subject' => 'Director review payload check',
+        'request_type' => 'written',
+        'status' => AdvisoryRequestStatus::UNDER_DIRECTOR_REVIEW,
+        'workflow_stage' => 'director',
+        'priority' => 'medium',
+        'director_decision' => 'pending',
+        'description' => 'Ensure the Inertia show payload exposes the advisory id for Ziggy route generation.',
+        'date_submitted' => now()->toDateString(),
+    ]);
+
+    $this->actingAs($director)
+        ->get(route('advisory.show', $advisoryRequest))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Advisory/Show')
+            ->where('requestItem.id', $advisoryRequest->id)
+        );
+});
+
+it('hides advisory assignment workspace forms once assignment already exists', function (): void {
+    $director = createUserWithRole(
+        SystemRole::LEGAL_DIRECTOR,
+        Department::query()->where('code', 'LEG')->firstOrFail(),
+        Team::query()->where('code', 'ADM')->firstOrFail(),
+    );
+
+    $teamLeader = createUserWithRole(
+        SystemRole::ADVISORY_TEAM_LEADER,
+        Department::query()->where('code', 'LEG')->firstOrFail(),
+        Team::query()->where('code', 'ADV')->firstOrFail(),
+    );
+
+    $expert = createUserWithRole(
+        SystemRole::LEGAL_EXPERT,
+        Department::query()->where('code', 'LEG')->firstOrFail(),
+        Team::query()->where('code', 'ADV')->firstOrFail(),
+    );
+
+    $requester = createUserWithRole(
+        SystemRole::DEPARTMENT_REQUESTER,
+        Department::query()->where('code', 'HR')->firstOrFail(),
+    );
+
+    $teamLeaderAssignedRequest = AdvisoryRequest::query()->create([
+        'request_number' => 'ADV-2026-9002',
+        'department_id' => $requester->department_id,
+        'category_id' => AdvisoryCategory::query()->firstOrFail()->id,
+        'requester_user_id' => $requester->id,
+        'assigned_team_leader_id' => $teamLeader->id,
+        'subject' => 'Assigned to team leader',
+        'request_type' => 'written',
+        'status' => AdvisoryRequestStatus::ASSIGNED_TO_TEAM_LEADER,
+        'workflow_stage' => 'team_leader',
+        'priority' => 'medium',
+        'director_decision' => 'approved',
+        'description' => 'Director assignment should stay hidden once a team leader is already assigned.',
+        'date_submitted' => now()->toDateString(),
+    ]);
+
+    $expertAssignedRequest = AdvisoryRequest::query()->create([
+        'request_number' => 'ADV-2026-9003',
+        'department_id' => $requester->department_id,
+        'category_id' => AdvisoryCategory::query()->firstOrFail()->id,
+        'requester_user_id' => $requester->id,
+        'assigned_team_leader_id' => $teamLeader->id,
+        'assigned_legal_expert_id' => $expert->id,
+        'subject' => 'Assigned to expert',
+        'request_type' => 'written',
+        'status' => AdvisoryRequestStatus::ASSIGNED_TO_EXPERT,
+        'workflow_stage' => 'expert',
+        'priority' => 'medium',
+        'director_decision' => 'approved',
+        'description' => 'Expert assignment should stay hidden once an expert is already assigned.',
+        'date_submitted' => now()->toDateString(),
+    ]);
+
+    $this->actingAs($director)
+        ->get(route('advisory.show', $teamLeaderAssignedRequest))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Advisory/Show')
+            ->where('workspace.canAssignTeamLeader', false)
+            ->where('workspace.canAssignExpert', false)
+        );
+
+    $this->actingAs($teamLeader)
+        ->get(route('advisory.show', $expertAssignedRequest))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Advisory/Show')
+            ->where('workspace.canAssignTeamLeader', false)
+            ->where('workspace.canAssignExpert', false)
+        );
 });
 
 function createUserWithRole(SystemRole $role, Department $department, ?Team $team = null): User

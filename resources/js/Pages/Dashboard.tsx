@@ -206,7 +206,11 @@ export default function Dashboard({
                                     <p className="text-sm text-[color:var(--muted)]">{t('dashboard.no_recent_advisories')}</p>
                                 ) : (
                                     recent_advisories.map((item) => (
-                                        <Link key={item.id} href={route('advisory.show', item.id)} className="surface-muted block px-4 py-4 transition hover:-translate-y-0.5">
+                                        <Link
+                                            key={item.id}
+                                            href={route('advisory.show', { advisoryRequest: item.id })}
+                                            className="surface-muted block px-4 py-4 transition hover:-translate-y-0.5"
+                                        >
                                             <div className="flex items-start justify-between gap-4">
                                                 <div>
                                                     <p className="text-xs uppercase text-[color:var(--muted)]">
@@ -374,7 +378,7 @@ export default function Dashboard({
                             hrefLabel={canViewAdvisory ? t('common.view_all') : undefined}
                             items={recent_advisories.map((item) => ({
                                 id: item.id,
-                                href: route('advisory.show', item.id),
+                                href: route('advisory.show', { advisoryRequest: item.id }),
                                 reference: item.request_number,
                                 subject: item.subject,
                                 secondary: item.due_date ? `${t('dashboard.due_date')}: ${formatDate(item.due_date)}` : t('dashboard.no_due_date'),

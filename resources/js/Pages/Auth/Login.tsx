@@ -9,7 +9,6 @@ import { Head, Link, useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
 
 export default function Login({
-    status,
     canResetPassword,
 }: {
     status?: string;
@@ -45,12 +44,6 @@ export default function Login({
                     {t('public.portal.description')}
                 </p>
             </div>
-
-            {status ? (
-                <div className="mb-4 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm font-medium text-emerald-700 dark:text-emerald-300">
-                    {status}
-                </div>
-            ) : null}
 
             <form onSubmit={submit}>
                 <div>

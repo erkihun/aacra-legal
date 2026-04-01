@@ -20,6 +20,10 @@ type ShowCaseProps = {
     caseItem: any;
     teamLeaders: Array<{ id: string; name: string }>;
     experts: Array<{ id: string; name: string }>;
+    workspace: {
+        canAssignTeamLeader: boolean;
+        canAssignExpert: boolean;
+    };
     can: {
         review: boolean;
         assign: boolean;
@@ -34,8 +38,16 @@ export default function CasesShow({
     caseItem,
     teamLeaders,
     experts,
+    workspace,
     can,
 }: ShowCaseProps) {
+    const normalizeArray = (value: any) => (Array.isArray(value) ? value : []);
+
+    const assignments = normalizeArray(caseItem.assignments);
+    const hearings = normalizeArray(caseItem.hearings);
+    const comments = normalizeArray(caseItem.comments);
+    const attachments = normalizeArray(caseItem.attachments);
+
     const { t, locale } = useI18n();
     const { formatDateTime } = useDateFormatter();
     const [confirmCloseOpen, setConfirmCloseOpen] = useState(false);
@@ -79,29 +91,29 @@ export default function CasesShow({
     const deleteAttachmentForm = useForm({});
 
     const timelineItems = useMemo(() => {
-        const assignments = (caseItem.assignments ?? []).map((assignment: any) => ({
+        const assignmentItems = assignments.map((assignment: any) => ({
             id: assignment.id,
             title: `${assignment.assignment_role.replace('_', ' ')} ${t('common.assignment')}`,
             body: `${assignment.assigned_by} ${t('common.assigned_to')} ${assignment.assigned_to}${assignment.notes ? `. ${assignment.notes}` : ''}`,
             meta: assignment.assigned_at,
         }));
 
-        const hearings = (caseItem.hearings ?? []).map((hearing: any) => ({
+        const hearingItems = hearings.map((hearing: any) => ({
             id: hearing.id,
             title: `${t('cases.hearing_on')} ${hearing.hearing_date}`,
             body: hearing.summary,
             meta: hearing.hearing_date,
         }));
 
-        const comments = (caseItem.comments ?? []).map((comment: any) => ({
+        const commentItems = comments.map((comment: any) => ({
             id: comment.id,
             title: t('common.internal_comment'),
             body: `${comment.user?.name ?? t('common.not_available')}: ${comment.body}`,
             meta: comment.created_at,
         }));
 
-        return [...assignments, ...hearings, ...comments].sort((a, b) => `${b.meta}`.localeCompare(`${a.meta}`));
-    }, [caseItem, t]);
+        return [...assignmentItems, ...hearingItems, ...commentItems].sort((a, b) => `${b.meta}`.localeCompare(`${a.meta}`));
+    }, [assignments, hearings, comments, t]);
 
     const stages = [
         { label: t('cases.workflow.registrar'), complete: true, active: false },
@@ -129,7 +141,7 @@ export default function CasesShow({
             ? caseItem.case_type?.name_am ?? caseItem.case_type?.name_en
             : caseItem.case_type?.name_en;
 
-    const latestHearing = caseItem.hearings?.[0] ?? null;
+    const latestHearing = hearings[0] ?? null;
 
     const tabs = [
         {
@@ -163,7 +175,7 @@ export default function CasesShow({
             label: t('common.workspace'),
             content: (
                 <div className="grid gap-4">
-                    {can.review ? (
+                    {workspace.canAssignTeamLeader ? (
                         <SurfaceCard>
                             <PanelTitle title={t('cases.director_review')} />
                             <div className="grid gap-4 md:grid-cols-2">
@@ -215,7 +227,7 @@ export default function CasesShow({
                             <div className="mt-5 flex flex-wrap justify-end gap-3">
                                 <button
                                     type="button"
-                                    onClick={() => reviewForm.patch(route('cases.review', caseItem.id))}
+                                    onClick={() => reviewForm.patch(route('cases.review', { legalCase: caseItem.id }))}
                                     className="btn-base btn-primary focus-ring"
                                     disabled={reviewForm.processing}
                                 >
@@ -225,7 +237,7 @@ export default function CasesShow({
                         </SurfaceCard>
                     ) : null}
 
-                    {can.assign ? (
+                    {workspace.canAssignExpert ? (
                         <SurfaceCard>
                             <PanelTitle title={t('cases.assign_expert')} />
                             <div className="grid gap-4 md:grid-cols-2">
@@ -263,7 +275,7 @@ export default function CasesShow({
                             <div className="mt-5 flex flex-wrap justify-end gap-3">
                                 <button
                                     type="button"
-                                    onClick={() => assignForm.patch(route('cases.assign', caseItem.id))}
+                                    onClick={() => assignForm.patch(route('cases.assign', { legalCase: caseItem.id }))}
                                     className="btn-base btn-primary focus-ring"
                                     disabled={assignForm.processing}
                                 >
@@ -350,7 +362,7 @@ export default function CasesShow({
                             <div className="mt-5 flex flex-wrap justify-end gap-3">
                                 <button
                                     type="button"
-                                    onClick={() => hearingForm.post(route('cases.hearings.store', caseItem.id))}
+                                    onClick={() => hearingForm.post(route('cases.hearings.store', { legalCase: caseItem.id }))}
                                     className="btn-base btn-primary focus-ring"
                                     disabled={hearingForm.processing}
                                 >
@@ -412,7 +424,7 @@ export default function CasesShow({
                         </SurfaceCard>
                     ) : null}
 
-                    {!can.review && !can.assign && !can.recordHearing && !can.close ? (
+                    {!workspace.canAssignTeamLeader && !workspace.canAssignExpert && !can.recordHearing && !can.close ? (
                         <EmptyState
                             title={t('common.workspace')}
                             description={t('common.no_actions_available')}
@@ -496,7 +508,7 @@ export default function CasesShow({
                                     <div className="flex flex-wrap justify-end gap-3">
                                         <button
                                             type="button"
-                                            onClick={() => commentForm.post(route('cases.comments.store', caseItem.id))}
+                                            onClick={() => commentForm.post(route('cases.comments.store', { legalCase: caseItem.id }))}
                                             className="btn-base btn-secondary focus-ring"
                                             disabled={commentForm.processing}
                                         >
@@ -507,13 +519,13 @@ export default function CasesShow({
                             ) : null}
 
                             <div className="mt-4 space-y-3">
-                                {(caseItem.comments ?? []).length === 0 ? (
+                                {comments.length === 0 ? (
                                     <EmptyState
                                         title={t('common.internal_comment')}
                                         description={t('common.no_comments')}
                                     />
                                 ) : (
-                                    caseItem.comments.map((comment: any) => (
+                                    comments.map((comment: any) => (
                                         <CommentItem
                                             key={comment.id}
                                             author={comment.user?.name}
@@ -547,9 +559,10 @@ export default function CasesShow({
                                         <button
                                             type="button"
                                             onClick={() =>
-                                                attachmentForm.post(route('cases.attachments.store', caseItem.id), {
-                                                    forceFormData: true,
-                                                })
+                                                attachmentForm.post(
+                                                    route('cases.attachments.store', { legalCase: caseItem.id }),
+                                                    { forceFormData: true },
+                                                )
                                             }
                                             className="btn-base btn-secondary focus-ring"
                                             disabled={attachmentForm.processing}
@@ -561,13 +574,13 @@ export default function CasesShow({
                             ) : null}
 
                             <div className="mt-4 space-y-3">
-                                {(caseItem.attachments ?? []).length === 0 ? (
+                                {attachments.length === 0 ? (
                                     <EmptyState
                                         title={t('common.attachments')}
                                         description={t('common.no_attachments')}
                                     />
                                 ) : (
-                                    caseItem.attachments.map((attachment: any) => (
+                                    attachments.map((attachment: any) => (
                                         <FileAttachmentCard
                                             key={attachment.id}
                                             name={attachment.original_name}
@@ -597,7 +610,7 @@ export default function CasesShow({
                 confirmLabel={t('cases.close_case')}
                 onCancel={() => setConfirmCloseOpen(false)}
                 onConfirm={() =>
-                    closeForm.patch(route('cases.close', caseItem.id), {
+                    closeForm.patch(route('cases.close', { legalCase: caseItem.id }), {
                         onSuccess: () => setConfirmCloseOpen(false),
                     })
                 }

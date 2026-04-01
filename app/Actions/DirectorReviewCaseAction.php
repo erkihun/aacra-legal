@@ -39,6 +39,12 @@ class DirectorReviewCaseAction
             ];
 
             if ($decision === DirectorDecision::APPROVED) {
+                if ($legalCase->assigned_team_leader_id !== null) {
+                    throw ValidationException::withMessages([
+                        'assigned_team_leader_id' => __('A team leader has already been assigned to this case.'),
+                    ]);
+                }
+
                 /** @var User $teamLeader */
                 $teamLeader = User::query()->with('team')->findOrFail($attributes['assigned_team_leader_id']);
 

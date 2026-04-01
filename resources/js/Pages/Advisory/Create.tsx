@@ -57,7 +57,7 @@ export default function AdvisoryCreate({
                 _method: 'patch',
             }));
 
-            form.post(route('advisory.update', requestItem.id), {
+        form.post(route('advisory.update', { advisoryRequest: requestItem.id }), {
                 forceFormData: true,
                 onFinish: () => form.transform((data) => data),
             });

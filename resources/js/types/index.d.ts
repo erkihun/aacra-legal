@@ -18,6 +18,8 @@ export type PageProps<
     flash: {
         success?: string;
         error?: string;
+        warning?: string;
+        info?: string;
     };
     locale: string;
     availableLocales: Array<{

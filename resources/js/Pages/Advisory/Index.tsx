@@ -151,8 +151,10 @@ export default function AdvisoryIndex({
                     emptyTitle={t('advisory.empty_title')}
                     emptyDescription={t('advisory.empty_description')}
                     actions={(row) => [
-                        { label: t('common.view'), href: route('advisory.show', row.id) },
-                        ...(row.can_update ? [{ label: t('common.edit'), href: route('advisory.edit', row.id) }] : []),
+                        { label: t('common.view'), href: route('advisory.show', { advisoryRequest: row.id }) },
+                        ...(row.can_update
+                            ? [{ label: t('common.edit'), href: route('advisory.edit', { advisoryRequest: row.id }) }]
+                            : []),
                     ]}
                     columns={[
                         {

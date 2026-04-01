@@ -438,18 +438,6 @@ export default function AuthenticatedLayout({
                             </div>
                         ) : null}
 
-                        {props.flash.success ? (
-                            <div className="section-shell mb-4 border-emerald-400/20 bg-emerald-500/10 py-4 text-sm text-emerald-700 dark:text-emerald-200">
-                                {props.flash.success}
-                            </div>
-                        ) : null}
-
-                        {props.flash.error ? (
-                            <div className="section-shell mb-4 border-rose-400/20 bg-rose-500/10 py-4 text-sm text-rose-700 dark:text-rose-200">
-                                {props.flash.error}
-                            </div>
-                        ) : null}
-
                         <div className="space-y-4">
                             {header ? header : null}
                             <main className="pb-6">{children}</main>

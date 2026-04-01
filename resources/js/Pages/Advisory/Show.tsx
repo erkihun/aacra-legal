@@ -20,6 +20,10 @@ type ShowAdvisoryProps = {
     requestItem: any;
     teamLeaders: Array<{ id: string; name: string }>;
     experts: Array<{ id: string; name: string }>;
+    workspace: {
+        canAssignTeamLeader: boolean;
+        canAssignExpert: boolean;
+    };
     can: {
         review: boolean;
         assign: boolean;
@@ -35,8 +39,16 @@ export default function AdvisoryShow({
     requestItem,
     teamLeaders,
     experts,
+    workspace,
     can,
 }: ShowAdvisoryProps) {
+    const normalizeArray = (value: any) => (Array.isArray(value) ? value : []);
+
+    const attachments = normalizeArray(requestItem.attachments);
+    const comments = normalizeArray(requestItem.comments);
+    const responses = normalizeArray(requestItem.responses);
+    const assignments = normalizeArray(requestItem.assignments);
+
     const { t, locale } = useI18n();
     const { formatDateTime } = useDateFormatter();
     const [confirmOpen, setConfirmOpen] = useState(false);
@@ -90,29 +102,29 @@ export default function AdvisoryShow({
     ];
 
     const timelineItems = useMemo(() => {
-        const assignments = (requestItem.assignments ?? []).map((assignment: any) => ({
+        const assignmentItems = assignments.map((assignment: any) => ({
             id: assignment.id,
             title: `${assignment.assignment_role.replace('_', ' ')} ${t('common.assignment')}`,
             body: `${assignment.assigned_by} ${t('common.assigned_to')} ${assignment.assigned_to}${assignment.notes ? `. ${assignment.notes}` : ''}`,
             meta: assignment.assigned_at,
         }));
 
-        const responses = (requestItem.responses ?? []).map((response: any) => ({
+        const responseItems = responses.map((response: any) => ({
             id: response.id,
             title: `${response.response_type} ${t('advisory.response')}`,
             body: `${response.responder}: ${response.summary}`,
             meta: response.responded_at,
         }));
 
-        const comments = (requestItem.comments ?? []).map((comment: any) => ({
+        const commentsItems = comments.map((comment: any) => ({
             id: comment.id,
             title: t('common.internal_comment'),
             body: `${comment.user?.name ?? t('common.not_available')}: ${comment.body}`,
             meta: comment.created_at,
         }));
 
-        return [...assignments, ...responses, ...comments].sort((a, b) => `${b.meta}`.localeCompare(`${a.meta}`));
-    }, [requestItem, t]);
+        return [...assignmentItems, ...responseItems, ...commentsItems].sort((a, b) => `${b.meta}`.localeCompare(`${a.meta}`));
+    }, [assignments, responses, comments, t]);
 
     const departmentName =
         locale === 'am'
@@ -123,7 +135,7 @@ export default function AdvisoryShow({
             ? requestItem.category?.name_am ?? requestItem.category?.name_en
             : requestItem.category?.name_en;
 
-    const latestResponse = requestItem.responses?.[0] ?? null;
+    const latestResponse = responses[0] ?? null;
     const isRequesterReturned = can.update && requestItem.status === 'returned';
     const commentLabel = can.requester_comment_public ? t('advisory.follow_up_note') : t('common.add_internal_note');
 
@@ -159,7 +171,7 @@ export default function AdvisoryShow({
             label: t('common.workspace'),
             content: (
                 <div className="grid gap-4">
-                    {can.review ? (
+                    {workspace.canAssignTeamLeader ? (
                         <SurfaceCard>
                             <PanelTitle title={t('advisory.director_review')} />
                             <div className="grid gap-4 md:grid-cols-2">
@@ -222,7 +234,7 @@ export default function AdvisoryShow({
                         </SurfaceCard>
                     ) : null}
 
-                    {can.assign ? (
+                    {workspace.canAssignExpert ? (
                         <SurfaceCard>
                             <PanelTitle title={t('advisory.assign_expert')} />
                             <div className="grid gap-4 md:grid-cols-2">
@@ -260,7 +272,7 @@ export default function AdvisoryShow({
                             <div className="mt-5 flex flex-wrap justify-end gap-3">
                                 <button
                                     type="button"
-                                    onClick={() => assignForm.patch(route('advisory.assign', requestItem.id))}
+                                    onClick={() => assignForm.patch(route('advisory.assign', { advisoryRequest: requestItem.id }))}
                                     className="btn-base btn-primary focus-ring"
                                     disabled={assignForm.processing}
                                 >
@@ -331,7 +343,7 @@ export default function AdvisoryShow({
                             <div className="mt-5 flex flex-wrap justify-end gap-3">
                                 <button
                                     type="button"
-                                    onClick={() => responseForm.post(route('advisory.respond', requestItem.id))}
+                                    onClick={() => responseForm.post(route('advisory.respond', { advisoryRequest: requestItem.id }))}
                                     className="btn-base btn-primary focus-ring"
                                     disabled={responseForm.processing}
                                 >
@@ -341,7 +353,7 @@ export default function AdvisoryShow({
                         </SurfaceCard>
                     ) : null}
 
-                    {!can.review && !can.assign && !can.respond ? (
+                    {!workspace.canAssignTeamLeader && !workspace.canAssignExpert && !can.respond ? (
                         <EmptyState
                             title={t('common.workspace')}
                             description={t('common.no_actions_available')}
@@ -369,7 +381,7 @@ export default function AdvisoryShow({
                     description={requestItem.description}
                     action={
                         isRequesterReturned ? (
-                            <Link href={route('advisory.edit', requestItem.id)} className="btn-base btn-primary focus-ring">
+                            <Link href={route('advisory.edit', { advisoryRequest: requestItem.id })} className="btn-base btn-primary focus-ring">
                                 {t('advisory.resubmit_request')}
                             </Link>
                         ) : undefined
@@ -448,7 +460,7 @@ export default function AdvisoryShow({
                                                     ...data,
                                                     is_internal: !can.requester_comment_public,
                                                 }));
-                                                commentForm.post(route('advisory.comments.store', requestItem.id), {
+                                                commentForm.post(route('advisory.comments.store', { advisoryRequest: requestItem.id }), {
                                                     onFinish: () => commentForm.transform((data) => data),
                                                 });
                                             }}
@@ -462,13 +474,13 @@ export default function AdvisoryShow({
                             ) : null}
 
                             <div className="mt-4 space-y-3">
-                                {(requestItem.comments ?? []).length === 0 ? (
+                                {comments.length === 0 ? (
                                     <EmptyState
                                         title={t('common.internal_comment')}
                                         description={t('common.no_comments')}
                                     />
                                 ) : (
-                                    requestItem.comments.map((comment: any) => (
+                                    comments.map((comment: any) => (
                                         <CommentItem
                                             key={comment.id}
                                             author={comment.user?.name}
@@ -506,7 +518,7 @@ export default function AdvisoryShow({
                                             type="button"
                                             onClick={() =>
                                                 attachmentForm.post(
-                                                    route('advisory.attachments.store', requestItem.id),
+                                                    route('advisory.attachments.store', { advisoryRequest: requestItem.id }),
                                                     { forceFormData: true },
                                                 )
                                             }
@@ -520,13 +532,13 @@ export default function AdvisoryShow({
                             ) : null}
 
                             <div className="mt-4 space-y-3">
-                                {(requestItem.attachments ?? []).length === 0 ? (
+                                {attachments.length === 0 ? (
                                     <EmptyState
                                         title={t('common.attachments')}
                                         description={t('common.no_attachments')}
                                     />
                                 ) : (
-                                    requestItem.attachments.map((attachment: any) => (
+                                    attachments.map((attachment: any) => (
                                         <FileAttachmentCard
                                             key={attachment.id}
                                             name={attachment.original_name}
@@ -556,7 +568,7 @@ export default function AdvisoryShow({
                 confirmLabel={t('advisory.confirm_review_button')}
                 onCancel={() => setConfirmOpen(false)}
                 onConfirm={() => {
-                    reviewForm.patch(route('advisory.review', requestItem.id), {
+                    reviewForm.patch(route('advisory.review', { advisoryRequest: requestItem.id }), {
                         onSuccess: () => setConfirmOpen(false),
                     });
                 }}

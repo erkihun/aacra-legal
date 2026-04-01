@@ -14,6 +14,7 @@ use App\Actions\StoreAttachmentAction;
 use App\Enums\CaseStatus;
 use App\Enums\PriorityLevel;
 use App\Enums\SystemRole;
+use App\Enums\WorkflowStage;
 use App\Http\Requests\Cases\AssignLegalCaseRequest;
 use App\Http\Requests\Cases\CloseLegalCaseRequest;
 use App\Http\Requests\Cases\RecordCaseHearingRequest;
@@ -99,6 +100,9 @@ class LegalCaseController extends Controller
     public function show(LegalCase $legalCase): Response
     {
         $this->authorize('view', $legalCase);
+        $user = request()->user();
+        $canReview = $user?->can('review', $legalCase) ?? false;
+        $canAssign = $user?->can('assign', $legalCase) ?? false;
 
         $legalCase->load([
             'court',
@@ -116,7 +120,7 @@ class LegalCaseController extends Controller
         ]);
 
         return Inertia::render('Cases/Show', [
-            'caseItem' => LegalCaseResource::make($legalCase),
+            'caseItem' => LegalCaseResource::make($legalCase)->resolve(),
             'teamLeaders' => User::query()
                 ->role(SystemRole::LITIGATION_TEAM_LEADER->value)
                 ->where('is_active', true)
@@ -129,12 +133,27 @@ class LegalCaseController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'can' => [
-                'review' => request()->user()?->can('review', $legalCase) ?? false,
-                'assign' => request()->user()?->can('assign', $legalCase) ?? false,
+                'review' => $canReview,
+                'assign' => $canAssign,
                 'recordHearing' => request()->user()?->can('recordHearing', $legalCase) ?? false,
                 'close' => request()->user()?->can('close', $legalCase) ?? false,
                 'comment' => request()->user()?->can('comment', $legalCase) ?? false,
                 'attach' => request()->user()?->can('attach', $legalCase) ?? false,
+            ],
+            'workspace' => [
+                'canAssignTeamLeader' => $canReview
+                    && $legalCase->assigned_team_leader_id === null
+                    && in_array($legalCase->status, [CaseStatus::UNDER_DIRECTOR_REVIEW, CaseStatus::INTAKE], true)
+                    && $legalCase->workflow_stage === WorkflowStage::DIRECTOR,
+                'canAssignExpert' => $canAssign
+                    && $legalCase->assigned_team_leader_id !== null
+                    && (
+                        $user?->isSuperAdmin()
+                        || $legalCase->assigned_team_leader_id === $user?->getKey()
+                    )
+                    && $legalCase->assigned_legal_expert_id === null
+                    && $legalCase->status === CaseStatus::ASSIGNED_TO_TEAM_LEADER
+                    && $legalCase->workflow_stage === WorkflowStage::TEAM_LEADER,
             ],
         ]);
     }

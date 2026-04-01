@@ -39,6 +39,12 @@ class DirectorReviewAdvisoryAction
             ];
 
             if ($decision === DirectorDecision::APPROVED) {
+                if ($advisoryRequest->assigned_team_leader_id !== null) {
+                    throw ValidationException::withMessages([
+                        'assigned_team_leader_id' => __('A team leader has already been assigned to this advisory request.'),
+                    ]);
+                }
+
                 /** @var User $teamLeader */
                 $teamLeader = User::query()->with('team')->findOrFail($attributes['assigned_team_leader_id']);
 

@@ -69,13 +69,82 @@ it('prevents advisory assignment to an expert outside the advisory team', functi
     ]);
 
     $this->actingAs($teamLeader)
-        ->patch(route('advisory.assign', $advisoryRequest->id), [
+        ->patch(route('advisory.assign', $advisoryRequest), [
             'assigned_legal_expert_id' => $wrongExpert->id,
             'notes' => 'Invalid expert assignment.',
         ])
         ->assertSessionHasErrors('assigned_legal_expert_id');
 
     expect($advisoryRequest->fresh()->assigned_legal_expert_id)->toBeNull();
+});
+
+it('prevents assigning an advisory team leader more than once through the normal review flow', function (): void {
+    $requester = createGuardrailUser(SystemRole::DEPARTMENT_REQUESTER, 'duplicate-advisory-requester@ldms.test', 'HR');
+    $director = createGuardrailUser(SystemRole::LEGAL_DIRECTOR, 'duplicate-advisory-director@ldms.test', 'LEG', 'ADM');
+    $firstLeader = createGuardrailUser(SystemRole::ADVISORY_TEAM_LEADER, 'duplicate-advisory-leader-1@ldms.test', 'LEG', 'ADV');
+    $secondLeader = createGuardrailUser(SystemRole::ADVISORY_TEAM_LEADER, 'duplicate-advisory-leader-2@ldms.test', 'LEG', 'ADV');
+
+    $advisoryRequest = AdvisoryRequest::query()->create([
+        'request_number' => 'ADV-GUARD-0003',
+        'department_id' => $requester->department_id,
+        'category_id' => AdvisoryCategory::query()->firstOrFail()->id,
+        'requester_user_id' => $requester->id,
+        'director_reviewer_id' => $director->id,
+        'assigned_team_leader_id' => $firstLeader->id,
+        'subject' => 'Prevent duplicate team leader assignment',
+        'request_type' => AdvisoryRequestType::WRITTEN,
+        'status' => AdvisoryRequestStatus::UNDER_DIRECTOR_REVIEW,
+        'workflow_stage' => WorkflowStage::DIRECTOR,
+        'priority' => PriorityLevel::HIGH,
+        'director_decision' => DirectorDecision::PENDING,
+        'description' => 'This request already has a team leader and must not be assigned again.',
+        'date_submitted' => now()->toDateString(),
+    ]);
+
+    $this->actingAs($director)
+        ->patch(route('advisory.review', $advisoryRequest), [
+            'director_decision' => 'approved',
+            'director_notes' => 'Attempt duplicate leader assignment.',
+            'assigned_team_leader_id' => $secondLeader->id,
+        ])
+        ->assertSessionHasErrors('assigned_team_leader_id');
+
+    expect($advisoryRequest->fresh()->assigned_team_leader_id)->toBe($firstLeader->id);
+});
+
+it('prevents assigning an advisory expert more than once through the normal assignment flow', function (): void {
+    $requester = createGuardrailUser(SystemRole::DEPARTMENT_REQUESTER, 'duplicate-expert-requester@ldms.test', 'HR');
+    $director = createGuardrailUser(SystemRole::LEGAL_DIRECTOR, 'duplicate-expert-director@ldms.test', 'LEG', 'ADM');
+    $teamLeader = createGuardrailUser(SystemRole::ADVISORY_TEAM_LEADER, 'duplicate-expert-leader@ldms.test', 'LEG', 'ADV');
+    $firstExpert = createGuardrailUser(SystemRole::LEGAL_EXPERT, 'duplicate-expert-1@ldms.test', 'LEG', 'ADV');
+    $secondExpert = createGuardrailUser(SystemRole::LEGAL_EXPERT, 'duplicate-expert-2@ldms.test', 'LEG', 'ADV');
+
+    $advisoryRequest = AdvisoryRequest::query()->create([
+        'request_number' => 'ADV-GUARD-0004',
+        'department_id' => $requester->department_id,
+        'category_id' => AdvisoryCategory::query()->firstOrFail()->id,
+        'requester_user_id' => $requester->id,
+        'director_reviewer_id' => $director->id,
+        'assigned_team_leader_id' => $teamLeader->id,
+        'assigned_legal_expert_id' => $firstExpert->id,
+        'subject' => 'Prevent duplicate expert assignment',
+        'request_type' => AdvisoryRequestType::WRITTEN,
+        'status' => AdvisoryRequestStatus::ASSIGNED_TO_TEAM_LEADER,
+        'workflow_stage' => WorkflowStage::TEAM_LEADER,
+        'priority' => PriorityLevel::HIGH,
+        'director_decision' => DirectorDecision::APPROVED,
+        'description' => 'This request already has an expert and must not be assigned again.',
+        'date_submitted' => now()->toDateString(),
+    ]);
+
+    $this->actingAs($teamLeader)
+        ->patch(route('advisory.assign', $advisoryRequest), [
+            'assigned_legal_expert_id' => $secondExpert->id,
+            'notes' => 'Attempt duplicate expert assignment.',
+        ])
+        ->assertSessionHasErrors('assigned_legal_expert_id');
+
+    expect($advisoryRequest->fresh()->assigned_legal_expert_id)->toBe($firstExpert->id);
 });
 
 it('prevents duplicate advisory responses after a request is already completed', function (): void {
@@ -99,7 +168,7 @@ it('prevents duplicate advisory responses after a request is already completed',
     ]);
 
     $this->actingAs($expert)
-        ->post(route('advisory.respond', $advisoryRequest->id), [
+        ->post(route('advisory.respond', $advisoryRequest), [
             'response_type' => 'written',
             'summary' => 'Attempting a second response should fail.',
             'advice_text' => 'This is not allowed once the request is completed.',

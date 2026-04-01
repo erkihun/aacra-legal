@@ -6,7 +6,7 @@ import { useI18n } from '@/lib/i18n';
 import { Head, useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
 
-export default function ForgotPassword({ status }: { status?: string }) {
+export default function ForgotPassword({ status: _status }: { status?: string }) {
     const { t } = useI18n();
     const { data, setData, post, processing, errors } = useForm({
         email: '',
@@ -23,12 +23,6 @@ export default function ForgotPassword({ status }: { status?: string }) {
             <Head title={t('auth.forgot_password_title')} />
 
             <div className="mb-4 text-sm text-[color:var(--muted-strong)]">{t('auth.forgot_password_help')}</div>
-
-            {status ? (
-                <div className="mb-4 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm font-medium text-emerald-700 dark:text-emerald-300">
-                    {status}
-                </div>
-            ) : null}
 
             <form onSubmit={submit}>
                 <TextInput

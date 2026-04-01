@@ -36,7 +36,7 @@ class ProfileController extends Controller
         $request->user()->save();
         $request->session()->put('locale', $request->user()->locale?->value ?? $request->input('locale'));
 
-        return Redirect::route('profile.edit');
+        return Redirect::route('profile.edit')->with('success', __('profile.saved'));
     }
 
     public function destroy(Request $request): RedirectResponse

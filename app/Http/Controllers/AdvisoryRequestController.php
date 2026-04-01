@@ -15,6 +15,7 @@ use App\Enums\AdvisoryRequestStatus;
 use App\Enums\AdvisoryRequestType;
 use App\Enums\PriorityLevel;
 use App\Enums\SystemRole;
+use App\Enums\WorkflowStage;
 use App\Http\Requests\Advisory\AssignAdvisoryRequestRequest;
 use App\Http\Requests\Advisory\RecordAdvisoryResponseRequest;
 use App\Http\Requests\Advisory\ReviewAdvisoryRequestRequest;
@@ -106,13 +107,15 @@ class AdvisoryRequestController extends Controller
         return to_route('advisory.show', $advisoryRequest)->with('success', __('Advisory request submitted successfully.'));
     }
 
-    public function show(AdvisoryRequest $id): Response
+    public function show(AdvisoryRequest $advisoryRequest): Response
     {
-        $this->authorize('view', $id);
+        $this->authorize('view', $advisoryRequest);
 
         $user = request()->user();
+        $canReview = $user?->can('review', $advisoryRequest) ?? false;
+        $canAssign = $user?->can('assign', $advisoryRequest) ?? false;
 
-        $id->load([
+        $advisoryRequest->load([
             'department',
             'category',
             'requester',
@@ -126,7 +129,7 @@ class AdvisoryRequestController extends Controller
             'activities.causer',
         ]);
 
-        $id->load([
+        $advisoryRequest->load([
             'comments' => function ($query) use ($user): void {
                 $query->with('user');
 
@@ -137,7 +140,7 @@ class AdvisoryRequestController extends Controller
         ]);
 
         return Inertia::render('Advisory/Show', [
-            'requestItem' => AdvisoryRequestResource::make($id),
+            'requestItem' => AdvisoryRequestResource::make($advisoryRequest)->resolve(),
             'teamLeaders' => User::query()
                 ->role(SystemRole::ADVISORY_TEAM_LEADER->value)
                 ->where('is_active', true)
@@ -150,25 +153,40 @@ class AdvisoryRequestController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'can' => [
-                'review' => request()->user()?->can('review', $id) ?? false,
-                'assign' => request()->user()?->can('assign', $id) ?? false,
-                'respond' => request()->user()?->can('respond', $id) ?? false,
-                'comment' => request()->user()?->can('comment', $id) ?? false,
-                'attach' => request()->user()?->can('attach', $id) ?? false,
-                'update' => request()->user()?->can('update', $id) ?? false,
+                'review' => $canReview,
+                'assign' => $canAssign,
+                'respond' => request()->user()?->can('respond', $advisoryRequest) ?? false,
+                'comment' => request()->user()?->can('comment', $advisoryRequest) ?? false,
+                'attach' => request()->user()?->can('attach', $advisoryRequest) ?? false,
+                'update' => request()->user()?->can('update', $advisoryRequest) ?? false,
                 'requester_comment_public' => request()->user()?->hasSystemRole(SystemRole::DEPARTMENT_REQUESTER) ?? false,
+            ],
+            'workspace' => [
+                'canAssignTeamLeader' => $canReview
+                    && $advisoryRequest->assigned_team_leader_id === null
+                    && in_array($advisoryRequest->status, [AdvisoryRequestStatus::UNDER_DIRECTOR_REVIEW, AdvisoryRequestStatus::RETURNED], true)
+                    && $advisoryRequest->workflow_stage === WorkflowStage::DIRECTOR,
+                'canAssignExpert' => $canAssign
+                    && $advisoryRequest->assigned_team_leader_id !== null
+                    && (
+                        $user?->isSuperAdmin()
+                        || $advisoryRequest->assigned_team_leader_id === $user?->getKey()
+                    )
+                    && $advisoryRequest->assigned_legal_expert_id === null
+                    && $advisoryRequest->status === AdvisoryRequestStatus::ASSIGNED_TO_TEAM_LEADER
+                    && $advisoryRequest->workflow_stage === WorkflowStage::TEAM_LEADER,
             ],
         ]);
     }
 
-    public function edit(AdvisoryRequest $id): Response
+    public function edit(AdvisoryRequest $advisoryRequest): Response
     {
-        $this->authorize('update', $id);
+        $this->authorize('update', $advisoryRequest);
 
-        $id->load(['department', 'category']);
+        $advisoryRequest->load(['department', 'category']);
 
         return Inertia::render('Advisory/Create', [
-            'requestItem' => AdvisoryRequestResource::make($id),
+            'requestItem' => AdvisoryRequestResource::make($advisoryRequest),
             'departments' => Department::query()->active()->orderBy('name_en')->get(['id', 'name_en', 'name_am']),
             'categories' => AdvisoryCategory::query()->where('is_active', true)->orderBy('name_en')->get(['id', 'name_en', 'name_am']),
             'priorityOptions' => collect(PriorityLevel::cases())->map(fn ($case) => [
@@ -186,41 +204,41 @@ class AdvisoryRequestController extends Controller
 
     public function update(
         UpdateAdvisoryRequestRequest $request,
-        AdvisoryRequest $id,
+        AdvisoryRequest $advisoryRequest,
         UpdateReturnedAdvisoryRequestAction $action,
     ): RedirectResponse {
-        $action->execute($id, $request->validated(), $request->user());
+        $action->execute($advisoryRequest, $request->validated(), $request->user());
 
-        return to_route('advisory.show', $id)->with('success', __('Advisory request resubmitted successfully.'));
+        return to_route('advisory.show', $advisoryRequest)->with('success', __('Advisory request resubmitted successfully.'));
     }
 
-    public function directorReview(ReviewAdvisoryRequestRequest $request, AdvisoryRequest $id, DirectorReviewAdvisoryAction $action): RedirectResponse
+    public function directorReview(ReviewAdvisoryRequestRequest $request, AdvisoryRequest $advisoryRequest, DirectorReviewAdvisoryAction $action): RedirectResponse
     {
-        $action->execute($id, $request->validated(), $request->user());
+        $action->execute($advisoryRequest, $request->validated(), $request->user());
 
         return back()->with('success', __('Director review recorded.'));
     }
 
-    public function assign(AssignAdvisoryRequestRequest $request, AdvisoryRequest $id, AssignAdvisoryToExpertAction $action): RedirectResponse
+    public function assign(AssignAdvisoryRequestRequest $request, AdvisoryRequest $advisoryRequest, AssignAdvisoryToExpertAction $action): RedirectResponse
     {
-        $action->execute($id, $request->validated(), $request->user());
+        $action->execute($advisoryRequest, $request->validated(), $request->user());
 
         return back()->with('success', __('Advisory request assigned to expert.'));
     }
 
-    public function respond(RecordAdvisoryResponseRequest $request, AdvisoryRequest $id, RecordAdvisoryResponseAction $action): RedirectResponse
+    public function respond(RecordAdvisoryResponseRequest $request, AdvisoryRequest $advisoryRequest, RecordAdvisoryResponseAction $action): RedirectResponse
     {
-        $action->execute($id, $request->validated(), $request->user());
+        $action->execute($advisoryRequest, $request->validated(), $request->user());
 
         return back()->with('success', __('Advisory response recorded.'));
     }
 
     public function addComment(StoreCommentRequest $request, AdvisoryRequest $advisoryRequest, AddCommentAction $action): RedirectResponse
     {
-        $this->authorize('comment', $id);
+        $this->authorize('comment', $advisoryRequest);
 
         $action->execute(
-            $id,
+            $advisoryRequest,
             $request->user(),
             $request->string('body')->toString(),
             (bool) $request->boolean('is_internal', ! $request->user()?->hasSystemRole(SystemRole::DEPARTMENT_REQUESTER)),
@@ -229,12 +247,12 @@ class AdvisoryRequestController extends Controller
         return back()->with('success', __('Comment added.'));
     }
 
-    public function addAttachment(StoreAttachmentRequest $request, AdvisoryRequest $id, StoreAttachmentAction $action): RedirectResponse
+    public function addAttachment(StoreAttachmentRequest $request, AdvisoryRequest $advisoryRequest, StoreAttachmentAction $action): RedirectResponse
     {
         $this->authorize('create', Attachment::class);
-        $this->authorize('attach', $id);
+        $this->authorize('attach', $advisoryRequest);
 
-        $action->execute($id, $request->file('attachments'), $request->user());
+        $action->execute($advisoryRequest, $request->file('attachments'), $request->user());
 
         return back()->with('success', __('Attachment uploaded.'));
     }

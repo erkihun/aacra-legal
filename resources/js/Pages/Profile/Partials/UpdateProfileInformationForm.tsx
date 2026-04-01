@@ -3,13 +3,12 @@ import FormField from '@/Components/Ui/FormField';
 import TextInput from '@/Components/TextInput';
 import { useI18n } from '@/lib/i18n';
 import { PageProps } from '@/types';
-import { Transition } from '@headlessui/react';
 import { Link, useForm, usePage } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
 
 export default function UpdateProfileInformation({
     mustVerifyEmail,
-    status,
+    status: _status,
     className = '',
 }: {
     mustVerifyEmail: boolean;
@@ -21,7 +20,7 @@ export default function UpdateProfileInformation({
     const user = page.props.auth.user!;
     const locales = page.props.availableLocales ?? [];
 
-    const { data, setData, patch, errors, processing, recentlySuccessful } = useForm({
+    const { data, setData, patch, errors, processing } = useForm({
         name: user.name,
         email: user.email,
         phone: user.phone ?? '',
@@ -100,27 +99,11 @@ export default function UpdateProfileInformation({
                                 {t('profile.resend_verification')}
                             </Link>
                         </p>
-
-                        {status === 'verification-link-sent' ? (
-                            <div className="mt-2 text-sm font-medium text-emerald-600 dark:text-emerald-300">
-                                {t('auth.verification_link_sent')}
-                            </div>
-                        ) : null}
                     </div>
                 ) : null}
 
                 <div className="flex flex-wrap items-center gap-4">
                     <PrimaryButton disabled={processing}>{t('profile.save')}</PrimaryButton>
-
-                    <Transition
-                        show={recentlySuccessful}
-                        enter="transition ease-in-out"
-                        enterFrom="opacity-0"
-                        leave="transition ease-in-out"
-                        leaveTo="opacity-0"
-                    >
-                        <p className="text-sm text-[color:var(--muted)]">{t('profile.saved')}</p>
-                    </Transition>
                 </div>
             </form>
         </section>
