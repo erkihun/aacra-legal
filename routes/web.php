@@ -69,6 +69,7 @@ Route::middleware('auth')->group(function () {
     Route::patch('/public-posts/{publicPost}/publish', [AdminPublicPostController::class, 'publish'])->name('public-posts.publish');
     Route::patch('/public-posts/{publicPost}/unpublish', [AdminPublicPostController::class, 'unpublish'])->name('public-posts.unpublish');
     Route::get('/roles', [RoleManagementController::class, 'index'])->name('roles.index');
+    Route::get('/roles/create', [RoleManagementController::class, 'create'])->name('roles.create');
     Route::get('/roles/{role}/edit', [RoleManagementController::class, 'edit'])->name('roles.edit');
     Route::patch('/roles/{role}', [RoleManagementController::class, 'update'])->name('roles.update');
     Route::get('/settings', [SystemSettingsController::class, 'index'])->name('settings.index');
@@ -122,6 +123,8 @@ Route::middleware('auth')->group(function () {
         Route::patch('/notifications/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
         Route::put('/settings/{group}', [SystemSettingsController::class, 'update'])->name('settings.update');
         Route::post('/settings/telegram/test', TelegramTestMessageController::class)->name('settings.telegram.test');
+        Route::post('/roles', [RoleManagementController::class, 'store'])->name('roles.store');
+        Route::delete('/roles/{role}', [RoleManagementController::class, 'destroy'])->name('roles.destroy');
     });
 });
 
