@@ -1,4 +1,5 @@
 import ConfirmationDialog from '@/Components/Ui/ConfirmationDialog';
+import BackButton from '@/Components/Ui/BackButton';
 import FormField from '@/Components/Ui/FormField';
 import PageContainer from '@/Components/Ui/PageContainer';
 import SectionHeader from '@/Components/Ui/SectionHeader';
@@ -24,7 +25,7 @@ export default function LegalCaseTypeForm({ caseTypeItem, canDelete }: any) {
         <AuthenticatedLayout breadcrumbs={[{ label: t('navigation.dashboard'), href: route('dashboard') }, { label: t('navigation.legal_case_types'), href: route('legal-case-types.index') }, { label: isEditing ? t('common.edit') : t('common.create_record') }]}>
             <Head title={isEditing ? t('legal_case_types.edit_title') : t('legal_case_types.create_title')} />
             <PageContainer>
-                <SectionHeader eyebrow={t('legal_case_types.eyebrow')} title={isEditing ? t('legal_case_types.edit_title') : t('legal_case_types.create_title')} description={isEditing ? t('legal_case_types.edit_description') : t('legal_case_types.create_description')} />
+                <SectionHeader eyebrow={t('legal_case_types.eyebrow')} title={isEditing ? t('legal_case_types.edit_title') : t('legal_case_types.create_title')} description={isEditing ? t('legal_case_types.edit_description') : t('legal_case_types.create_description')} action={<BackButton fallbackHref={route('legal-case-types.index')} />} />
                 <form onSubmit={(event) => { event.preventDefault(); if (isEditing) { form.patch(route('legal-case-types.update', caseTypeItem.id)); return; } form.post(route('legal-case-types.store')); }} className="space-y-4">
                     <SurfaceCard>
                         <div className="grid gap-4 md:grid-cols-2">

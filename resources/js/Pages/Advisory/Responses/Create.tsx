@@ -1,4 +1,5 @@
 import FormField from '@/Components/Ui/FormField';
+import BackButton from '@/Components/Ui/BackButton';
 import FileAttachmentCard from '@/Components/Ui/FileAttachmentCard';
 import PageContainer from '@/Components/Ui/PageContainer';
 import RichTextEditor from '@/Components/Ui/RichTextEditor';
@@ -82,6 +83,7 @@ export default function AdvisoryResponseCreate({
                     eyebrow={requestItem.request_number}
                     title={isEditing ? t('advisory.edit_response') : t('advisory.record_response')}
                     description={requestItem.subject}
+                    action={<BackButton fallbackHref={route('advisory.show', { advisoryRequest: requestItem.id })} />}
                 />
 
                 <form onSubmit={submit} className="space-y-6">

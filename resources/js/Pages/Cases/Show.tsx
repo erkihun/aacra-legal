@@ -4,6 +4,7 @@ import EmptyState from '@/Components/Ui/EmptyState';
 import FileAttachmentCard from '@/Components/Ui/FileAttachmentCard';
 import FormField from '@/Components/Ui/FormField';
 import Modal from '@/Components/Modal';
+import BackButton from '@/Components/Ui/BackButton';
 import PageContainer from '@/Components/Ui/PageContainer';
 import SectionHeader from '@/Components/Ui/SectionHeader';
 import StatusBadge from '@/Components/Ui/StatusBadge';
@@ -36,6 +37,35 @@ type ShowCaseProps = {
     };
 };
 
+type CaseWorkspacePanel =
+    | 'overview'
+    | 'assign'
+    | 'hearing'
+    | 'close'
+    | 'comment'
+    | 'attachments'
+    | 'review'
+    | 'reopen'
+    | null;
+type CaseWorkspaceNavKey = Exclude<CaseWorkspacePanel, 'review' | 'reopen' | null>;
+type WorkspaceIconKind =
+    | 'workspace'
+    | 'assignment'
+    | 'expert'
+    | 'attachment'
+    | 'review'
+    | 'hearing'
+    | 'comment'
+    | 'timeline'
+    | 'close';
+type CaseWorkspaceNavItem = {
+    key: CaseWorkspaceNavKey;
+    label: string;
+    icon: WorkspaceIconKind;
+    detail?: string;
+    badge?: number;
+};
+
 export default function CasesShow({
     caseItem,
     teamLeaders,
@@ -51,8 +81,8 @@ export default function CasesShow({
 
     const { t, locale } = useI18n();
     const { formatDateTime } = useDateFormatter();
-    const [activePanel, setActivePanel] = useRemember<'review' | 'assign' | 'hearing' | 'close' | 'comment' | 'attachments' | 'reopen' | null>(
-        null,
+    const [activePanel, setActivePanel] = useRemember<CaseWorkspacePanel>(
+        'overview',
         `cases-show-active-panel-${caseItem.id}`,
     );
     const [confirmCloseOpen, setConfirmCloseOpen] = useState(false);
@@ -728,84 +758,183 @@ export default function CasesShow({
 
     void legacyWorkspaceContent;
 
-    const hearingPanelEnabled = can.recordHearing || hearings.length > 0;
-    const commentPanelEnabled = can.comment || comments.length > 0;
-    const attachmentPanelEnabled = can.attach || attachments.length > 0;
     const reviewActionEnabled = !isClosedCase && workspace.canAssignTeamLeader;
     const assignActionEnabled = !isClosedCase && workspace.canAssignExpert;
-    const hearingActionEnabled = !isClosedCase && hearingPanelEnabled;
+    const hearingActionEnabled = !isClosedCase && can.recordHearing;
     const closeActionEnabled = !isClosedCase && can.close;
-    const commentActionEnabled = !isClosedCase && commentPanelEnabled;
-    const attachmentActionEnabled = !isClosedCase && attachmentPanelEnabled;
+    const commentActionEnabled = !isClosedCase && can.comment;
+    const attachmentActionEnabled = !isClosedCase && can.attach;
+    const assignSectionEnabled = reviewActionEnabled || assignActionEnabled;
+    const closeSectionEnabled = closeActionEnabled || (isClosedCase && can.reopen);
+    const normalizedActivePanel: CaseWorkspaceNavKey =
+        activePanel === null
+            ? 'overview'
+            : activePanel === 'review'
+              ? 'assign'
+              : activePanel === 'reopen'
+                ? 'close'
+                : activePanel;
+    const navigationItems: CaseWorkspaceNavItem[] = [
+        {
+            key: 'overview',
+            label: t('common.overview'),
+            icon: 'workspace',
+            detail: caseItem.case_number,
+        },
+        ...(assignSectionEnabled
+            ? [
+                  {
+                      key: 'assign',
+                      label: t('common.assign'),
+                      icon: reviewActionEnabled ? 'review' : 'assignment',
+                      detail: reviewActionEnabled ? t('cases.director_review') : t('cases.assign_expert'),
+                  } satisfies CaseWorkspaceNavItem,
+              ]
+            : []),
+        ...(hearingActionEnabled
+            ? [
+                  {
+                      key: 'hearing',
+                      label: t('cases.record_hearing'),
+                      icon: 'hearing',
+                      detail: caseItem.next_hearing_date ?? t('common.not_available'),
+                      badge: hearings.length,
+                  } satisfies CaseWorkspaceNavItem,
+              ]
+            : []),
+        ...(closeSectionEnabled
+            ? [
+                  {
+                      key: 'close',
+                      label: t('cases.close_case'),
+                      icon: 'close',
+                      detail: isClosedCase ? t('cases.reopen_case') : caseItem.outcome ?? t('common.not_available'),
+                  } satisfies CaseWorkspaceNavItem,
+              ]
+            : []),
+        ...(commentActionEnabled
+            ? [
+                  {
+                      key: 'comment',
+                      label: t('common.internal_comment'),
+                      icon: 'comment',
+                      detail: t('common.internal_comment'),
+                      badge: comments.length,
+                  } satisfies CaseWorkspaceNavItem,
+              ]
+            : []),
+        ...(attachmentActionEnabled
+            ? [
+                  {
+                      key: 'attachments',
+                      label: t('common.attachments'),
+                      icon: 'attachment',
+                      detail: t('common.attachments'),
+                      badge: attachments.length,
+                  } satisfies CaseWorkspaceNavItem,
+              ]
+            : []),
+    ];
+    const currentPanel = navigationItems.some((item) => item.key === normalizedActivePanel)
+        ? normalizedActivePanel
+        : 'overview';
 
     const workspaceContent = (
-        <div className="space-y-4">
-            <SurfaceCard className="space-y-4 p-6">
-                <div className="space-y-1">
-                    <h2 className="text-lg font-semibold text-[color:var(--text)]">{t('common.workspace')}</h2>
+        <div className="grid gap-6 xl:grid-cols-[18rem,minmax(0,1fr)]">
+            <SurfaceCard className="h-fit p-4 md:p-5 xl:sticky xl:top-24">
+                <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--muted)]">
+                            {t('common.workspace')}
+                        </p>
+                        <h2 className="text-lg font-semibold text-[color:var(--text)]">
+                            {t('navigation.legal_cases')}
+                        </h2>
+                        <p className="text-sm text-[color:var(--muted-strong)]">{pageTitle}</p>
+                    </div>
+                    <WorkspaceCountBadge value={navigationItems.length} />
                 </div>
 
-                <div className="flex flex-wrap gap-3">
-                    {reviewActionEnabled ? (
-                        <ActionToggleButton
-                            label={t('cases.director_review')}
-                            active={activePanel === 'review'}
-                            onClick={() => setActivePanel((current) => (current === 'review' ? null : 'review'))}
+                <div className="mt-5 flex gap-2 overflow-x-auto pb-1 xl:flex-col xl:overflow-visible xl:pb-0">
+                    {navigationItems.map((item) => (
+                        <CaseWorkspaceNavButton
+                            key={item.key}
+                            label={item.label}
+                            detail={item.detail}
+                            icon={item.icon}
+                            badge={item.badge}
+                            active={currentPanel === item.key}
+                            onClick={() => setActivePanel(item.key)}
                         />
-                    ) : null}
-                    {assignActionEnabled ? (
-                        <ActionToggleButton
-                            label={t('cases.assign_expert')}
-                            active={activePanel === 'assign'}
-                            onClick={() => setActivePanel((current) => (current === 'assign' ? null : 'assign'))}
-                        />
-                    ) : null}
-                    {hearingActionEnabled ? (
-                        <ActionToggleButton
-                            label={t('cases.record_hearing')}
-                            active={activePanel === 'hearing'}
-                            onClick={() => setActivePanel((current) => (current === 'hearing' ? null : 'hearing'))}
-                        />
-                    ) : null}
-                    {closeActionEnabled ? (
-                        <ActionToggleButton
-                            label={t('cases.close_case')}
-                            active={activePanel === 'close'}
-                            onClick={() => setActivePanel((current) => (current === 'close' ? null : 'close'))}
-                        />
-                    ) : null}
-                    {commentActionEnabled ? (
-                        <ActionToggleButton
-                            label={t('common.internal_comment')}
-                            active={activePanel === 'comment'}
-                            onClick={() => setActivePanel((current) => (current === 'comment' ? null : 'comment'))}
-                        />
-                    ) : null}
-                    {attachmentActionEnabled ? (
-                        <ActionToggleButton
-                            label={t('common.attachments')}
-                            active={activePanel === 'attachments'}
-                            onClick={() => setActivePanel((current) => (current === 'attachments' ? null : 'attachments'))}
-                        />
-                    ) : null}
-                    {isClosedCase && can.reopen ? (
-                        <ActionToggleButton
-                            label={t('cases.reopen_case')}
-                            active={activePanel === 'reopen'}
-                            onClick={() => setActivePanel((current) => (current === 'reopen' ? null : 'reopen'))}
-                        />
-                    ) : null}
+                    ))}
                 </div>
 
-                {!reviewActionEnabled && !assignActionEnabled && !hearingActionEnabled && !closeActionEnabled && !commentActionEnabled && !attachmentActionEnabled && !(isClosedCase && can.reopen) ? (
-                    <EmptyState
-                        title={t('common.workspace')}
-                        description={t('common.no_actions_available')}
+                <div className="mt-5 grid gap-3 border-t border-[color:var(--border)] pt-4">
+                    <WorkspaceInfoRow
+                        label={t('cases.team_leader')}
+                        value={caseItem.assigned_team_leader?.name ?? t('common.unassigned')}
                     />
-                ) : null}
+                    <WorkspaceInfoRow
+                        label={t('cases.expert')}
+                        value={caseItem.assigned_legal_expert?.name ?? t('common.unassigned')}
+                    />
+                    <WorkspaceInfoRow
+                        label={t('cases.next_hearing')}
+                        value={caseItem.next_hearing_date ?? t('common.not_available')}
+                    />
+                </div>
             </SurfaceCard>
 
-            {activePanel === 'review' && reviewActionEnabled ? (
+            <div className="min-w-0 space-y-4">
+                {currentPanel === 'overview' ? (
+                    <SurfaceCard className="space-y-5 p-6">
+                        <div className="space-y-1">
+                            <h2 className="text-lg font-semibold text-[color:var(--text)]">
+                                {t('common.overview')}
+                            </h2>
+                        </div>
+
+                        <dl className="grid gap-x-8 gap-y-5 md:grid-cols-2 xl:grid-cols-3">
+                            <OverviewItem label={t('cases.case_number')} value={caseItem.case_number} />
+                            <OverviewItem
+                                label={t('cases.main_case_type_label')}
+                                value={caseItem.main_case_type ? t(`cases.main_case_type.${caseItem.main_case_type}`) : undefined}
+                            />
+                            <OverviewItem label={t('cases.registrar')} value={caseItem.registered_by?.name} />
+                            <OverviewItem label={t('cases.court')} value={courtName} />
+                            <OverviewItem label={t('cases.case_type')} value={caseTypeName} />
+                            <OverviewItem label={t('cases.court_file_number')} value={caseItem.external_court_file_number} />
+                            <OverviewItem label={t('cases.team_leader')} value={caseItem.assigned_team_leader?.name ?? t('common.unassigned')} />
+                            <OverviewItem label={t('cases.expert')} value={caseItem.assigned_legal_expert?.name ?? t('common.unassigned')} />
+                            <OverviewItem label={t('cases.next_hearing')} value={caseItem.next_hearing_date} />
+                            <OverviewItem label={t('cases.plaintiff')} value={caseItem.plaintiff} />
+                            <OverviewItem label={t('cases.defendant')} value={caseItem.defendant} />
+                            <OverviewItem label={t('cases.amount')} value={caseItem.amount} />
+                            <OverviewItem label={t('cases.crime_scene')} value={caseItem.crime_scene} />
+                            <OverviewItem label={t('cases.police_station')} value={caseItem.police_station} />
+                            <OverviewItem label={t('cases.stolen_property_type')} value={caseItem.stolen_property_type} />
+                            <OverviewItem label={t('cases.statement_date')} value={caseItem.statement_date} />
+                        </dl>
+
+                        <div className="border-t border-[color:var(--border)] pt-5">
+                            <p className="text-sm font-semibold text-[color:var(--muted-strong)]">
+                                {t('cases.detailed_description')}
+                            </p>
+                            {sanitizedClaimSummaryHtml ? (
+                                <div
+                                    className="prose prose-sm mt-4 max-w-none text-[color:var(--text)] dark:prose-invert"
+                                    dangerouslySetInnerHTML={{ __html: sanitizedClaimSummaryHtml }}
+                                />
+                            ) : (
+                                <p className="mt-3 text-sm leading-7 text-[color:var(--text)]">
+                                    {t('common.not_available')}
+                                </p>
+                            )}
+                        </div>
+                    </SurfaceCard>
+                ) : null}
+
+                {currentPanel === 'assign' && reviewActionEnabled ? (
                 <SurfaceCard className="space-y-6 p-6">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="space-y-1">
@@ -818,7 +947,7 @@ export default function CasesShow({
                         </div>
                         <button
                             type="button"
-                            onClick={() => setActivePanel(null)}
+                            onClick={() => setActivePanel('overview')}
                             className="btn-base btn-secondary focus-ring"
                         >
                             {t('common.cancel')}
@@ -881,7 +1010,7 @@ export default function CasesShow({
                     <div className="flex flex-wrap justify-end gap-3 border-t border-[color:var(--border)] pt-4">
                         <button
                             type="button"
-                            onClick={() => setActivePanel(null)}
+                            onClick={() => setActivePanel('overview')}
                             className="btn-base btn-secondary focus-ring"
                         >
                             {t('common.cancel')}
@@ -894,7 +1023,7 @@ export default function CasesShow({
                                         finishSuccessfulSubmission(reviewForm, {
                                             reset: true,
                                             afterSuccess: () => {
-                                                setActivePanel(null);
+                                                setActivePanel('overview');
                                             },
                                         });
                                     },
@@ -909,7 +1038,7 @@ export default function CasesShow({
                 </SurfaceCard>
             ) : null}
 
-            {activePanel === 'assign' && assignActionEnabled ? (
+                {currentPanel === 'assign' && assignActionEnabled ? (
                 <SurfaceCard className="space-y-6 p-6">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="space-y-1">
@@ -922,7 +1051,7 @@ export default function CasesShow({
                         </div>
                         <button
                             type="button"
-                            onClick={() => setActivePanel(null)}
+                            onClick={() => setActivePanel('overview')}
                             className="btn-base btn-secondary focus-ring"
                         >
                             {t('common.cancel')}
@@ -966,7 +1095,7 @@ export default function CasesShow({
                     <div className="flex flex-wrap justify-end gap-3 border-t border-[color:var(--border)] pt-4">
                         <button
                             type="button"
-                            onClick={() => setActivePanel(null)}
+                            onClick={() => setActivePanel('overview')}
                             className="btn-base btn-secondary focus-ring"
                         >
                             {t('common.cancel')}
@@ -979,7 +1108,7 @@ export default function CasesShow({
                                         finishSuccessfulSubmission(assignForm, {
                                             reset: true,
                                             afterSuccess: () => {
-                                                setActivePanel(null);
+                                                setActivePanel('overview');
                                             },
                                         });
                                     },
@@ -994,7 +1123,7 @@ export default function CasesShow({
                 </SurfaceCard>
             ) : null}
 
-            {activePanel === 'reopen' && isClosedCase && can.reopen ? (
+                {currentPanel === 'close' && isClosedCase && can.reopen ? (
                 <SurfaceCard className="space-y-6 p-6">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="space-y-1">
@@ -1007,7 +1136,7 @@ export default function CasesShow({
                         </div>
                         <button
                             type="button"
-                            onClick={() => setActivePanel(null)}
+                            onClick={() => setActivePanel('overview')}
                             className="btn-base btn-secondary focus-ring"
                         >
                             {t('common.cancel')}
@@ -1026,7 +1155,7 @@ export default function CasesShow({
                     <div className="flex flex-wrap justify-end gap-3 border-t border-[color:var(--border)] pt-4">
                         <button
                             type="button"
-                            onClick={() => setActivePanel(null)}
+                            onClick={() => setActivePanel('overview')}
                             className="btn-base btn-secondary focus-ring"
                         >
                             {t('common.cancel')}
@@ -1039,7 +1168,7 @@ export default function CasesShow({
                                         finishSuccessfulSubmission(reopenForm, {
                                             reset: true,
                                             afterSuccess: () => {
-                                                setActivePanel(null);
+                                                setActivePanel('overview');
                                             },
                                         });
                                     },
@@ -1054,7 +1183,7 @@ export default function CasesShow({
                 </SurfaceCard>
             ) : null}
 
-            {activePanel === 'hearing' && !isClosedCase ? (
+                {currentPanel === 'hearing' && hearingActionEnabled ? (
                 <SurfaceCard className="space-y-6 p-6">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="space-y-1">
@@ -1077,7 +1206,7 @@ export default function CasesShow({
                             ) : null}
                             <button
                                 type="button"
-                                onClick={() => setActivePanel(null)}
+                                onClick={() => setActivePanel('overview')}
                                 className="btn-base btn-secondary focus-ring"
                             >
                                 {t('common.cancel')}
@@ -1144,7 +1273,7 @@ export default function CasesShow({
                 </SurfaceCard>
             ) : null}
 
-            {activePanel === 'close' && !isClosedCase ? (
+                {currentPanel === 'close' && closeActionEnabled ? (
                 <SurfaceCard className="space-y-6 p-6">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="space-y-1">
@@ -1157,7 +1286,7 @@ export default function CasesShow({
                         </div>
                         <button
                             type="button"
-                            onClick={() => setActivePanel(null)}
+                            onClick={() => setActivePanel('overview')}
                             className="btn-base btn-secondary focus-ring"
                         >
                             {t('common.cancel')}
@@ -1204,7 +1333,7 @@ export default function CasesShow({
                     <div className="flex flex-wrap justify-end gap-3 border-t border-[color:var(--border)] pt-4">
                         <button
                             type="button"
-                            onClick={() => setActivePanel(null)}
+                            onClick={() => setActivePanel('overview')}
                             className="btn-base btn-secondary focus-ring"
                         >
                             {t('common.cancel')}
@@ -1221,7 +1350,7 @@ export default function CasesShow({
                 </SurfaceCard>
             ) : null}
 
-            {activePanel === 'comment' && !isClosedCase ? (
+                {currentPanel === 'comment' && commentActionEnabled ? (
                 <SurfaceCard className="space-y-6 p-6">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="space-y-1">
@@ -1244,7 +1373,7 @@ export default function CasesShow({
                             ) : null}
                             <button
                                 type="button"
-                                onClick={() => setActivePanel(null)}
+                                onClick={() => setActivePanel('overview')}
                                 className="btn-base btn-secondary focus-ring"
                             >
                                 {t('common.cancel')}
@@ -1307,7 +1436,7 @@ export default function CasesShow({
                 </SurfaceCard>
             ) : null}
 
-            {activePanel === 'attachments' && !isClosedCase ? (
+                {currentPanel === 'attachments' && attachmentActionEnabled ? (
                 <SurfaceCard className="space-y-6 p-6">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="space-y-1">
@@ -1330,7 +1459,7 @@ export default function CasesShow({
                             ) : null}
                             <button
                                 type="button"
-                                onClick={() => setActivePanel(null)}
+                                onClick={() => setActivePanel('overview')}
                                 className="btn-base btn-secondary focus-ring"
                             >
                                 {t('common.cancel')}
@@ -1393,7 +1522,8 @@ export default function CasesShow({
                         </div>
                     )}
                 </SurfaceCard>
-            ) : null}
+                ) : null}
+            </div>
         </div>
     );
 
@@ -1408,59 +1538,17 @@ export default function CasesShow({
             <Head title={caseItem.case_number} />
 
             <PageContainer className="space-y-6">
-                <SectionHeader eyebrow={caseItem.case_number} title={pageTitle} />
+                <SectionHeader
+                    eyebrow={caseItem.case_number}
+                    title={pageTitle}
+                    action={<BackButton fallbackHref={route('cases.index')} />}
+                />
 
                 <div className="flex flex-wrap gap-2">
                     <StatusBadge value={caseItem.status} />
                     <StatusBadge value={caseItem.priority} />
                     <StatusBadge value={caseItem.director_decision} />
                 </div>
-
-                <SurfaceCard className="space-y-5 p-6">
-                    <div className="space-y-1">
-                        <h2 className="text-lg font-semibold text-[color:var(--text)]">
-                            {t('common.overview')}
-                        </h2>
-                    </div>
-
-                    <dl className="grid gap-x-8 gap-y-5 md:grid-cols-2 xl:grid-cols-3">
-                        <OverviewItem label={t('cases.case_number')} value={caseItem.case_number} />
-                        <OverviewItem
-                            label={t('cases.main_case_type_label')}
-                            value={caseItem.main_case_type ? t(`cases.main_case_type.${caseItem.main_case_type}`) : undefined}
-                        />
-                        <OverviewItem label={t('cases.registrar')} value={caseItem.registered_by?.name} />
-                        <OverviewItem label={t('cases.court')} value={courtName} />
-                        <OverviewItem label={t('cases.case_type')} value={caseTypeName} />
-                        <OverviewItem label={t('cases.court_file_number')} value={caseItem.external_court_file_number} />
-                        <OverviewItem label={t('cases.team_leader')} value={caseItem.assigned_team_leader?.name ?? t('common.unassigned')} />
-                        <OverviewItem label={t('cases.expert')} value={caseItem.assigned_legal_expert?.name ?? t('common.unassigned')} />
-                        <OverviewItem label={t('cases.next_hearing')} value={caseItem.next_hearing_date} />
-                        <OverviewItem label={t('cases.plaintiff')} value={caseItem.plaintiff} />
-                        <OverviewItem label={t('cases.defendant')} value={caseItem.defendant} />
-                        <OverviewItem label={t('cases.amount')} value={caseItem.amount} />
-                        <OverviewItem label={t('cases.crime_scene')} value={caseItem.crime_scene} />
-                        <OverviewItem label={t('cases.police_station')} value={caseItem.police_station} />
-                        <OverviewItem label={t('cases.stolen_property_type')} value={caseItem.stolen_property_type} />
-                        <OverviewItem label={t('cases.statement_date')} value={caseItem.statement_date} />
-                    </dl>
-
-                    <div className="border-t border-[color:var(--border)] pt-5">
-                        <p className="text-sm font-semibold text-[color:var(--muted-strong)]">
-                            {t('cases.detailed_description')}
-                        </p>
-                        {sanitizedClaimSummaryHtml ? (
-                            <div
-                                className="prose prose-sm mt-4 max-w-none text-[color:var(--text)] dark:prose-invert"
-                                dangerouslySetInnerHTML={{ __html: sanitizedClaimSummaryHtml }}
-                            />
-                        ) : (
-                            <p className="mt-3 text-sm leading-7 text-[color:var(--text)]">
-                                {t('common.not_available')}
-                            </p>
-                        )}
-                    </div>
-                </SurfaceCard>
 
                 {workspaceContent}
             </PageContainer>
@@ -1943,26 +2031,56 @@ function InlineActionButton({
     );
 }
 
-function ActionToggleButton({
+function CaseWorkspaceNavButton({
     active,
     label,
+    detail,
+    icon,
+    badge,
     onClick,
 }: {
     active: boolean;
     label: string;
+    detail?: string;
+    icon: WorkspaceIconKind;
+    badge?: number;
     onClick: () => void;
 }) {
     return (
         <button
             type="button"
             onClick={onClick}
-            className={`btn-base focus-ring ${
+            aria-current={active ? 'page' : undefined}
+            className={`focus-ring group flex min-w-[12rem] items-center gap-3 rounded-2xl border px-4 py-3 text-left transition xl:min-w-0 ${
                 active
-                    ? 'bg-[color:var(--primary)] text-white shadow-sm'
-                    : 'bg-[color:var(--surface-muted)] text-[color:var(--text)]'
+                    ? 'border-[color:var(--primary)] bg-[var(--primary-soft)] text-[color:var(--primary)] shadow-sm'
+                    : 'border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text)] hover:border-[color:var(--primary)]/30 hover:bg-[color:var(--surface-muted)]'
             }`}
         >
-            {label}
+            <span
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${
+                    active
+                        ? 'bg-[color:var(--primary)] text-white'
+                        : 'bg-[color:var(--surface-muted)] text-[color:var(--muted-strong)] group-hover:text-[color:var(--primary)]'
+                }`}
+            >
+                <WorkspaceIcon kind={icon} />
+            </span>
+            <span className="min-w-0 flex-1">
+                <span className="flex items-center justify-between gap-3">
+                    <span className="truncate text-sm font-semibold">{label}</span>
+                    {typeof badge === 'number' ? <WorkspaceCountBadge value={badge} /> : null}
+                </span>
+                {detail ? (
+                    <span
+                        className={`mt-1 block truncate text-xs ${
+                            active ? 'text-[color:var(--primary)]/80' : 'text-[color:var(--muted-strong)]'
+                        }`}
+                    >
+                        {detail}
+                    </span>
+                ) : null}
+            </span>
         </button>
     );
 }
@@ -1987,7 +2105,7 @@ function WorkspaceCountBadge({ value }: { value: number }) {
 function WorkspaceIcon({
     kind,
 }: {
-    kind: 'workspace' | 'assignment' | 'expert' | 'attachment' | 'review' | 'hearing' | 'comment' | 'timeline' | 'close';
+    kind: WorkspaceIconKind;
 }) {
     const paths: Record<typeof kind, ReactNode> = {
         workspace: (

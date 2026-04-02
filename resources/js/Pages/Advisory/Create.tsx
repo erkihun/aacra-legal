@@ -1,4 +1,5 @@
 import FormField from '@/Components/Ui/FormField';
+import BackButton from '@/Components/Ui/BackButton';
 import PageContainer from '@/Components/Ui/PageContainer';
 import RichTextEditor from '@/Components/Ui/RichTextEditor';
 import SectionHeader from '@/Components/Ui/SectionHeader';
@@ -86,6 +87,7 @@ export default function AdvisoryCreate({
                     eyebrow={t('advisory.eyebrow')}
                     title={isEditing ? t('advisory.edit_title') : t('advisory.create_title')}
                     description={isEditing ? t('advisory.edit_description') : t('advisory.create_description')}
+                    action={<BackButton fallbackHref={route('advisory.index')} />}
                 />
 
                 <form onSubmit={submit} className="space-y-6">

@@ -1,4 +1,5 @@
 import ConfirmationDialog from '@/Components/Ui/ConfirmationDialog';
+import BackButton from '@/Components/Ui/BackButton';
 import FormField from '@/Components/Ui/FormField';
 import PageContainer from '@/Components/Ui/PageContainer';
 import SectionHeader from '@/Components/Ui/SectionHeader';
@@ -35,6 +36,7 @@ export default function DepartmentForm({ departmentItem, canDelete }: any) {
                     eyebrow={t('departments.eyebrow')}
                     title={isEditing ? t('departments.edit_title') : t('departments.create_title')}
                     description={isEditing ? t('departments.edit_description') : t('departments.create_description')}
+                    action={<BackButton fallbackHref={route('departments.index')} />}
                 />
 
                 <form

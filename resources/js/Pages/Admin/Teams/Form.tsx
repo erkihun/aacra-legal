@@ -1,4 +1,5 @@
 import ConfirmationDialog from '@/Components/Ui/ConfirmationDialog';
+import BackButton from '@/Components/Ui/BackButton';
 import FormField from '@/Components/Ui/FormField';
 import PageContainer from '@/Components/Ui/PageContainer';
 import SectionHeader from '@/Components/Ui/SectionHeader';
@@ -36,6 +37,7 @@ export default function TeamForm({ teamItem, typeOptions, leaderOptions, canDele
                     eyebrow={t('teams.eyebrow')}
                     title={isEditing ? t('teams.edit_title') : t('teams.create_title')}
                     description={isEditing ? t('teams.edit_description') : t('teams.create_description')}
+                    action={<BackButton fallbackHref={route('teams.index')} />}
                 />
 
                 <form

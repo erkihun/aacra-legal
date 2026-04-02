@@ -6,6 +6,7 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { ComponentType, PropsWithChildren, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { extractFirstErrorMessage } from './lib/form-submission';
+import { initializeNavigationHistory, syncNavigationHistory } from './lib/navigation-history';
 import { ToastBatchSync, ToastMessage, ToastProvider, useToast } from './lib/toast';
 import { initializeTheme } from './lib/theme';
 
@@ -175,6 +176,7 @@ function AppShell({
         const removeListener = router.on('success', (event) => {
             const pageProps = event.detail.page.props as SharedPageProps;
 
+            syncNavigationHistory(event.detail.page.url);
             syncDocumentLocale(pageProps.locale);
             syncAppMeta(pageProps.appMeta);
             syncCsrfToken(pageProps.csrf_token);
@@ -237,6 +239,7 @@ createInertiaApp({
         syncDocumentLocale(initialProps.locale);
         syncAppMeta(initialProps.appMeta);
         syncCsrfToken(initialProps.csrf_token);
+        initializeNavigationHistory();
 
         const root = createRoot(el);
 

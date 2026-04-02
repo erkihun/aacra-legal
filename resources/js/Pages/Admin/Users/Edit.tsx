@@ -1,4 +1,5 @@
 import ConfirmationDialog from '@/Components/Ui/ConfirmationDialog';
+import BackButton from '@/Components/Ui/BackButton';
 import PageContainer from '@/Components/Ui/PageContainer';
 import SectionHeader from '@/Components/Ui/SectionHeader';
 import SurfaceCard from '@/Components/Ui/SurfaceCard';
@@ -27,6 +28,7 @@ export default function UsersEdit(props: any) {
                     eyebrow={t('users.eyebrow')}
                     title={t('users.edit_title')}
                     description={t('users.edit_description')}
+                    action={<BackButton fallbackHref={route('users.index')} />}
                 />
 
                 <UserForm

@@ -1,4 +1,5 @@
 import ConfirmationDialog from '@/Components/Ui/ConfirmationDialog';
+import BackButton from '@/Components/Ui/BackButton';
 import EmptyState from '@/Components/Ui/EmptyState';
 import FileAttachmentCard from '@/Components/Ui/FileAttachmentCard';
 import FormField from '@/Components/Ui/FormField';
@@ -92,11 +93,14 @@ export default function AdvisoryShow({
                     eyebrow={requestItem.request_number}
                     title={requestItem.subject}
                     action={
-                        isRequesterReturned ? (
-                            <Link href={route('advisory.edit', { advisoryRequest: requestItem.id })} className="btn-base btn-primary focus-ring">
-                                {t('advisory.resubmit_request')}
-                            </Link>
-                        ) : undefined
+                        <div className="flex flex-wrap justify-end gap-3">
+                            <BackButton fallbackHref={route('advisory.index')} />
+                            {isRequesterReturned ? (
+                                <Link href={route('advisory.edit', { advisoryRequest: requestItem.id })} className="btn-base btn-primary focus-ring">
+                                    {t('advisory.resubmit_request')}
+                                </Link>
+                            ) : null}
+                        </div>
                     }
                 />
 

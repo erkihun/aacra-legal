@@ -1,3 +1,4 @@
+import BackButton from '@/Components/Ui/BackButton';
 import MetricCard from '@/Components/Ui/MetricCard';
 import PageContainer from '@/Components/Ui/PageContainer';
 import SectionHeader from '@/Components/Ui/SectionHeader';
@@ -27,11 +28,14 @@ export default function LegalCaseTypeShow({ caseTypeItem, can }: any) {
                     title={caseTypeName}
                     description={caseTypeItem.code}
                     action={
-                        can.update ? (
-                            <Link href={route('legal-case-types.edit', caseTypeItem.id)} className="btn-base btn-primary focus-ring">
-                                {t('common.edit')}
-                            </Link>
-                        ) : undefined
+                        <div className="flex flex-wrap justify-end gap-3">
+                            <BackButton fallbackHref={route('legal-case-types.index')} />
+                            {can.update ? (
+                                <Link href={route('legal-case-types.edit', caseTypeItem.id)} className="btn-base btn-primary focus-ring">
+                                    {t('common.edit')}
+                                </Link>
+                            ) : null}
+                        </div>
                     }
                 />
 

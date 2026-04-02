@@ -1,3 +1,4 @@
+import BackButton from '@/Components/Ui/BackButton';
 import PageContainer from '@/Components/Ui/PageContainer';
 import SectionHeader from '@/Components/Ui/SectionHeader';
 import SurfaceCard from '@/Components/Ui/SurfaceCard';
@@ -30,6 +31,7 @@ export default function Edit({
                     eyebrow={t('profile.eyebrow')}
                     title={t('profile.title')}
                     description={t('profile.description')}
+                    action={<BackButton fallbackHref={route('dashboard')} />}
                 />
 
                 <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr),minmax(20rem,0.9fr)]">

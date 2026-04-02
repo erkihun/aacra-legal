@@ -1,4 +1,5 @@
 import ConfirmationDialog from '@/Components/Ui/ConfirmationDialog';
+import BackButton from '@/Components/Ui/BackButton';
 import FormField from '@/Components/Ui/FormField';
 import PageContainer from '@/Components/Ui/PageContainer';
 import SectionHeader from '@/Components/Ui/SectionHeader';
@@ -25,7 +26,7 @@ export default function CourtForm({ courtItem, canDelete }: any) {
         <AuthenticatedLayout breadcrumbs={[{ label: t('navigation.dashboard'), href: route('dashboard') }, { label: t('navigation.courts'), href: route('courts.index') }, { label: isEditing ? t('common.edit') : t('common.create_record') }]}>
             <Head title={isEditing ? t('courts.edit_title') : t('courts.create_title')} />
             <PageContainer>
-                <SectionHeader eyebrow={t('courts.eyebrow')} title={isEditing ? t('courts.edit_title') : t('courts.create_title')} description={isEditing ? t('courts.edit_description') : t('courts.create_description')} />
+                <SectionHeader eyebrow={t('courts.eyebrow')} title={isEditing ? t('courts.edit_title') : t('courts.create_title')} description={isEditing ? t('courts.edit_description') : t('courts.create_description')} action={<BackButton fallbackHref={route('courts.index')} />} />
                 <form onSubmit={(event) => { event.preventDefault(); if (isEditing) { form.patch(route('courts.update', courtItem.id)); return; } form.post(route('courts.store')); }} className="space-y-4">
                     <SurfaceCard>
                         <div className="grid gap-4 md:grid-cols-2">

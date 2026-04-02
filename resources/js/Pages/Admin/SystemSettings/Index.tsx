@@ -1,4 +1,5 @@
 import Checkbox from '@/Components/Checkbox';
+import BackButton from '@/Components/Ui/BackButton';
 import FormField from '@/Components/Ui/FormField';
 import PageContainer from '@/Components/Ui/PageContainer';
 import SectionHeader from '@/Components/Ui/SectionHeader';
@@ -261,6 +262,7 @@ export default function SystemSettingsIndex({
                     eyebrow={t('settings.eyebrow')}
                     title={t('settings.title')}
                     description={t('settings.description')}
+                    action={<BackButton fallbackHref={route('dashboard')} />}
                 />
 
                 <Tabs items={tabItems} />

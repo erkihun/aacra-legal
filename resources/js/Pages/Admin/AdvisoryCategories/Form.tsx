@@ -1,4 +1,5 @@
 import ConfirmationDialog from '@/Components/Ui/ConfirmationDialog';
+import BackButton from '@/Components/Ui/BackButton';
 import FormField from '@/Components/Ui/FormField';
 import PageContainer from '@/Components/Ui/PageContainer';
 import SectionHeader from '@/Components/Ui/SectionHeader';
@@ -30,7 +31,7 @@ export default function AdvisoryCategoryForm({ categoryItem, canDelete }: any) {
         >
             <Head title={isEditing ? t('advisory_categories.edit_title') : t('advisory_categories.create_title')} />
             <PageContainer>
-                <SectionHeader eyebrow={t('advisory_categories.eyebrow')} title={isEditing ? t('advisory_categories.edit_title') : t('advisory_categories.create_title')} description={isEditing ? t('advisory_categories.edit_description') : t('advisory_categories.create_description')} />
+                <SectionHeader eyebrow={t('advisory_categories.eyebrow')} title={isEditing ? t('advisory_categories.edit_title') : t('advisory_categories.create_title')} description={isEditing ? t('advisory_categories.edit_description') : t('advisory_categories.create_description')} action={<BackButton fallbackHref={route('advisory-categories.index')} />} />
                 <form
                     onSubmit={(event) => {
                         event.preventDefault();

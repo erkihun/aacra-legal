@@ -1,3 +1,4 @@
+import BackButton from '@/Components/Ui/BackButton';
 import PageContainer from '@/Components/Ui/PageContainer';
 import SectionHeader from '@/Components/Ui/SectionHeader';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
@@ -19,7 +20,12 @@ export default function UsersCreate(props: any) {
             <Head title={t('users.new_user')} />
 
             <PageContainer>
-                <SectionHeader eyebrow={t('users.eyebrow')} title={t('users.create_title')} description={t('users.create_description')} />
+                <SectionHeader
+                    eyebrow={t('users.eyebrow')}
+                    title={t('users.create_title')}
+                    description={t('users.create_description')}
+                    action={<BackButton fallbackHref={route('users.index')} />}
+                />
                 <UserForm
                     userItem={props.userItem}
                     options={props.options}

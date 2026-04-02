@@ -1,3 +1,4 @@
+import BackButton from '@/Components/Ui/BackButton';
 import PageContainer from '@/Components/Ui/PageContainer';
 import SectionHeader from '@/Components/Ui/SectionHeader';
 import SurfaceCard from '@/Components/Ui/SurfaceCard';
@@ -32,7 +33,7 @@ export default function RolesEdit({ roleItem, permissionGroups }: any) {
             <Head title={translateRoleName(roleItem.name, t)} />
 
             <PageContainer>
-                <SectionHeader eyebrow={t('roles.eyebrow')} title={translateRoleName(roleItem.name, t)} description={t('roles.edit_description')} />
+                <SectionHeader eyebrow={t('roles.eyebrow')} title={translateRoleName(roleItem.name, t)} description={t('roles.edit_description')} action={<BackButton fallbackHref={route('roles.index')} />} />
 
                 <div className="grid gap-4 xl:grid-cols-[1.35fr,0.65fr]">
                     <SurfaceCard>

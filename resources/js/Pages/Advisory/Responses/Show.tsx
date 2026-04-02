@@ -1,4 +1,5 @@
 import EmptyState from '@/Components/Ui/EmptyState';
+import BackButton from '@/Components/Ui/BackButton';
 import FileAttachmentCard from '@/Components/Ui/FileAttachmentCard';
 import PageContainer from '@/Components/Ui/PageContainer';
 import SectionHeader from '@/Components/Ui/SectionHeader';
@@ -7,7 +8,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useDateFormatter } from '@/lib/dates';
 import { useI18n } from '@/lib/i18n';
 import { sanitizeRichTextHtml } from '@/lib/sanitize-rich-text';
-import { Head, Link } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import { useMemo } from 'react';
 
 type AdvisoryResponseShowProps = {
@@ -59,14 +60,7 @@ export default function AdvisoryResponseShow({ requestItem, responseItem }: Advi
                 <SectionHeader
                     eyebrow={requestItem.request_number}
                     title={responseItem.subject ?? t('common.not_available')}
-                    action={
-                        <Link
-                            href={route('advisory.show', { advisoryRequest: requestItem.id })}
-                            className="btn-base btn-secondary focus-ring"
-                        >
-                            {t('common.view')}
-                        </Link>
-                    }
+                    action={<BackButton fallbackHref={route('advisory.show', { advisoryRequest: requestItem.id })} />}
                 />
 
                 <SurfaceCard className="space-y-5 p-6">

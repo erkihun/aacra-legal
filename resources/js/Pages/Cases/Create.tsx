@@ -1,4 +1,5 @@
 import FormField from '@/Components/Ui/FormField';
+import BackButton from '@/Components/Ui/BackButton';
 import PageContainer from '@/Components/Ui/PageContainer';
 import RichTextEditor from '@/Components/Ui/RichTextEditor';
 import SectionHeader from '@/Components/Ui/SectionHeader';
@@ -122,6 +123,7 @@ export default function CasesCreate({
                     eyebrow={t('cases.eyebrow')}
                     title={isEditing ? t('cases.edit_title') : t('cases.create_title')}
                     description={isEditing ? t('cases.edit_description') : t('cases.create_description')}
+                    action={<BackButton fallbackHref={route('cases.index')} />}
                 />
 
                 <form onSubmit={submit} className="space-y-6">

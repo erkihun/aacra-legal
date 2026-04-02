@@ -1,3 +1,4 @@
+import BackButton from '@/Components/Ui/BackButton';
 import MetricCard from '@/Components/Ui/MetricCard';
 import PageContainer from '@/Components/Ui/PageContainer';
 import SectionHeader from '@/Components/Ui/SectionHeader';
@@ -27,11 +28,14 @@ export default function AdvisoryCategoryShow({ categoryItem, can }: any) {
                     title={categoryName}
                     description={categoryItem.code}
                     action={
-                        can.update ? (
-                            <Link href={route('advisory-categories.edit', categoryItem.id)} className="btn-base btn-primary focus-ring">
-                                {t('common.edit')}
-                            </Link>
-                        ) : undefined
+                        <div className="flex flex-wrap justify-end gap-3">
+                            <BackButton fallbackHref={route('advisory-categories.index')} />
+                            {can.update ? (
+                                <Link href={route('advisory-categories.edit', categoryItem.id)} className="btn-base btn-primary focus-ring">
+                                    {t('common.edit')}
+                                </Link>
+                            ) : null}
+                        </div>
                     }
                 />
 

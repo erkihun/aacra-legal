@@ -1,4 +1,5 @@
 import ConfirmationDialog from '@/Components/Ui/ConfirmationDialog';
+import BackButton from '@/Components/Ui/BackButton';
 import FormField from '@/Components/Ui/FormField';
 import PageContainer from '@/Components/Ui/PageContainer';
 import SectionHeader from '@/Components/Ui/SectionHeader';
@@ -47,6 +48,7 @@ export default function PublicPostForm({ postItem, canDelete, statusOptions, loc
                     eyebrow={t('public_posts.eyebrow')}
                     title={isEditing ? t('public_posts.edit_title') : t('public_posts.create_title')}
                     description={isEditing ? t('public_posts.edit_description') : t('public_posts.create_description')}
+                    action={<BackButton fallbackHref={route('public-posts.index')} />}
                 />
 
                 <form

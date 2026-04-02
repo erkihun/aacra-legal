@@ -1,4 +1,5 @@
 import ConfirmationDialog from '@/Components/Ui/ConfirmationDialog';
+import BackButton from '@/Components/Ui/BackButton';
 import PageContainer from '@/Components/Ui/PageContainer';
 import SectionHeader from '@/Components/Ui/SectionHeader';
 import StatusBadge from '@/Components/Ui/StatusBadge';
@@ -33,11 +34,14 @@ export default function PublicPostShow({ postItem, can }: any) {
                     title={postItem.title}
                     description={postItem.summary}
                     action={
-                        can.update ? (
-                            <Link href={route('public-posts.edit', postItem.route_key)} className="btn-base btn-primary focus-ring">
-                                {t('common.edit')}
-                            </Link>
-                        ) : undefined
+                        <div className="flex flex-wrap justify-end gap-3">
+                            <BackButton fallbackHref={route('public-posts.index')} />
+                            {can.update ? (
+                                <Link href={route('public-posts.edit', postItem.route_key)} className="btn-base btn-primary focus-ring">
+                                    {t('common.edit')}
+                                </Link>
+                            ) : null}
+                        </div>
                     }
                 />
 
