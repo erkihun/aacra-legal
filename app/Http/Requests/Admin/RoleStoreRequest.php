@@ -21,7 +21,7 @@ class RoleStoreRequest extends FormRequest
 
     public function authorize(): bool
     {
-        return $this->user()?->can('roles.manage') ?? false;
+        return $this->user()?->can('roles.manage') || $this->user()?->can('users.assign_roles') || false;
     }
 
     public function rules(): array
@@ -32,7 +32,7 @@ class RoleStoreRequest extends FormRequest
                 'string',
                 'max:255',
                 Rule::unique('roles', 'name')->where('guard_name', 'web'),
-                Rule::notIn(collect(SystemRole::cases())->map(fn (SystemRole $role) => $role->value)->all()),
+                Rule::notIn([SystemRole::SUPER_ADMIN->value]),
             ],
             'permissions' => ['nullable', 'array'],
             'permissions.*' => ['string', Rule::exists('permissions', 'name')],

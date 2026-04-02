@@ -161,3 +161,108 @@ it('requires comment permission in addition to matter visibility', function (): 
         ])
         ->assertForbidden();
 });
+
+it('keeps advisory workflow actions working after role names are renamed when permissions remain assigned', function (): void {
+    $director = User::query()->where('email', 'director@ldms.test')->firstOrFail();
+    $requester = User::query()->where('email', 'requester@ldms.test')->firstOrFail();
+    $teamLeader = User::query()->where('email', 'advisory.lead@ldms.test')->firstOrFail();
+
+    Role::query()->where('name', SystemRole::LEGAL_DIRECTOR->value)->firstOrFail()->update([
+        'name' => 'Operations Review Lead',
+    ]);
+    Role::query()->where('name', SystemRole::ADVISORY_TEAM_LEADER->value)->firstOrFail()->update([
+        'name' => 'Advisory Workflow Lead',
+    ]);
+
+    $advisoryRequest = AdvisoryRequest::query()->create([
+        'request_number' => 'ADV-ACCESS-RENAME-1',
+        'department_id' => $requester->department_id,
+        'category_id' => AdvisoryCategory::query()->firstOrFail()->id,
+        'requester_user_id' => $requester->id,
+        'subject' => 'Renamed role advisory review',
+        'request_type' => AdvisoryRequestType::WRITTEN,
+        'status' => AdvisoryRequestStatus::UNDER_DIRECTOR_REVIEW,
+        'workflow_stage' => WorkflowStage::DIRECTOR,
+        'priority' => PriorityLevel::HIGH,
+        'director_decision' => DirectorDecision::PENDING,
+        'description' => 'Workflow authorization should continue to work after renaming the seeded advisory roles.',
+        'date_submitted' => now()->toDateString(),
+    ]);
+
+    $this->actingAs($director)
+        ->get(route('advisory.show', $advisoryRequest))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('can.review', true)
+            ->where('workspace.canAssignTeamLeader', true)
+            ->has('teamLeaders', 1)
+            ->where('teamLeaders.0.id', $teamLeader->id));
+
+    $this->actingAs($director)
+        ->patch(route('advisory.review', $advisoryRequest), [
+            'director_decision' => 'approved',
+            'director_notes' => 'Approved after role rename.',
+            'assigned_team_leader_id' => $teamLeader->id,
+        ])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect();
+
+    expect($advisoryRequest->fresh()?->assigned_team_leader_id)->toBe($teamLeader->id);
+});
+
+it('keeps case workflow actions working after expert and leader role names are renamed when permissions remain assigned', function (): void {
+    $registrar = User::query()->where('email', 'registrar@ldms.test')->firstOrFail();
+    $director = User::query()->where('email', 'director@ldms.test')->firstOrFail();
+    $teamLeader = User::query()->where('email', 'litigation.lead@ldms.test')->firstOrFail();
+    $expert = User::query()->where('email', 'expert.two@ldms.test')->firstOrFail();
+
+    Role::query()->where('name', SystemRole::LITIGATION_TEAM_LEADER->value)->firstOrFail()->update([
+        'name' => 'Litigation Workflow Lead',
+    ]);
+    Role::query()->where('name', SystemRole::LEGAL_EXPERT->value)->firstOrFail()->update([
+        'name' => 'Case Strategy Expert',
+    ]);
+
+    $legalCase = LegalCase::query()->create([
+        'case_number' => 'CASE-ACCESS-RENAME-1',
+        'court_id' => Court::query()->firstOrFail()->id,
+        'case_type_id' => CaseType::query()->firstOrFail()->id,
+        'registered_by_id' => $registrar->id,
+        'assigned_team_leader_id' => $teamLeader->id,
+        'plaintiff' => 'Renamed Role Plaintiff',
+        'defendant' => 'Institution',
+        'status' => CaseStatus::ASSIGNED_TO_TEAM_LEADER,
+        'workflow_stage' => WorkflowStage::TEAM_LEADER,
+        'priority' => PriorityLevel::HIGH,
+        'director_decision' => DirectorDecision::APPROVED,
+        'claim_summary' => 'Workflow authorization should continue to work after renaming the seeded case roles.',
+        'filing_date' => now()->subDay()->toDateString(),
+    ]);
+
+    $this->actingAs($teamLeader)
+        ->get(route('cases.show', $legalCase))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('can.assign', true)
+            ->where('workspace.canAssignExpert', true)
+            ->where('experts.0.id', $expert->id));
+
+    $this->actingAs($teamLeader)
+        ->patch(route('cases.assign', $legalCase), [
+            'assigned_legal_expert_id' => $expert->id,
+            'notes' => 'Assigned after role rename.',
+        ])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect();
+
+    expect($legalCase->fresh()?->assigned_legal_expert_id)->toBe($expert->id);
+
+    $this->actingAs($expert)
+        ->post(route('cases.hearings.store', $legalCase->fresh()), [
+            'hearing_date' => now()->toDateString(),
+            'appearance_status' => 'attended',
+            'summary' => 'Recorded by renamed expert role.',
+        ])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect();
+});

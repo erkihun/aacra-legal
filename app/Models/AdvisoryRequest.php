@@ -9,7 +9,6 @@ use App\Enums\AdvisoryRequestStatus;
 use App\Enums\AdvisoryRequestType;
 use App\Enums\DirectorDecision;
 use App\Enums\PriorityLevel;
-use App\Enums\SystemRole;
 use App\Enums\WorkflowStage;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -125,11 +124,11 @@ class AdvisoryRequest extends Model
 
     public function scopeVisibleTo($query, User $user)
     {
-        if ($user->isSuperAdmin() || $user->hasSystemRole(SystemRole::LEGAL_DIRECTOR) || $user->hasSystemRole(SystemRole::AUDITOR)) {
+        if ($user->hasGlobalAdvisoryVisibility()) {
             return $query;
         }
 
-        if ($user->hasSystemRole(SystemRole::ADVISORY_TEAM_LEADER)) {
+        if ($user->canLeadAdvisoryWorkflow()) {
             return $query->where(function ($builder) use ($user): void {
                 $builder
                     ->where('assigned_team_leader_id', $user->getKey())
@@ -137,7 +136,7 @@ class AdvisoryRequest extends Model
             });
         }
 
-        if ($user->hasSystemRole(SystemRole::LEGAL_EXPERT)) {
+        if ($user->canRespondToAdvisories()) {
             return $query->where('assigned_legal_expert_id', $user->getKey());
         }
 

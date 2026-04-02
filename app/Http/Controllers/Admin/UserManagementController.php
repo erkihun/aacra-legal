@@ -178,6 +178,11 @@ class UserManagementController extends Controller
             'email' => $user->email,
             'phone' => $user->phone,
             'job_title' => $user->job_title,
+            'avatar_url' => $user->avatarUrl(),
+            'signature_url' => $user->signatureUrl(),
+            'stamp_url' => $user->stampUrl(),
+            'national_id' => User::formatNationalId($user->national_id),
+            'telegram_username' => $user->telegram_username,
             'locale' => $user->locale?->value,
             'is_active' => $user->is_active,
             'department' => $user->department ? [

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Policies;
 
 use App\Enums\AdvisoryRequestStatus;
-use App\Enums\SystemRole;
 use App\Models\AdvisoryRequest;
 use App\Models\User;
 
@@ -20,16 +19,16 @@ class AdvisoryRequestPolicy
 
     public function view(User $user, AdvisoryRequest $advisoryRequest): bool
     {
-        if ($user->isSuperAdmin() || $user->hasSystemRole(SystemRole::LEGAL_DIRECTOR) || $user->hasSystemRole(SystemRole::AUDITOR)) {
+        if ($user->hasGlobalAdvisoryVisibility()) {
             return true;
         }
 
-        if ($user->hasSystemRole(SystemRole::ADVISORY_TEAM_LEADER)) {
+        if ($user->canLeadAdvisoryWorkflow()) {
             return $advisoryRequest->assigned_team_leader_id === $user->getKey()
                 || $advisoryRequest->assignedLegalExpert?->team_id === $user->team_id;
         }
 
-        if ($user->hasSystemRole(SystemRole::LEGAL_EXPERT)) {
+        if ($user->canRespondToAdvisories()) {
             return $advisoryRequest->assigned_legal_expert_id === $user->getKey();
         }
 
@@ -73,25 +72,27 @@ class AdvisoryRequestPolicy
 
     public function review(User $user, AdvisoryRequest $advisoryRequest): bool
     {
-        return ($user->isSuperAdmin() || $user->hasSystemRole(SystemRole::LEGAL_DIRECTOR))
-            && ($user->can('advisory.review') || $user->can('advisory-requests.review'));
+        return $user->can('advisory.review') || $user->can('advisory-requests.review');
     }
 
     public function assign(User $user, AdvisoryRequest $advisoryRequest): bool
     {
-        if ($user->isSuperAdmin() || $user->hasSystemRole(SystemRole::LEGAL_DIRECTOR)) {
+        if ($user->can('advisory.assign_team_leader')) {
             return $user->can('advisory.assign_team_leader') || $user->can('advisory-requests.assign');
         }
 
-        return $user->hasSystemRole(SystemRole::ADVISORY_TEAM_LEADER)
-            && ($user->can('advisory.assign_expert') || $user->can('advisory-requests.assign'))
+        return $user->canLeadAdvisoryWorkflow()
             && $advisoryRequest->assigned_team_leader_id === $user->getKey();
     }
 
     public function respond(User $user, AdvisoryRequest $advisoryRequest): bool
     {
-        return ($user->isSuperAdmin() || $advisoryRequest->assigned_legal_expert_id === $user->getKey())
-            && ($user->can('advisory.respond') || $user->can('advisory-requests.respond'));
+        $canRespond = $user->can('advisory.respond') || $user->can('advisory-requests.respond');
+
+        return $canRespond && (
+            $advisoryRequest->assigned_legal_expert_id === $user->getKey()
+            || $user->hasAdvisoryAdministrativeAccess()
+        );
     }
 
     public function comment(User $user, AdvisoryRequest $advisoryRequest): bool

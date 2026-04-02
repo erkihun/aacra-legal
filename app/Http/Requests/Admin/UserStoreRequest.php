@@ -27,6 +27,12 @@ class UserStoreRequest extends FormRequest
             'name' => $this->filled('name') ? trim((string) $this->input('name')) : null,
             'phone' => $this->filled('phone') ? trim((string) $this->input('phone')) : null,
             'job_title' => $this->filled('job_title') ? trim((string) $this->input('job_title')) : null,
+            'national_id' => $this->filled('national_id')
+                ? preg_replace('/\s+/', '', trim((string) $this->input('national_id')))
+                : null,
+            'telegram_username' => $this->filled('telegram_username')
+                ? trim((string) $this->input('telegram_username'))
+                : null,
         ]);
     }
 
@@ -52,6 +58,11 @@ class UserStoreRequest extends FormRequest
             ],
             'phone' => ['nullable', 'string', 'max:30'],
             'job_title' => ['nullable', 'string', 'max:255'],
+            'avatar' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
+            'signature' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
+            'stamp' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
+            'national_id' => ['nullable', 'regex:/^\d{16}$/'],
+            'telegram_username' => ['nullable', 'regex:/^@[A-Za-z0-9_]{5,32}$/'],
             'locale' => ['required', Rule::in($settings->supportedLocales())],
             'is_active' => ['required', 'boolean'],
             'password' => ['required', 'confirmed', app(PasswordRules::class)->rule()],
@@ -60,6 +71,17 @@ class UserStoreRequest extends FormRequest
                 'string',
                 Rule::exists('roles', 'name'),
             ]),
+        ];
+    }
+
+    public function attributes(): array
+    {
+        return [
+            'avatar' => __('users.avatar'),
+            'signature' => __('users.signature'),
+            'stamp' => __('users.stamp'),
+            'national_id' => __('users.national_id'),
+            'telegram_username' => __('users.telegram_username'),
         ];
     }
 }

@@ -6,7 +6,6 @@ namespace App\Actions;
 
 use App\Enums\AdvisoryRequestStatus;
 use App\Enums\DirectorDecision;
-use App\Enums\SystemRole;
 use App\Enums\TeamType;
 use App\Enums\WorkflowStage;
 use App\Events\AdvisoryAssigned;
@@ -50,7 +49,7 @@ class DirectorReviewAdvisoryAction
 
                 if (
                     ! $teamLeader->is_active
-                    || ! $teamLeader->hasSystemRole(SystemRole::ADVISORY_TEAM_LEADER)
+                    || ! $teamLeader->canLeadAdvisoryWorkflow()
                     || $teamLeader->team?->type !== TeamType::ADVISORY
                 ) {
                     throw ValidationException::withMessages([

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Requests\Advisory;
 
 use App\Enums\DirectorDecision;
-use App\Enums\SystemRole;
 use App\Enums\TeamType;
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
@@ -40,7 +39,7 @@ class ReviewAdvisoryRequestRequest extends FormRequest
                     if (
                         $teamLeader === null
                         || ! $teamLeader->is_active
-                        || ! $teamLeader->hasSystemRole(SystemRole::ADVISORY_TEAM_LEADER)
+                        || ! $teamLeader->canLeadAdvisoryWorkflow()
                         || $teamLeader->team?->type !== TeamType::ADVISORY
                     ) {
                         $fail(__('The selected advisory team leader is invalid.'));

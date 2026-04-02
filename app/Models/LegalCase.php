@@ -9,7 +9,6 @@ use App\Enums\CaseStatus;
 use App\Enums\DirectorDecision;
 use App\Enums\LegalCaseMainType;
 use App\Enums\PriorityLevel;
-use App\Enums\SystemRole;
 use App\Enums\WorkflowStage;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -147,19 +146,15 @@ class LegalCase extends Model
 
     public function scopeVisibleTo($query, User $user)
     {
-        if ($user->isSuperAdmin() || $user->hasSystemRole(SystemRole::LEGAL_DIRECTOR) || $user->hasSystemRole(SystemRole::AUDITOR)) {
+        if ($user->hasGlobalCaseVisibility()) {
             return $query;
         }
 
-        if ($user->hasSystemRole(SystemRole::LITIGATION_TEAM_LEADER)) {
+        if ($user->canLeadLitigationWorkflow()) {
             return $query->where('assigned_team_leader_id', $user->getKey());
         }
 
-        if ($user->hasSystemRole(SystemRole::REGISTRAR)) {
-            return $query->where('registered_by_id', $user->getKey());
-        }
-
-        if ($user->hasSystemRole(SystemRole::LEGAL_EXPERT)) {
+        if ($user->canHandleAssignedCases()) {
             return $query->where('assigned_legal_expert_id', $user->getKey());
         }
 

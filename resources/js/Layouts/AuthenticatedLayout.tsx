@@ -179,7 +179,6 @@ export default function AuthenticatedLayout({
 
     const hasAnyPermission = (permissions?: string[]) =>
         permissions === undefined ||
-        user?.roles.includes('Super Admin') ||
         permissions.some((permission) => user?.permissions.includes(permission));
 
     const sections: NavSection[] = useMemo(
@@ -246,7 +245,7 @@ export default function AuthenticatedLayout({
                         key: 'roles',
                         label: t('navigation.roles'),
                         routeName: 'roles.index',
-                        permissions: ['roles.manage'],
+                        permissions: ['roles.manage', 'users.assign_roles'],
                         icon: navigationIcon('M9.5 6.5 12 4l2.5 2.5 3.5.5.5 3.5L21 13l-2.5 2.5-.5 3.5-3.5.5L12 22l-2.5-2.5-3.5-.5-.5-3.5L3 13l2.5-2.5.5-3.5 3.5-.5ZM12 10v6m-3-3h6'),
                     },
                     {

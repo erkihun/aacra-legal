@@ -17,7 +17,6 @@ use App\Actions\UpdateReturnedAdvisoryRequestAction;
 use App\Enums\AdvisoryRequestStatus;
 use App\Enums\AdvisoryRequestType;
 use App\Enums\PriorityLevel;
-use App\Enums\SystemRole;
 use App\Enums\WorkflowStage;
 use App\Http\Requests\Advisory\AssignAdvisoryRequestRequest;
 use App\Http\Requests\Advisory\RecordAdvisoryResponseRequest;
@@ -33,7 +32,6 @@ use App\Models\AdvisoryRequest;
 use App\Models\AdvisoryResponse;
 use App\Models\Attachment;
 use App\Models\Department;
-use App\Models\Team;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -134,14 +132,11 @@ class AdvisoryRequestController extends Controller
         return Inertia::render('Advisory/Show', [
             'requestItem' => AdvisoryRequestResource::make($advisoryRequest)->resolve(),
             'teamLeaders' => User::query()
-                ->role(SystemRole::ADVISORY_TEAM_LEADER->value)
-                ->where('is_active', true)
+                ->eligibleAdvisoryTeamLeaders()
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'experts' => User::query()
-                ->role(SystemRole::LEGAL_EXPERT->value)
-                ->where('is_active', true)
-                ->where('team_id', Team::query()->where('code', 'ADV')->value('id'))
+                ->eligibleAdvisoryExperts()
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'can' => [
@@ -363,7 +358,7 @@ class AdvisoryRequestController extends Controller
             $advisoryRequest,
             $request->user(),
             $request->string('body')->toString(),
-            (bool) $request->boolean('is_internal', ! $request->user()?->hasSystemRole(SystemRole::DEPARTMENT_REQUESTER)),
+            (bool) $request->boolean('is_internal', ! $request->user()?->usesRequesterAdvisoryScope()),
         );
 
         return back()->with('success', __('Comment added.'));

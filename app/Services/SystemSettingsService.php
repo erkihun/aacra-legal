@@ -157,6 +157,7 @@ class SystemSettingsService
             'default_dashboard_route' => $general['default_dashboard_route'] ?? 'dashboard',
             'logo_url' => $this->assetUrl($general['system_logo_path'] ?? null),
             'favicon_url' => $this->assetUrl($general['favicon_path'] ?? null),
+            'stamp_url' => $this->assetUrl($general['stamp_path'] ?? null),
             'support' => [
                 'email' => $general['support_email'] ?? $organization['contact_email'] ?? null,
                 'phone' => $general['support_phone'] ?? $organization['contact_phone'] ?? null,
@@ -503,6 +504,7 @@ class SystemSettingsService
                 'default_dashboard_route' => 'dashboard',
                 'system_logo_path' => null,
                 'favicon_path' => null,
+                'stamp_path' => null,
             ],
             SystemSettingGroup::ORGANIZATION->value => [
                 'office_name' => __('app.name'),
@@ -618,7 +620,15 @@ class SystemSettingsService
             );
         }
 
-        unset($values['system_logo'], $values['favicon']);
+        if (isset($values['stamp']) && $values['stamp'] instanceof UploadedFile) {
+            $values['stamp_path'] = $this->storeAsset(
+                $values['stamp'],
+                'stamp',
+                $currentValues['stamp_path'] ?? null,
+            );
+        }
+
+        unset($values['system_logo'], $values['favicon'], $values['stamp']);
 
         if ($group === SystemSettingGroup::SECURITY->value && isset($values['allowed_file_types']) && is_string($values['allowed_file_types'])) {
             $values['allowed_file_types'] = collect(explode(',', $values['allowed_file_types']))

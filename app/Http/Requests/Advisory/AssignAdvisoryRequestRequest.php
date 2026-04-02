@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Advisory;
 
-use App\Enums\SystemRole;
 use App\Enums\TeamType;
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
@@ -31,7 +30,7 @@ class AssignAdvisoryRequestRequest extends FormRequest
                     if (
                         $expert === null
                         || ! $expert->is_active
-                        || ! $expert->hasSystemRole(SystemRole::LEGAL_EXPERT)
+                        || ! $expert->canRespondToAdvisories()
                         || $expert->team?->type !== TeamType::ADVISORY
                     ) {
                         $fail(__('The selected advisory expert is invalid.'));

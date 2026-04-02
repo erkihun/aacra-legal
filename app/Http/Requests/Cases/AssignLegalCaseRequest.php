@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Cases;
 
-use App\Enums\SystemRole;
 use App\Enums\TeamType;
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
@@ -31,7 +30,7 @@ class AssignLegalCaseRequest extends FormRequest
                     if (
                         $expert === null
                         || ! $expert->is_active
-                        || ! $expert->hasSystemRole(SystemRole::LEGAL_EXPERT)
+                        || ! $expert->canHandleAssignedCases()
                         || $expert->team?->type !== TeamType::LITIGATION
                     ) {
                         $fail(__('The selected litigation expert is invalid.'));

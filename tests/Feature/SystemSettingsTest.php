@@ -73,6 +73,7 @@ it('updates general settings successfully including branding assets', function (
             'default_dashboard_route' => 'dashboard',
             'system_logo' => UploadedFile::fake()->image('logo.png', 200, 200),
             'favicon' => UploadedFile::fake()->image('favicon.png', 48, 48),
+            'stamp' => UploadedFile::fake()->image('stamp.png', 160, 160),
         ])
         ->assertRedirect();
 
@@ -85,20 +86,25 @@ it('updates general settings successfully including branding assets', function (
         ->and($general['tagline'])->toBe('Trusted legal operations for institutional decisions.')
         ->and($general['support_email'])->toBe('support@ldms.test')
         ->and($general['system_logo_path'])->not()->toBeNull()
-        ->and($general['favicon_path'])->not()->toBeNull();
+        ->and($general['favicon_path'])->not()->toBeNull()
+        ->and($general['stamp_path'])->not()->toBeNull();
 
     Storage::disk('public')->assertExists($general['system_logo_path']);
     Storage::disk('public')->assertExists($general['favicon_path']);
+    Storage::disk('public')->assertExists($general['stamp_path']);
 
     $appMeta = $settings->appMeta();
     $logoPath = parse_url($appMeta['logo_url'], PHP_URL_PATH);
     $faviconPath = parse_url($appMeta['favicon_url'], PHP_URL_PATH);
+    $stampPath = parse_url($appMeta['stamp_url'], PHP_URL_PATH);
 
     expect($logoPath)->toContain('/branding-assets/')
-        ->and($faviconPath)->toContain('/branding-assets/');
+        ->and($faviconPath)->toContain('/branding-assets/')
+        ->and($stampPath)->toContain('/branding-assets/');
 
     $this->get($logoPath)->assertOk();
     $this->get($faviconPath)->assertOk();
+    $this->get($stampPath)->assertOk();
 });
 
 it('persists localization and notification settings', function (): void {
@@ -230,6 +236,7 @@ it('exposes branding asset URLs in system settings and layout responses after up
             'default_dashboard_route' => 'dashboard',
             'system_logo' => UploadedFile::fake()->image('brand-logo.png', 120, 120),
             'favicon' => UploadedFile::fake()->image('brand-favicon.png', 48, 48),
+            'stamp' => UploadedFile::fake()->image('brand-stamp.png', 160, 160),
         ])
         ->assertRedirect();
 
@@ -241,15 +248,37 @@ it('exposes branding asset URLs in system settings and layout responses after up
             ->where('settingsGroups.general.application_short_name', 'BW')
             ->where('settingsGroups.general.system_logo_url', fn (?string $value) => is_string($value) && str_contains($value, '/branding-assets/'))
             ->where('settingsGroups.general.favicon_url', fn (?string $value) => is_string($value) && str_contains($value, '/branding-assets/'))
+            ->where('settingsGroups.general.stamp_url', fn (?string $value) => is_string($value) && str_contains($value, '/branding-assets/'))
             ->where('appMeta.logo_url', fn (?string $value) => is_string($value) && str_contains($value, '/branding-assets/'))
-            ->where('appMeta.favicon_url', fn (?string $value) => is_string($value) && str_contains($value, '/branding-assets/')));
+            ->where('appMeta.favicon_url', fn (?string $value) => is_string($value) && str_contains($value, '/branding-assets/'))
+            ->where('appMeta.stamp_url', fn (?string $value) => is_string($value) && str_contains($value, '/branding-assets/')));
 
     $this->actingAs($admin)
         ->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('appMeta.logo_url', fn (?string $value) => is_string($value) && str_contains($value, '/branding-assets/'))
-            ->where('appMeta.favicon_url', fn (?string $value) => is_string($value) && str_contains($value, '/branding-assets/')));
+            ->where('appMeta.favicon_url', fn (?string $value) => is_string($value) && str_contains($value, '/branding-assets/'))
+            ->where('appMeta.stamp_url', fn (?string $value) => is_string($value) && str_contains($value, '/branding-assets/')));
+});
+
+it('validates the system settings stamp as a png upload', function (): void {
+    $admin = User::query()->where('email', 'admin@ldms.test')->firstOrFail();
+
+    $this->actingAs($admin)
+        ->post(route('settings.update', 'general'), [
+            '_method' => 'put',
+            'application_name' => 'LDMS RC',
+            'application_short_name' => 'LDMS-RC',
+            'organization_name' => 'Institution Legal Office',
+            'legal_department_name' => 'Institution Legal Department',
+            'tagline' => 'Trusted legal operations for institutional decisions.',
+            'support_email' => 'support@ldms.test',
+            'support_phone' => '+251900000001',
+            'default_dashboard_route' => 'dashboard',
+            'stamp' => UploadedFile::fake()->image('stamp.jpg', 160, 160),
+        ])
+        ->assertSessionHasErrors('stamp');
 });
 
 it('respects notification channel toggles for database, sms, and telegram delivery', function (): void {

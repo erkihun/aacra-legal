@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Actions;
 
 use App\Enums\CaseStatus;
-use App\Enums\SystemRole;
 use App\Enums\TeamType;
 use App\Enums\WorkflowStage;
 use App\Events\CaseAssigned;
@@ -50,7 +49,7 @@ class AssignCaseToExpertAction
 
         if (
             ! $expert->is_active
-            || ! $expert->hasSystemRole(SystemRole::LEGAL_EXPERT)
+            || ! $expert->canHandleAssignedCases()
             || $expert->team?->type !== TeamType::LITIGATION
             || ($expectedTeamId !== null && $expert->team_id !== $expectedTeamId)
         ) {

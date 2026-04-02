@@ -3,7 +3,7 @@ import SurfaceCard from '@/Components/Ui/SurfaceCard';
 import { translateRoleName } from '@/lib/access';
 import { useI18n } from '@/lib/i18n';
 import { useForm } from '@inertiajs/react';
-import { FormEvent } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 
 type Option = {
     id?: string;
@@ -20,6 +20,11 @@ type UserFormProps = {
         email: string;
         phone?: string | null;
         job_title?: string | null;
+        avatar_url?: string | null;
+        signature_url?: string | null;
+        stamp_url?: string | null;
+        national_id?: string | null;
+        telegram_username?: string | null;
         locale?: string | null;
         is_active: boolean;
         department?: { id: string } | null;
@@ -53,11 +58,16 @@ export default function UserForm({
         email: userItem?.email ?? '',
         phone: userItem?.phone ?? '',
         job_title: userItem?.job_title ?? '',
+        national_id: userItem?.national_id ?? '',
+        telegram_username: userItem?.telegram_username ?? '',
         locale: userItem?.locale ?? 'en',
         department_id: userItem?.department?.id ?? '',
         team_id: userItem?.team?.id ?? '',
         role_name: userItem?.role_name ?? '',
         is_active: userItem?.is_active ?? true,
+        avatar: null as File | null,
+        signature: null as File | null,
+        stamp: null as File | null,
         password: '',
         password_confirmation: '',
     });
@@ -66,11 +76,23 @@ export default function UserForm({
         event.preventDefault();
 
         if (submit.method === 'post') {
-            form.post(submit.url);
+            form.post(submit.url, {
+                forceFormData: true,
+            });
             return;
         }
 
-        form.patch(submit.url);
+        form.transform((data) => ({
+            ...data,
+            _method: 'patch',
+        }));
+
+        form.post(submit.url, {
+            forceFormData: true,
+            onFinish: () => {
+                form.transform((data) => data);
+            },
+        });
     };
 
     return (
@@ -110,6 +132,29 @@ export default function UserForm({
                         <input
                             value={form.data.job_title}
                             onChange={(event) => form.setData('job_title', event.target.value)}
+                            className="input-ui"
+                        />
+                    </FormField>
+                    <FormField label={t('users.national_id')} optional error={form.errors.national_id}>
+                        <input
+                            value={form.data.national_id}
+                            onChange={(event) => form.setData('national_id', formatNationalIdInput(event.target.value))}
+                            inputMode="numeric"
+                            maxLength={19}
+                            placeholder="1234 5678 9012 3456"
+                            className="input-ui"
+                        />
+                    </FormField>
+                    <FormField
+                        label={t('users.telegram_username')}
+                        optional
+                        error={form.errors.telegram_username}
+                        hint={t('users.telegram_username_hint')}
+                    >
+                        <input
+                            value={form.data.telegram_username}
+                            onChange={(event) => form.setData('telegram_username', event.target.value.trimStart())}
+                            placeholder="@john_doe"
                             className="input-ui"
                         />
                     </FormField>
@@ -184,6 +229,38 @@ export default function UserForm({
             </SurfaceCard>
 
             <SurfaceCard>
+                <div className="grid gap-4 lg:grid-cols-3">
+                    <ImageUploadField
+                        label={t('users.avatar')}
+                        hint={t('users.avatar_hint')}
+                        error={form.errors.avatar}
+                        existingUrl={userItem?.avatar_url}
+                        file={form.data.avatar}
+                        accept="image/png,image/jpeg,image/webp"
+                        onChange={(file) => form.setData('avatar', file)}
+                    />
+                    <ImageUploadField
+                        label={t('users.signature')}
+                        hint={t('users.signature_hint')}
+                        error={form.errors.signature}
+                        existingUrl={userItem?.signature_url}
+                        file={form.data.signature}
+                        accept="image/png,image/jpeg,image/webp"
+                        onChange={(file) => form.setData('signature', file)}
+                    />
+                    <ImageUploadField
+                        label={t('users.stamp')}
+                        hint={t('users.stamp_hint')}
+                        error={form.errors.stamp}
+                        existingUrl={userItem?.stamp_url}
+                        file={form.data.stamp}
+                        accept="image/png,image/jpeg,image/webp"
+                        onChange={(file) => form.setData('stamp', file)}
+                    />
+                </div>
+            </SurfaceCard>
+
+            <SurfaceCard>
                 <div className="grid gap-4 md:grid-cols-2">
                     <FormField label={t('auth.password')} required={!userItem} optional={!!userItem} error={form.errors.password}>
                         <input
@@ -216,4 +293,66 @@ export default function UserForm({
             </div>
         </form>
     );
+}
+
+function ImageUploadField({
+    label,
+    hint,
+    error,
+    existingUrl,
+    file,
+    accept,
+    onChange,
+}: {
+    label: string;
+    hint?: string;
+    error?: string;
+    existingUrl?: string | null;
+    file: File | null;
+    accept: string;
+    onChange: (file: File | null) => void;
+}) {
+    const [previewUrl, setPreviewUrl] = useState<string | null>(existingUrl ?? null);
+
+    useEffect(() => {
+        if (!file) {
+            setPreviewUrl(existingUrl ?? null);
+
+            return;
+        }
+
+        const nextPreviewUrl = URL.createObjectURL(file);
+
+        setPreviewUrl(nextPreviewUrl);
+
+        return () => {
+            URL.revokeObjectURL(nextPreviewUrl);
+        };
+    }, [existingUrl, file]);
+
+    return (
+        <FormField label={label} optional error={error} hint={hint}>
+            <div className="space-y-3">
+                <div className="surface-muted flex min-h-44 items-center justify-center overflow-hidden px-4 py-4">
+                    {previewUrl ? (
+                        <img src={previewUrl} alt={label} className="max-h-36 object-contain" />
+                    ) : (
+                        <span className="text-sm text-[color:var(--muted)]">-</span>
+                    )}
+                </div>
+                <input
+                    type="file"
+                    accept={accept}
+                    onChange={(event) => onChange(event.target.files?.[0] ?? null)}
+                    className="input-ui file:mr-4 file:rounded-full file:border-0 file:bg-[var(--primary-soft)] file:px-4 file:py-2 file:text-sm file:font-semibold file:text-[color:var(--primary)]"
+                />
+            </div>
+        </FormField>
+    );
+}
+
+function formatNationalIdInput(value: string) {
+    const digits = value.replace(/\D+/g, '').slice(0, 16);
+
+    return digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
 }

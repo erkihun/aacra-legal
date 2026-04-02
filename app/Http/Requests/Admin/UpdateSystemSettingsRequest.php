@@ -31,6 +31,7 @@ class UpdateSystemSettingsRequest extends FormRequest
                 'default_dashboard_route' => ['required', Rule::in(['dashboard', 'reports.index', 'notifications.index'])],
                 'system_logo' => ['nullable', 'file', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
                 'favicon' => ['nullable', 'file', 'mimes:png,ico', 'max:1024'],
+                'stamp' => ['nullable', 'file', 'mimes:png', 'max:2048'],
             ],
             SystemSettingGroup::ORGANIZATION => [
                 'office_name' => ['required', 'string', 'max:255'],
@@ -157,6 +158,7 @@ class UpdateSystemSettingsRequest extends FormRequest
             'default_dashboard_route' => __('settings.fields.default_dashboard_route'),
             'system_logo' => __('settings.fields.system_logo'),
             'favicon' => __('settings.fields.favicon'),
+            'stamp' => __('settings.fields.stamp'),
             'office_name' => __('settings.fields.office_name'),
             'address' => __('settings.fields.address'),
             'contact_phone' => __('settings.fields.contact_phone'),

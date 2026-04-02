@@ -15,7 +15,7 @@ type RoleRow = {
     users_count: number;
     permissions_count: number;
     created_at?: string | null;
-    is_system: boolean;
+    is_protected: boolean;
     permissions_locked: boolean;
 };
 
@@ -53,7 +53,7 @@ export default function RolesIndex({ roles }: { roles: RoleRow[] }) {
                     actions={(row) => [
                         { label: t('common.view'), href: route('roles.edit', row.id) },
                         { label: t('common.edit'), href: route('roles.edit', row.id) },
-                        ...(row.is_system
+                        ...(row.is_protected
                             ? []
                             : [{ label: t('common.delete'), onClick: () => setRoleToDelete(row) }]),
                     ]}
@@ -66,7 +66,7 @@ export default function RolesIndex({ roles }: { roles: RoleRow[] }) {
                                     <span className="font-semibold text-[color:var(--text)]">
                                         {translateRoleName(row.name, t)}
                                     </span>
-                                    {row.is_system ? (
+                                    {row.is_protected ? (
                                         <span className="rounded-full bg-[color:var(--primary-soft)] px-3 py-1 text-[11px] font-semibold uppercase text-[color:var(--primary)]">
                                             {t('roles.protected')}
                                         </span>

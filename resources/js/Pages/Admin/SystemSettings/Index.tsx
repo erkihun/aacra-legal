@@ -58,6 +58,7 @@ export default function SystemSettingsIndex({
         default_dashboard_route: settingsGroups.general.default_dashboard_route ?? 'dashboard',
         system_logo: null as File | null,
         favicon: null as File | null,
+        stamp: null as File | null,
     });
 
     const organizationForm = useForm({
@@ -308,7 +309,7 @@ function SettingsGroupPanel({
 
         return (
             <SurfaceCard>
-                <form onSubmit={(event) => { event.preventDefault(); submitWithFiles(form, routeName, ['system_logo', 'favicon']); }} className="space-y-6">
+                <form onSubmit={(event) => { event.preventDefault(); submitWithFiles(form, routeName, ['system_logo', 'favicon', 'stamp']); }} className="space-y-6">
                     <div className="grid gap-6 xl:grid-cols-[1.1fr,0.9fr]">
                         <div className="grid gap-4 md:grid-cols-2">
                             <TextField form={form} name="application_name" label={t('settings.fields.application_name')} required />
@@ -343,7 +344,7 @@ function SettingsGroupPanel({
                                 </p>
                             </div>
 
-                            <div className="grid gap-4 sm:grid-cols-2">
+                            <div className="grid gap-4 sm:grid-cols-3">
                                 <FileField
                                     label={t('settings.fields.system_logo')}
                                     hint={t('settings.hints.system_logo')}
@@ -357,6 +358,15 @@ function SettingsGroupPanel({
                                     previewUrl={settingsGroups.general.favicon_url}
                                     onChange={(file) => form.setData('favicon', file)}
                                     error={form.errors.favicon}
+                                    accept="image/png,image/x-icon,image/vnd.microsoft.icon"
+                                />
+                                <FileField
+                                    label={t('settings.fields.stamp')}
+                                    hint={t('settings.hints.stamp')}
+                                    previewUrl={settingsGroups.general.stamp_url}
+                                    onChange={(file) => form.setData('stamp', file)}
+                                    error={form.errors.stamp}
+                                    accept="image/png"
                                 />
                             </div>
                         </div>
@@ -1069,12 +1079,14 @@ function FileField({
     previewUrl,
     onChange,
     error,
+    accept = 'image/png,image/jpeg,image/webp,image/x-icon,image/vnd.microsoft.icon',
 }: {
     label: string;
     hint?: string;
     previewUrl?: string | null;
     onChange: (file: File | null) => void;
     error?: string;
+    accept?: string;
 }) {
     return (
         <FormField label={label} optional error={error} hint={hint}>
@@ -1086,7 +1098,7 @@ function FileField({
                 ) : null}
                 <input
                     type="file"
-                    accept="image/png,image/jpeg,image/webp,image/x-icon,image/vnd.microsoft.icon"
+                    accept={accept}
                     onChange={(event) => onChange(event.target.files?.[0] ?? null)}
                     className="input-ui file:mr-4 file:rounded-full file:border-0 file:bg-[var(--primary-soft)] file:px-4 file:py-2 file:text-sm file:font-semibold file:text-[color:var(--primary)]"
                 />

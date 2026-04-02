@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
-use App\Enums\SystemRole;
 use App\Models\LegalCase;
 use App\Models\User;
 
@@ -24,19 +23,15 @@ class LegalCasePolicy
 
     public function view(User $user, LegalCase $legalCase): bool
     {
-        if ($user->isSuperAdmin() || $user->hasSystemRole(SystemRole::LEGAL_DIRECTOR) || $user->hasSystemRole(SystemRole::AUDITOR)) {
+        if ($user->hasGlobalCaseVisibility()) {
             return true;
         }
 
-        if ($user->hasSystemRole(SystemRole::LITIGATION_TEAM_LEADER)) {
+        if ($user->canLeadLitigationWorkflow()) {
             return $legalCase->assigned_team_leader_id === $user->getKey();
         }
 
-        if ($user->hasSystemRole(SystemRole::REGISTRAR)) {
-            return $legalCase->registered_by_id === $user->getKey();
-        }
-
-        if ($user->hasSystemRole(SystemRole::LEGAL_EXPERT)) {
+        if ($user->canHandleAssignedCases()) {
             return $legalCase->assigned_legal_expert_id === $user->getKey();
         }
 
@@ -76,8 +71,7 @@ class LegalCasePolicy
             return false;
         }
 
-        return ($user->isSuperAdmin() || $user->hasSystemRole(SystemRole::LEGAL_DIRECTOR))
-            && ($user->can('cases.review') || $user->can('legal-cases.review'));
+        return $user->can('cases.review') || $user->can('legal-cases.review');
     }
 
     public function assign(User $user, LegalCase $legalCase): bool
@@ -86,12 +80,11 @@ class LegalCasePolicy
             return false;
         }
 
-        if ($user->isSuperAdmin() || $user->hasSystemRole(SystemRole::LEGAL_DIRECTOR)) {
+        if ($user->can('cases.assign_team_leader')) {
             return $user->can('cases.assign_team_leader') || $user->can('legal-cases.assign');
         }
 
-        return $user->hasSystemRole(SystemRole::LITIGATION_TEAM_LEADER)
-            && ($user->can('cases.assign_expert') || $user->can('legal-cases.assign'))
+        return $user->canLeadLitigationWorkflow()
             && $legalCase->assigned_team_leader_id === $user->getKey();
     }
 
@@ -101,12 +94,12 @@ class LegalCasePolicy
             return false;
         }
 
-        if ($user->isSuperAdmin() || $user->hasSystemRole(SystemRole::LITIGATION_TEAM_LEADER)) {
-            return $user->can('cases.record_hearing') || $user->can('legal-cases.update');
-        }
+        $canRecord = $user->can('cases.record_hearing') || $user->can('legal-cases.update');
 
-        return $legalCase->assigned_legal_expert_id === $user->getKey()
-            && ($user->can('cases.record_hearing') || $user->can('legal-cases.update'));
+        return $canRecord && (
+            $user->hasCaseAdministrativeAccess()
+            || $legalCase->assigned_legal_expert_id === $user->getKey()
+        );
     }
 
     public function close(User $user, LegalCase $legalCase): bool
@@ -115,11 +108,14 @@ class LegalCasePolicy
             return false;
         }
 
-        return (
-            $user->isSuperAdmin()
-            || $user->hasSystemRole(SystemRole::LEGAL_DIRECTOR)
-            || $user->hasSystemRole(SystemRole::LITIGATION_TEAM_LEADER)
-        ) && ($user->can('cases.close') || $user->can('legal-cases.close'));
+        return ($user->can('cases.close') || $user->can('legal-cases.close'))
+            && (
+                $user->hasCaseAdministrativeAccess()
+                || (
+                    $user->canLeadLitigationWorkflow()
+                    && $legalCase->assigned_team_leader_id === $user->getKey()
+                )
+            );
     }
 
     public function comment(User $user, LegalCase $legalCase): bool

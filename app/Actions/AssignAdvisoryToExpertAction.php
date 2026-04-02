@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Actions;
 
 use App\Enums\AdvisoryRequestStatus;
-use App\Enums\SystemRole;
 use App\Enums\TeamType;
 use App\Enums\WorkflowStage;
 use App\Events\AdvisoryAssigned;
@@ -44,7 +43,7 @@ class AssignAdvisoryToExpertAction
 
         if (
             ! $expert->is_active
-            || ! $expert->hasSystemRole(SystemRole::LEGAL_EXPERT)
+            || ! $expert->canRespondToAdvisories()
             || $expert->team?->type !== TeamType::ADVISORY
             || ($expectedTeamId !== null && $expert->team_id !== $expectedTeamId)
         ) {

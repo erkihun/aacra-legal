@@ -39,6 +39,7 @@ export type PageProps<
         default_dashboard_route: string;
         logo_url?: string | null;
         favicon_url?: string | null;
+        stamp_url?: string | null;
         support: {
             email?: string | null;
             phone?: string | null;

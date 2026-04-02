@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Requests\Cases;
 
 use App\Enums\DirectorDecision;
-use App\Enums\SystemRole;
 use App\Enums\TeamType;
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
@@ -40,7 +39,7 @@ class ReviewLegalCaseRequest extends FormRequest
                     if (
                         $teamLeader === null
                         || ! $teamLeader->is_active
-                        || ! $teamLeader->hasSystemRole(SystemRole::LITIGATION_TEAM_LEADER)
+                        || ! $teamLeader->canLeadLitigationWorkflow()
                         || $teamLeader->team?->type !== TeamType::LITIGATION
                     ) {
                         $fail(__('The selected litigation team leader is invalid.'));

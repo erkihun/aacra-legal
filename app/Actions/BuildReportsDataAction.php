@@ -6,7 +6,6 @@ namespace App\Actions;
 
 use App\Enums\AdvisoryRequestStatus;
 use App\Enums\CaseStatus;
-use App\Enums\SystemRole;
 use App\Models\AdvisoryRequest;
 use App\Models\Department;
 use App\Models\LegalCase;
@@ -55,7 +54,13 @@ class BuildReportsDataAction
             ->all();
 
         $expertWorkload = User::query()
-            ->role(SystemRole::LEGAL_EXPERT->value)
+            ->where('is_active', true)
+            ->withAnyPermission([
+                'advisory.respond',
+                'advisory-requests.respond',
+                'cases.record_hearing',
+                'legal-cases.update',
+            ])
             ->orderBy('name')
             ->get()
             ->map(function (User $expert) use ($advisoryQuery, $caseQuery): array {
@@ -109,7 +114,17 @@ class BuildReportsDataAction
                     'value' => $team->id,
                     'label' => $this->localizedName($team->name_en, $team->name_am),
                 ]),
-                'experts' => User::query()->role(SystemRole::LEGAL_EXPERT->value)->orderBy('name')->get(['id', 'name'])->map(fn (User $expert) => [
+                'experts' => User::query()
+                    ->where('is_active', true)
+                    ->withAnyPermission([
+                        'advisory.respond',
+                        'advisory-requests.respond',
+                        'cases.record_hearing',
+                        'legal-cases.update',
+                    ])
+                    ->orderBy('name')
+                    ->get(['id', 'name'])
+                    ->map(fn (User $expert) => [
                     'value' => $expert->id,
                     'label' => $expert->name,
                 ]),

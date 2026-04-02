@@ -16,6 +16,7 @@ type UserRow = {
     name: string;
     email: string;
     employee_number?: string | null;
+    avatar_url?: string | null;
     roles: string[];
     department?: { id: string; name_en: string; name_am: string } | null;
     team?: { id: string; name_en: string; name_am: string } | null;
@@ -153,9 +154,18 @@ export default function UsersIndex({ filters, users, filterOptions, can }: any) 
                                     key: 'name',
                                     header: t('auth.name'),
                                     cell: (row) => (
-                                        <div>
-                                            <p className="font-semibold text-[color:var(--text)]">{row.name}</p>
-                                            <p className="mt-1 text-sm text-[color:var(--muted)]">{row.email}</p>
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-[color:var(--primary-soft)] text-sm font-semibold text-[color:var(--primary)]">
+                                                {row.avatar_url ? (
+                                                    <img src={row.avatar_url} alt={row.name} className="h-full w-full object-cover" />
+                                                ) : (
+                                                    row.name.slice(0, 2).toUpperCase()
+                                                )}
+                                            </div>
+                                            <div>
+                                                <p className="font-semibold text-[color:var(--text)]">{row.name}</p>
+                                                <p className="mt-1 text-sm text-[color:var(--muted)]">{row.email}</p>
+                                            </div>
                                         </div>
                                     ),
                                 },

@@ -7,16 +7,20 @@ import { useI18n } from '@/lib/i18n';
 import { Link, router, useForm } from '@inertiajs/react';
 import { useDeferredValue, useMemo, useState } from 'react';
 
+type PermissionItem = {
+    name: string;
+    label: string;
+};
+
+type PermissionGroup = {
+    key: string;
+    label: string;
+    items: PermissionItem[];
+};
+
 type RoleFormProps = {
     roleItem: any;
-    permissionGroups: Array<{
-        key: string;
-        label: string;
-        items: Array<{
-            name: string;
-            label: string;
-        }>;
-    }>;
+    permissionGroups: PermissionGroup[];
     submit: {
         method: 'post' | 'patch';
         url: string;
@@ -43,7 +47,7 @@ export default function RoleForm({ roleItem, permissionGroups, submit }: RoleFor
         return permissionGroups
             .map((group) => ({
                 ...group,
-                items: group.items.filter((item) => {
+                items: group.items.filter((item: PermissionItem) => {
                     const label = item.label.toLowerCase();
                     const name = item.name.toLowerCase();
 
@@ -75,7 +79,7 @@ export default function RoleForm({ roleItem, permissionGroups, submit }: RoleFor
         form.setData(
             'permissions',
             form.data.permissions.includes(permissionName)
-                ? form.data.permissions.filter((item) => item !== permissionName)
+                ? form.data.permissions.filter((item: string) => item !== permissionName)
                 : [...form.data.permissions, permissionName],
         );
     };
@@ -87,7 +91,7 @@ export default function RoleForm({ roleItem, permissionGroups, submit }: RoleFor
     const clearVisiblePermissions = () => {
         form.setData(
             'permissions',
-            form.data.permissions.filter((permission) => !visiblePermissionNames.includes(permission)),
+            form.data.permissions.filter((permission: string) => !visiblePermissionNames.includes(permission)),
         );
     };
 
@@ -102,7 +106,7 @@ export default function RoleForm({ roleItem, permissionGroups, submit }: RoleFor
                     className="space-y-4"
                 >
                     <SurfaceCard className="space-y-4">
-                        {roleItem?.is_system ? (
+                        {roleItem?.is_protected ? (
                             <div className="rounded-2xl border border-amber-300/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-200">
                                 {t('roles.system_name_description')}
                             </div>
@@ -124,7 +128,7 @@ export default function RoleForm({ roleItem, permissionGroups, submit }: RoleFor
                                 value={form.data.name}
                                 onChange={(event) => form.setData('name', event.target.value)}
                                 className="input-ui"
-                                disabled={roleItem?.is_system}
+                                disabled={roleItem?.is_protected}
                             />
                         </FormField>
                     </SurfaceCard>
@@ -290,7 +294,7 @@ export default function RoleForm({ roleItem, permissionGroups, submit }: RoleFor
                         </SurfaceCard>
                     ) : null}
 
-                    {roleItem && !roleItem.is_system ? (
+                    {roleItem && !roleItem.is_protected ? (
                         <SurfaceCard className="border-rose-300/30 bg-rose-500/5 dark:border-rose-500/20">
                             <div className="flex flex-wrap items-center justify-between gap-4">
                                 <div>

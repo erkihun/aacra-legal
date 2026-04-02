@@ -11,7 +11,7 @@ class RolePermissionUpdateRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('roles.manage') ?? false;
+        return $this->user()?->can('roles.manage') || $this->user()?->can('users.assign_roles') || false;
     }
 
     public function rules(): array

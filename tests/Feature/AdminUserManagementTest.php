@@ -10,10 +10,13 @@ use App\Models\User;
 use Database\Seeders\DemoUserSeeder;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\ReferenceDataSeeder;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia;
 
 beforeEach(function (): void {
     $this->withoutVite();
+    Storage::fake('public');
 
     $this->seed([
         PermissionSeeder::class,
@@ -43,11 +46,16 @@ it('allows a super admin to create, update, and delete users', function (): void
             'email' => 'admin.module.user@ldms.test',
             'phone' => '+251911000001',
             'job_title' => 'Legal Officer',
+            'national_id' => '1234 5678 9012 3456',
+            'telegram_username' => '@admin_module_user',
             'locale' => LocaleCode::ENGLISH->value,
             'department_id' => $department->id,
             'team_id' => $team->id,
             'role_name' => SystemRole::LEGAL_EXPERT->value,
             'is_active' => true,
+            'avatar' => UploadedFile::fake()->image('avatar.png', 120, 120),
+            'signature' => UploadedFile::fake()->image('signature.png', 240, 120),
+            'stamp' => UploadedFile::fake()->image('stamp.png', 160, 160),
             'password' => 'password123',
             'password_confirmation' => 'password123',
         ])
@@ -58,7 +66,20 @@ it('allows a super admin to create, update, and delete users', function (): void
     expect($user->department_id)->toBe($department->id)
         ->and($user->team_id)->toBe($team->id)
         ->and($user->locale)->toBe(LocaleCode::ENGLISH)
-        ->and($user->hasRole(SystemRole::LEGAL_EXPERT->value))->toBeTrue();
+        ->and($user->hasRole(SystemRole::LEGAL_EXPERT->value))->toBeTrue()
+        ->and($user->national_id)->toBe('1234567890123456')
+        ->and($user->telegram_username)->toBe('@admin_module_user')
+        ->and($user->avatar_path)->not()->toBeNull()
+        ->and($user->signature_path)->not()->toBeNull()
+        ->and($user->stamp_path)->not()->toBeNull();
+
+    Storage::disk('public')->assertExists($user->avatar_path);
+    Storage::disk('public')->assertExists($user->signature_path);
+    Storage::disk('public')->assertExists($user->stamp_path);
+
+    $originalAvatarPath = $user->avatar_path;
+    $originalSignaturePath = $user->signature_path;
+    $originalStampPath = $user->stamp_path;
 
     $this->actingAs($admin)
         ->patch(route('users.update', $user), [
@@ -67,11 +88,16 @@ it('allows a super admin to create, update, and delete users', function (): void
             'email' => 'admin.module.user@ldms.test',
             'phone' => '+251911000002',
             'job_title' => 'Senior Legal Officer',
+            'national_id' => '4321 8765 2109 6543',
+            'telegram_username' => '@updated_user123',
             'locale' => LocaleCode::AMHARIC->value,
             'department_id' => $department->id,
             'team_id' => $team->id,
             'role_name' => SystemRole::REGISTRAR->value,
             'is_active' => false,
+            'avatar' => UploadedFile::fake()->image('avatar-updated.png', 120, 120),
+            'signature' => UploadedFile::fake()->image('signature-updated.png', 240, 120),
+            'stamp' => UploadedFile::fake()->image('stamp-updated.png', 160, 160),
             'password' => '',
             'password_confirmation' => '',
         ])
@@ -80,9 +106,32 @@ it('allows a super admin to create, update, and delete users', function (): void
     expect($user->fresh()?->name)->toBe('Admin Module User Updated');
     expect($user->fresh()?->phone)->toBe('+251911000002');
     expect($user->fresh()?->job_title)->toBe('Senior Legal Officer');
+    expect($user->fresh()?->national_id)->toBe('4321876521096543');
+    expect($user->fresh()?->telegram_username)->toBe('@updated_user123');
     expect($user->fresh()?->locale)->toBe(LocaleCode::AMHARIC);
     expect($user->fresh()?->is_active)->toBeFalse();
     expect($user->fresh()->hasRole(SystemRole::REGISTRAR->value))->toBeTrue();
+    expect($user->fresh()?->avatar_path)->not()->toBe($originalAvatarPath);
+    expect($user->fresh()?->signature_path)->not()->toBe($originalSignaturePath);
+    expect($user->fresh()?->stamp_path)->not()->toBe($originalStampPath);
+
+    Storage::disk('public')->assertMissing($originalAvatarPath);
+    Storage::disk('public')->assertMissing($originalSignaturePath);
+    Storage::disk('public')->assertMissing($originalStampPath);
+    Storage::disk('public')->assertExists($user->fresh()->avatar_path);
+    Storage::disk('public')->assertExists($user->fresh()->signature_path);
+    Storage::disk('public')->assertExists($user->fresh()->stamp_path);
+
+    $this->actingAs($admin)
+        ->get(route('users.edit', $user))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Admin/Users/Edit')
+            ->where('userItem.national_id', '4321 8765 2109 6543')
+            ->where('userItem.telegram_username', '@updated_user123')
+            ->where('userItem.avatar_url', fn (?string $value) => is_string($value) && str_contains($value, '/branding-assets/users/'))
+            ->where('userItem.signature_url', fn (?string $value) => is_string($value) && str_contains($value, '/branding-assets/users/'))
+            ->where('userItem.stamp_url', fn (?string $value) => is_string($value) && str_contains($value, '/branding-assets/users/')));
 
     auth()->logout();
     $this->assertGuest();
@@ -143,4 +192,53 @@ it('blocks unauthorized access to user management routes', function (): void {
     $this->actingAs($requester)
         ->get(route('users.create'))
         ->assertForbidden();
+});
+
+it('validates national id and telegram username on user create and update', function (): void {
+    $admin = User::query()->where('email', 'admin@ldms.test')->firstOrFail();
+    $department = Department::query()->firstOrFail();
+
+    $this->actingAs($admin)
+        ->post(route('users.store'), [
+            'employee_number' => 'EMP-9902',
+            'name' => 'Invalid Metadata User',
+            'email' => 'invalid.metadata.user@ldms.test',
+            'phone' => '+251911000099',
+            'job_title' => 'Legal Officer',
+            'national_id' => '1234 5678',
+            'telegram_username' => 'john_doe',
+            'locale' => LocaleCode::ENGLISH->value,
+            'department_id' => $department->id,
+            'team_id' => null,
+            'role_name' => SystemRole::LEGAL_EXPERT->value,
+            'is_active' => true,
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ])
+        ->assertSessionHasErrors(['national_id', 'telegram_username']);
+
+    $user = User::factory()->create([
+        'department_id' => $department->id,
+        'email' => 'valid.update.target@ldms.test',
+    ]);
+    $user->assignRole(SystemRole::LEGAL_EXPERT->value);
+
+    $this->actingAs($admin)
+        ->patch(route('users.update', $user), [
+            'employee_number' => $user->employee_number,
+            'name' => $user->name,
+            'email' => $user->email,
+            'phone' => $user->phone,
+            'job_title' => $user->job_title,
+            'national_id' => 'abcd efgh ijkl mnop',
+            'telegram_username' => '@bad-name!',
+            'locale' => $user->locale?->value ?? LocaleCode::ENGLISH->value,
+            'department_id' => $user->department_id,
+            'team_id' => $user->team_id,
+            'role_name' => SystemRole::LEGAL_EXPERT->value,
+            'is_active' => true,
+            'password' => '',
+            'password_confirmation' => '',
+        ])
+        ->assertSessionHasErrors(['national_id', 'telegram_username']);
 });

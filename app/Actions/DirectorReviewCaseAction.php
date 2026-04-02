@@ -6,7 +6,6 @@ namespace App\Actions;
 
 use App\Enums\CaseStatus;
 use App\Enums\DirectorDecision;
-use App\Enums\SystemRole;
 use App\Enums\TeamType;
 use App\Enums\WorkflowStage;
 use App\Events\CaseAssigned;
@@ -56,7 +55,7 @@ class DirectorReviewCaseAction
 
                 if (
                     ! $teamLeader->is_active
-                    || ! $teamLeader->hasSystemRole(SystemRole::LITIGATION_TEAM_LEADER)
+                    || ! $teamLeader->canLeadLitigationWorkflow()
                     || $teamLeader->team?->type !== TeamType::LITIGATION
                 ) {
                     throw ValidationException::withMessages([

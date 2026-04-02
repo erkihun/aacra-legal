@@ -17,6 +17,7 @@ type AppMetaPayload = {
     legal_department_name?: string | null;
     tagline?: string | null;
     favicon_url?: string | null;
+    stamp_url?: string | null;
     appearance?: {
         default_theme?: 'light' | 'dark';
         allow_user_theme_switching?: boolean;

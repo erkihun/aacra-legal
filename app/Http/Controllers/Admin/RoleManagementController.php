@@ -89,11 +89,11 @@ class RoleManagementController extends Controller
     ): RedirectResponse {
         $validated = $request->validated();
 
-        if ($this->isSystemRole($role) && $validated['name'] !== $role->name) {
+        if ($this->isProtectedRole($role) && $validated['name'] !== $role->name) {
             return back()->with('error', __('roles.system_name_locked_error'));
         }
 
-        if ($role->name === SystemRole::SUPER_ADMIN->value) {
+        if ($this->isProtectedRole($role)) {
             return back()->with('error', __('roles.protected_permissions_error'));
         }
 
@@ -129,7 +129,7 @@ class RoleManagementController extends Controller
     {
         $this->authorizeManage($request);
 
-        if ($this->isSystemRole($role)) {
+        if ($this->isProtectedRole($role)) {
             return back()->with('error', __('roles.system_delete_error'));
         }
 
@@ -171,7 +171,10 @@ class RoleManagementController extends Controller
 
     private function authorizeManage(Request $request): void
     {
-        abort_unless($request->user()?->can('roles.manage'), 403);
+        abort_unless(
+            $request->user()?->can('roles.manage') || $request->user()?->can('users.assign_roles'),
+            403,
+        );
     }
 
     private function permissionGroups(): array
@@ -200,8 +203,8 @@ class RoleManagementController extends Controller
             'users_count' => $role->users_count,
             'permissions_count' => $role->permissions_count,
             'created_at' => $role->created_at?->toIso8601String(),
-            'is_system' => $this->isSystemRole($role),
-            'permissions_locked' => $role->name === SystemRole::SUPER_ADMIN->value,
+            'is_protected' => $this->isProtectedRole($role),
+            'permissions_locked' => $this->isProtectedRole($role),
         ];
     }
 
@@ -218,8 +221,8 @@ class RoleManagementController extends Controller
         ];
     }
 
-    private function isSystemRole(Role $role): bool
+    private function isProtectedRole(Role $role): bool
     {
-        return collect(SystemRole::cases())->contains(fn (SystemRole $systemRole) => $systemRole->value === $role->name);
+        return $role->name === SystemRole::SUPER_ADMIN->value;
     }
 }

@@ -22,18 +22,14 @@ class RoleUpdateRequest extends FormRequest
 
     public function authorize(): bool
     {
-        return $this->user()?->can('roles.manage') ?? false;
+        return $this->user()?->can('roles.manage') || $this->user()?->can('users.assign_roles') || false;
     }
 
     public function rules(): array
     {
         /** @var Role|null $role */
         $role = $this->route('role');
-        $reservedNames = collect(SystemRole::cases())
-            ->map(fn (SystemRole $systemRole) => $systemRole->value)
-            ->reject(fn (string $name) => $name === $role?->name)
-            ->values()
-            ->all();
+        $reservedNames = $role?->name === SystemRole::SUPER_ADMIN->value ? [] : [SystemRole::SUPER_ADMIN->value];
 
         return [
             'name' => [

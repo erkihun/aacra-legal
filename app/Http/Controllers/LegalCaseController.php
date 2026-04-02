@@ -17,7 +17,6 @@ use App\Actions\UpdateLegalCaseAction;
 use App\Enums\CaseStatus;
 use App\Enums\LegalCaseMainType;
 use App\Enums\PriorityLevel;
-use App\Enums\SystemRole;
 use App\Enums\WorkflowStage;
 use App\Http\Requests\Cases\AssignLegalCaseRequest;
 use App\Http\Requests\Cases\CloseLegalCaseRequest;
@@ -37,7 +36,6 @@ use App\Models\CaseType;
 use App\Models\Comment;
 use App\Models\Court;
 use App\Models\LegalCase;
-use App\Models\Team;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -166,14 +164,11 @@ class LegalCaseController extends Controller
         return Inertia::render('Cases/Show', [
             'caseItem' => LegalCaseResource::make($legalCase)->resolve(),
             'teamLeaders' => User::query()
-                ->role(SystemRole::LITIGATION_TEAM_LEADER->value)
-                ->where('is_active', true)
+                ->eligibleLitigationTeamLeaders()
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'experts' => User::query()
-                ->role(SystemRole::LEGAL_EXPERT->value)
-                ->where('is_active', true)
-                ->where('team_id', Team::query()->where('code', 'LIT')->value('id'))
+                ->eligibleLitigationExperts()
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'can' => [

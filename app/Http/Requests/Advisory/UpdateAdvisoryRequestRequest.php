@@ -6,7 +6,6 @@ namespace App\Http\Requests\Advisory;
 
 use App\Enums\AdvisoryRequestType;
 use App\Enums\PriorityLevel;
-use App\Enums\SystemRole;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -40,7 +39,7 @@ class UpdateAdvisoryRequestRequest extends FormRequest
         $validator->after(function (Validator $validator): void {
             $user = $this->user();
 
-            if ($user === null || $user->isSuperAdmin() || ! $user->hasSystemRole(SystemRole::DEPARTMENT_REQUESTER)) {
+            if ($user === null || ! $user->usesRequesterAdvisoryScope()) {
                 return;
             }
 

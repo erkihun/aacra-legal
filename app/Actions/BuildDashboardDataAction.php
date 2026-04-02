@@ -6,7 +6,6 @@ namespace App\Actions;
 
 use App\Enums\AdvisoryRequestStatus;
 use App\Enums\CaseStatus;
-use App\Enums\SystemRole;
 use App\Models\AdvisoryRequest;
 use App\Models\LegalCase;
 use App\Models\User;
@@ -105,7 +104,7 @@ class BuildDashboardDataAction
      */
     private function requesterSummary(User $user): ?array
     {
-        if (! $user->hasSystemRole(SystemRole::DEPARTMENT_REQUESTER)) {
+        if (! $user->usesRequesterAdvisoryScope()) {
             return null;
         }
 
@@ -136,45 +135,45 @@ class BuildDashboardDataAction
     private function roleContext(User $user): array
     {
         return match (true) {
-            $user->hasSystemRole(SystemRole::SUPER_ADMIN) => [
+            $user->hasCaseAdministrativeAccess() && $user->hasAdvisoryAdministrativeAccess() && $user->can('settings.manage') => [
                 'key' => 'super_admin',
                 'label' => __('dashboard.role.super_admin'),
                 'description' => __('dashboard.role_description.super_admin'),
             ],
-            $user->hasSystemRole(SystemRole::LEGAL_DIRECTOR) => [
+            $user->can('audit.view') => [
+                'key' => 'auditor',
+                'label' => __('dashboard.role.auditor'),
+                'description' => __('dashboard.role_description.auditor'),
+            ],
+            $user->hasAdvisoryAdministrativeAccess() || $user->hasCaseAdministrativeAccess() => [
                 'key' => 'legal_director',
                 'label' => __('dashboard.role.legal_director'),
                 'description' => __('dashboard.role_description.legal_director'),
             ],
-            $user->hasSystemRole(SystemRole::LITIGATION_TEAM_LEADER) => [
+            $user->canLeadLitigationWorkflow() => [
                 'key' => 'litigation_team_leader',
                 'label' => __('dashboard.role.litigation_team_leader'),
                 'description' => __('dashboard.role_description.litigation_team_leader'),
             ],
-            $user->hasSystemRole(SystemRole::ADVISORY_TEAM_LEADER) => [
+            $user->canLeadAdvisoryWorkflow() => [
                 'key' => 'advisory_team_leader',
                 'label' => __('dashboard.role.advisory_team_leader'),
                 'description' => __('dashboard.role_description.advisory_team_leader'),
             ],
-            $user->hasSystemRole(SystemRole::LEGAL_EXPERT) => [
+            $user->canRespondToAdvisories() || $user->canHandleAssignedCases() => [
                 'key' => 'legal_expert',
                 'label' => __('dashboard.role.legal_expert'),
                 'description' => __('dashboard.role_description.legal_expert'),
             ],
-            $user->hasSystemRole(SystemRole::DEPARTMENT_REQUESTER) => [
+            $user->usesRequesterAdvisoryScope() => [
                 'key' => 'department_requester',
                 'label' => __('dashboard.role.department_requester'),
                 'description' => __('dashboard.role_description.department_requester'),
             ],
-            $user->hasSystemRole(SystemRole::REGISTRAR) => [
+            $user->canRegisterCases() => [
                 'key' => 'registrar',
                 'label' => __('dashboard.role.registrar'),
                 'description' => __('dashboard.role_description.registrar'),
-            ],
-            $user->hasSystemRole(SystemRole::AUDITOR) => [
-                'key' => 'auditor',
-                'label' => __('dashboard.role.auditor'),
-                'description' => __('dashboard.role_description.auditor'),
             ],
             default => [
                 'key' => 'user',
@@ -189,13 +188,20 @@ class BuildDashboardDataAction
      */
     private function workloadByExpert(User $user): Collection
     {
-        $expertQuery = User::query()->role(SystemRole::LEGAL_EXPERT->value);
+        $expertQuery = User::query()
+            ->where('is_active', true)
+            ->withAnyPermission([
+                'advisory.respond',
+                'advisory-requests.respond',
+                'cases.record_hearing',
+                'legal-cases.update',
+            ]);
 
-        if ($user->hasSystemRole(SystemRole::LITIGATION_TEAM_LEADER) || $user->hasSystemRole(SystemRole::ADVISORY_TEAM_LEADER)) {
+        if ($user->canLeadLitigationWorkflow() || $user->canLeadAdvisoryWorkflow()) {
             $expertQuery->where('team_id', $user->team_id);
         }
 
-        if ($user->hasSystemRole(SystemRole::LEGAL_EXPERT)) {
+        if ($user->canHandleAssignedCases() || $user->canRespondToAdvisories()) {
             $expertQuery->whereKey($user->getKey());
         }
 

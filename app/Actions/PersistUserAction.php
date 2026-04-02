@@ -6,6 +6,9 @@ namespace App\Actions;
 
 use App\Enums\SystemRole;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class PersistUserAction
@@ -15,8 +18,13 @@ class PersistUserAction
         $user ??= new User;
         $roleName = $attributes['role_name'] ?? null;
         $actorCanManageRoles = $actor->can('roles.manage') || $actor->can('users.assign_roles');
+        $mediaUpdates = [
+            'avatar_path' => $attributes['avatar'] ?? null,
+            'signature_path' => $attributes['signature'] ?? null,
+            'stamp_path' => $attributes['stamp'] ?? null,
+        ];
 
-        unset($attributes['role_name']);
+        unset($attributes['role_name'], $attributes['avatar'], $attributes['signature'], $attributes['stamp']);
 
         if (($attributes['password'] ?? null) === null || $attributes['password'] === '') {
             unset($attributes['password']);
@@ -35,6 +43,26 @@ class PersistUserAction
 
         $user->fill($attributes);
         $user->save();
+
+        $storedMedia = [];
+
+        foreach ($mediaUpdates as $column => $file) {
+            if (! $file instanceof UploadedFile) {
+                continue;
+            }
+
+            $storedMedia[$column] = $this->storeMediaFile(
+                $user,
+                $file,
+                str($column)->before('_path')->toString(),
+                $user->getAttribute($column),
+            );
+        }
+
+        if ($storedMedia !== []) {
+            $user->fill($storedMedia);
+            $user->save();
+        }
 
         if ($actorCanManageRoles) {
             $user->syncRoles($roleName !== null ? [$roleName] : []);
@@ -61,6 +89,21 @@ class PersistUserAction
         }
 
         return $user->refresh()->loadMissing(['department', 'team', 'roles']);
+    }
+
+    private function storeMediaFile(User $user, UploadedFile $file, string $prefix, mixed $oldPath): string
+    {
+        $extension = $file->extension() ?: $file->getClientOriginalExtension() ?: 'bin';
+        $sanitizedName = Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) ?: $prefix;
+        $storedName = "{$prefix}-{$sanitizedName}-".Str::lower((string) Str::uuid()).".{$extension}";
+        $directory = 'users/'.$user->getKey();
+        $newPath = $file->storePubliclyAs($directory, $storedName, 'public');
+
+        if (is_string($oldPath) && $oldPath !== '' && str_starts_with($oldPath, 'users/')) {
+            Storage::disk('public')->delete($oldPath);
+        }
+
+        return $newPath;
     }
 
     private function guardSuperAdminIntegrity(
