@@ -7,7 +7,6 @@ import { useI18n } from '@/lib/i18n';
 import { PageProps } from '@/types';
 import { Head } from '@inertiajs/react';
 import AppearancePreferencesForm from './Partials/AppearancePreferencesForm';
-import DeleteUserForm from './Partials/DeleteUserForm';
 import UpdatePasswordForm from './Partials/UpdatePasswordForm';
 import UpdateProfileInformationForm from './Partials/UpdateProfileInformationForm';
 
@@ -34,29 +33,21 @@ export default function Edit({
                     action={<BackButton fallbackHref={route('dashboard')} />}
                 />
 
-                <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr),minmax(20rem,0.9fr)]">
-                    <div className="space-y-4">
-                        <SurfaceCard>
-                            <UpdateProfileInformationForm
-                                mustVerifyEmail={mustVerifyEmail}
-                                status={status}
-                                className="max-w-2xl"
-                            />
-                        </SurfaceCard>
+                <div className="grid gap-5 xl:grid-cols-[minmax(0,1.45fr),minmax(19rem,0.82fr)] xl:items-start">
+                    <div className="min-w-0 space-y-4">
+                        <UpdateProfileInformationForm
+                            mustVerifyEmail={mustVerifyEmail}
+                            status={status}
+                            className="max-w-none"
+                        />
 
-                        <SurfaceCard>
-                            <UpdatePasswordForm className="max-w-2xl" />
+                        <SurfaceCard className="p-5 sm:p-6">
+                            <UpdatePasswordForm className="max-w-none" />
                         </SurfaceCard>
                     </div>
 
-                    <div className="space-y-4">
-                        <SurfaceCard>
-                            <AppearancePreferencesForm />
-                        </SurfaceCard>
-
-                        <SurfaceCard className="border-rose-300/30 bg-rose-500/5 dark:border-rose-500/20">
-                            <DeleteUserForm className="max-w-2xl" />
-                        </SurfaceCard>
+                    <div className="min-w-0">
+                        <AppearancePreferencesForm />
                     </div>
                 </div>
             </PageContainer>

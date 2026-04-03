@@ -104,7 +104,19 @@ function SidebarContent({
     );
 }
 
-function UserMenu({ userName, userEmail }: { userName?: string; userEmail?: string }) {
+function initialsForName(userName?: string) {
+    const initials = (userName ?? '')
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part.charAt(0).toUpperCase())
+        .join('');
+
+    return initials || 'U';
+}
+
+function UserMenu({ userName, userEmail, avatarUrl }: { userName?: string; userEmail?: string; avatarUrl?: string | null }) {
     const { t } = useI18n();
 
     return (
@@ -114,8 +126,12 @@ function UserMenu({ userName, userEmail }: { userName?: string; userEmail?: stri
                     <span className="block text-sm font-semibold text-[color:var(--text)]">{userName}</span>
                     <span className="block text-xs text-[color:var(--muted)]">{userEmail}</span>
                 </span>
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[color:var(--primary-soft)] text-sm font-semibold text-[color:var(--primary)]">
-                    {userName?.slice(0, 2).toUpperCase()}
+                <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-[color:var(--primary-soft)] text-sm font-semibold text-[color:var(--primary)]">
+                    {avatarUrl ? (
+                        <img src={avatarUrl} alt={userName ?? 'User'} className="h-full w-full object-cover" />
+                    ) : (
+                        initialsForName(userName)
+                    )}
                 </span>
             </MenuButton>
             <MenuItems anchor="bottom end" className="surface-card-strong z-20 mt-2 w-56 p-2 outline-none">
@@ -425,7 +441,7 @@ export default function AuthenticatedLayout({
                                         </span>
                                     ) : null}
                                 </Link>
-                                <UserMenu userName={user?.name} userEmail={user?.email} />
+                                <UserMenu userName={user?.name} userEmail={user?.email} avatarUrl={user?.avatar_url} />
                             </div>
                         </div>
                     </header>

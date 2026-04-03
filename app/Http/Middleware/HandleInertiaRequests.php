@@ -6,6 +6,7 @@ namespace App\Http\Middleware;
 
 use App\Services\SystemSettingsService;
 use App\Support\Translations;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -27,6 +28,8 @@ class HandleInertiaRequests extends Middleware
         $appMeta = $this->settings->appMeta();
         $appMeta['default_dashboard_route'] = $this->settings->defaultDashboardRouteFor($request->user());
         $cookieFlashError = $request->cookie('ldms_flash_error');
+        /** @var User|null $user */
+        $user = $request->user();
 
         if (is_string($cookieFlashError) && $cookieFlashError !== '') {
             cookie()->queue(cookie()->forget('ldms_flash_error'));
@@ -35,14 +38,20 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => $request->user() ? [
-                    'id' => $request->user()?->id,
-                    'name' => $request->user()?->name,
-                    'email' => $request->user()?->email,
-                    'phone' => $request->user()?->phone,
-                    'locale' => $request->user()?->locale?->value,
-                    'roles' => $request->user()?->getRoleNames()->values(),
-                    'permissions' => $request->user()?->getAllPermissions()->pluck('name')->values(),
+                'user' => $user ? [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'phone' => $user->phone,
+                    'locale' => $user->locale?->value,
+                    'avatar_url' => $user->avatarUrl(),
+                    'signature_url' => $user->signatureUrl(),
+                    'stamp_url' => $user->stampUrl(),
+                    'national_id' => User::formatNationalId($user->national_id),
+                    'telegram_username' => $user->telegram_username,
+                    'roles' => $user->getRoleNames()->values(),
+                    'permissions' => $user->getAllPermissions()->pluck('name')->values(),
+                    'email_verified_at' => $user->email_verified_at?->toIso8601String(),
                 ] : null,
             ],
             'locale' => app()->getLocale(),

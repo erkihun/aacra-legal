@@ -16,6 +16,7 @@ class PersistUserAction
     public function execute(?User $user, array $attributes, User $actor): User
     {
         $user ??= new User;
+        $shouldSyncRoles = array_key_exists('role_name', $attributes);
         $roleName = $attributes['role_name'] ?? null;
         $actorCanManageRoles = $actor->can('roles.manage') || $actor->can('users.assign_roles');
         $mediaUpdates = [
@@ -64,7 +65,7 @@ class PersistUserAction
             $user->save();
         }
 
-        if ($actorCanManageRoles) {
+        if ($actorCanManageRoles && $shouldSyncRoles) {
             $user->syncRoles($roleName !== null ? [$roleName] : []);
 
             if ($previousRoles !== $user->getRoleNames()->all()) {

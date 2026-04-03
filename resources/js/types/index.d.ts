@@ -4,6 +4,11 @@ export interface User {
     email: string;
     phone?: string | null;
     locale?: string;
+    avatar_url?: string | null;
+    signature_url?: string | null;
+    stamp_url?: string | null;
+    national_id?: string | null;
+    telegram_username?: string | null;
     roles: string[];
     permissions: string[];
     email_verified_at?: string;

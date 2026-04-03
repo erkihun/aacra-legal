@@ -4,13 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Enums\SystemRole;
+use App\Actions\PersistUserAction;
 use App\Http\Requests\ProfileUpdateRequest;
 use App\Models\User;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -25,42 +24,25 @@ class ProfileController extends Controller
         ]);
     }
 
-    public function update(ProfileUpdateRequest $request): RedirectResponse
+    public function update(ProfileUpdateRequest $request, PersistUserAction $action): RedirectResponse
     {
-        $request->user()->fill($request->validated());
+        /** @var User $user */
+        $user = $request->user();
+        $originalEmail = $user->email;
 
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
+        $action->execute($user, $request->validated(), $user);
+
+        if ($user->fresh()?->email !== $originalEmail) {
+            $user->forceFill(['email_verified_at' => null])->save();
         }
 
-        $request->user()->save();
-        $request->session()->put('locale', $request->user()->locale?->value ?? $request->input('locale'));
+        $request->session()->put('locale', $user->fresh()?->locale?->value ?? $request->input('locale'));
 
         return Redirect::route('profile.edit')->with('success', __('profile.saved'));
     }
 
     public function destroy(Request $request): RedirectResponse
     {
-        $request->validate([
-            'password' => ['required', 'current_password'],
-        ]);
-
-        $user = $request->user();
-
-        if (
-            $user->hasSystemRole(SystemRole::SUPER_ADMIN)
-            && User::query()->role(SystemRole::SUPER_ADMIN->value)->whereKeyNot($user->getKey())->where('is_active', true)->count() === 0
-        ) {
-            return back()->with('error', __('At least one Super Admin account must remain active.'));
-        }
-
-        Auth::logout();
-
-        $user->delete();
-
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
-
-        return Redirect::to('/');
+        return Redirect::route('profile.edit')->with('error', __('profile.delete_disabled'));
     }
 }

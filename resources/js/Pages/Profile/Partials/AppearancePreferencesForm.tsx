@@ -42,67 +42,69 @@ export default function AppearancePreferencesForm({
     }, [recentlySaved]);
 
     return (
-        <section className={className}>
-            <SectionHeader
-                title={t('profile.appearance_title')}
-                description={t('profile.appearance_help')}
-            />
+        <SurfaceCard className={cn('p-5 sm:p-6', className)}>
+            <section>
+                <SectionHeader
+                    title={t('profile.appearance_title')}
+                    description={t('profile.appearance_help')}
+                />
 
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
-                {options.map((option) => {
-                    const active = theme === option.value;
+                <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-1">
+                    {options.map((option) => {
+                        const active = theme === option.value;
 
-                    return (
-                        <button
-                            key={option.value}
-                            type="button"
-                            onClick={() => {
-                                if (!allowThemeSwitching) {
-                                    return;
-                                }
+                        return (
+                            <button
+                                key={option.value}
+                                type="button"
+                                onClick={() => {
+                                    if (!allowThemeSwitching) {
+                                        return;
+                                    }
 
-                                setTheme(option.value);
-                                setRecentlySaved(true);
-                            }}
-                            disabled={!allowThemeSwitching}
-                            className={cn(
-                                'focus-ring rounded-[1.5rem] border p-5 text-left transition disabled:cursor-not-allowed disabled:opacity-70',
-                                active
-                                    ? 'border-[color:var(--primary)] bg-[color:var(--primary-soft)]'
-                                    : 'border-[color:var(--border)] bg-[color:var(--surface-muted)] hover:bg-[color:var(--surface-strong)]',
-                            )}
-                            aria-pressed={active}
-                        >
-                            <div className="flex items-start justify-between gap-4">
-                                <div>
-                                    <h3 className="text-base font-semibold text-[color:var(--text)]">{t(option.titleKey)}</h3>
-                                    <p className="mt-2 text-sm leading-6 text-[color:var(--muted-strong)]">
-                                        {t(option.descriptionKey)}
-                                    </p>
+                                    setTheme(option.value);
+                                    setRecentlySaved(true);
+                                }}
+                                disabled={!allowThemeSwitching}
+                                className={cn(
+                                    'focus-ring rounded-[1.25rem] border px-4 py-4 text-left transition disabled:cursor-not-allowed disabled:opacity-70',
+                                    active
+                                        ? 'border-[color:var(--primary)] bg-[color:var(--primary-soft)]'
+                                        : 'border-[color:var(--border)] bg-[color:var(--surface-muted)] hover:bg-[color:var(--surface-strong)]',
+                                )}
+                                aria-pressed={active}
+                            >
+                                <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                        <h3 className="text-sm font-semibold text-[color:var(--text)]">{t(option.titleKey)}</h3>
+                                        <p className="mt-1 text-sm leading-6 text-[color:var(--muted-strong)]">
+                                            {t(option.descriptionKey)}
+                                        </p>
+                                    </div>
+                                    <span
+                                        className={cn(
+                                            'mt-1 inline-flex h-4 w-4 shrink-0 rounded-full border',
+                                            active
+                                                ? 'border-[color:var(--primary)] bg-[color:var(--primary)]'
+                                                : 'border-[color:var(--border)] bg-transparent',
+                                        )}
+                                    />
                                 </div>
-                                <span
-                                    className={cn(
-                                        'mt-1 inline-flex h-5 w-5 shrink-0 rounded-full border',
-                                        active
-                                            ? 'border-[color:var(--primary)] bg-[color:var(--primary)]'
-                                            : 'border-[color:var(--border)] bg-transparent',
-                                    )}
-                                />
-                            </div>
-                        </button>
-                    );
-                })}
-            </div>
+                            </button>
+                        );
+                    })}
+                </div>
 
-            <SurfaceCard className="mt-4 py-4">
-                <p className="text-sm text-[color:var(--muted-strong)]">
-                    {!allowThemeSwitching
-                        ? t('profile.theme_locked_notice')
-                        : recentlySaved
-                          ? t('profile.saved')
-                          : t('profile.theme_help_secondary')}
-                </p>
-            </SurfaceCard>
-        </section>
+                <div className="mt-4 border-t border-[color:var(--border)] pt-3">
+                    <p className="text-sm text-[color:var(--muted-strong)]">
+                        {!allowThemeSwitching
+                            ? t('profile.theme_locked_notice')
+                            : recentlySaved
+                              ? t('profile.saved')
+                              : t('profile.theme_help_secondary')}
+                    </p>
+                </div>
+            </section>
+        </SurfaceCard>
     );
 }
