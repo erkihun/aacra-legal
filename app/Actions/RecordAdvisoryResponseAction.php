@@ -9,6 +9,7 @@ use App\Enums\AdvisoryRequestStatus;
 use App\Enums\WorkflowStage;
 use App\Models\AdvisoryRequest;
 use App\Models\User;
+use App\Notifications\AdvisoryResponseRecordedNotification;
 use App\Support\RichTextSanitizer;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -43,6 +44,7 @@ class RecordAdvisoryResponseAction
         }
 
         return DB::transaction(function () use ($advisoryRequest, $attributes, $expert, $attachments): AdvisoryRequest {
+            $advisoryRequest->loadMissing('requester');
             $subject = trim((string) ($attributes['subject'] ?? ''));
             $responseBody = $this->richTextSanitizer->sanitize($attributes['response'] ?? null);
 
@@ -68,7 +70,16 @@ class RecordAdvisoryResponseAction
                 'completed_at' => now(),
             ]);
 
-            return $advisoryRequest->fresh();
+            $response->loadMissing('responder');
+            $requester = $advisoryRequest->requester;
+
+            if ($requester !== null) {
+                DB::afterCommit(function () use ($requester, $advisoryRequest, $response): void {
+                    $requester->notify(new AdvisoryResponseRecordedNotification($advisoryRequest, $response));
+                });
+            }
+
+            return $advisoryRequest->fresh(['requester']);
         });
     }
 }

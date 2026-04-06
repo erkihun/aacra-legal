@@ -7,6 +7,7 @@ return [
         'types' => [
             'general' => 'General notification',
             'advisory_assigned' => 'Advisory assignment',
+            'advisory_response_recorded' => 'Advisory response',
             'advisory_overdue' => 'Overdue advisory request',
             'case_assigned' => 'Case assignment',
             'case_upcoming_hearing' => 'Upcoming hearing',
@@ -14,6 +15,7 @@ return [
         ],
         'titles' => [
             'advisory_assigned' => 'Advisory request assigned',
+            'advisory_response_recorded' => 'Advisory response received',
             'advisory_overdue' => 'Overdue advisory request',
             'case_assigned' => 'Legal case assigned',
             'case_upcoming_hearing' => 'Upcoming hearing reminder',
@@ -21,6 +23,7 @@ return [
         ],
         'messages' => [
             'advisory_assigned' => ':assigned_by assigned a new advisory request for ":subject".',
+            'advisory_response_recorded' => ':responder_name responded to your advisory request ":subject" on :responded_at.',
             'advisory_overdue' => 'This advisory request is overdue. Due date: :due_date.',
             'case_assigned' => ':assigned_by assigned a legal case to your workspace.',
             'case_upcoming_hearing' => 'A hearing is approaching. Next hearing date: :next_hearing_date.',

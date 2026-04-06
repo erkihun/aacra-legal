@@ -68,6 +68,7 @@ class NotificationController extends Controller
     {
         return match ($type) {
             'advisory.assigned' => __('notifications.feed.types.advisory_assigned'),
+            'advisory.response_recorded' => __('notifications.feed.types.advisory_response_recorded'),
             'advisory.overdue' => __('notifications.feed.types.advisory_overdue'),
             'case.assigned' => __('notifications.feed.types.case_assigned'),
             'case.upcoming_hearing' => __('notifications.feed.types.case_upcoming_hearing'),
@@ -80,6 +81,7 @@ class NotificationController extends Controller
     {
         return match ($type) {
             'advisory.assigned' => __('notifications.feed.titles.advisory_assigned'),
+            'advisory.response_recorded' => __('notifications.feed.titles.advisory_response_recorded'),
             'advisory.overdue' => __('notifications.feed.titles.advisory_overdue'),
             'case.assigned' => __('notifications.feed.titles.case_assigned'),
             'case.upcoming_hearing' => __('notifications.feed.titles.case_upcoming_hearing'),
@@ -94,6 +96,11 @@ class NotificationController extends Controller
             'advisory.assigned' => __('notifications.feed.messages.advisory_assigned', [
                 'subject' => $notification->data['subject'] ?? __('common.not_available'),
                 'assigned_by' => $notification->data['assigned_by'] ?? __('common.not_available'),
+            ]),
+            'advisory.response_recorded' => __('notifications.feed.messages.advisory_response_recorded', [
+                'subject' => $notification->data['subject'] ?? __('common.not_available'),
+                'responder_name' => $notification->data['responder_name'] ?? __('common.not_available'),
+                'responded_at' => $notification->data['responded_at'] ?? __('common.not_available'),
             ]),
             'advisory.overdue' => __('notifications.feed.messages.advisory_overdue', [
                 'due_date' => $notification->data['due_date'] ?? __('common.not_available'),
