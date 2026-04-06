@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Services\SystemSettingsService;
 use App\Services\Telegram\ApiTelegramGateway;
+use App\Services\Telegram\LogTelegramGateway;
 use App\Services\Telegram\TelegramGateway;
 use App\Services\Telegram\TelegramSendResult;
 use Database\Seeders\DemoUserSeeder;
@@ -149,4 +150,38 @@ it('sends telegram api requests with the configured bot token', function (): voi
             && $request['chat_id'] === '-1001234567890'
             && $request['text'] === 'Telegram API smoke test';
     });
+});
+
+it('switches the telegram gateway to api when a bot token is saved even if the env driver defaults to log', function (): void {
+    config()->set('services.telegram.driver', 'log');
+
+    app(SystemSettingsService::class)->updateGroup('telegram', [
+        'telegram_enabled' => true,
+        'bot_username' => '@legal_alerts_bot',
+        'bot_token' => '123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZ123456',
+        'default_chat_target' => '-1001234567890',
+        'configuration_notes' => 'Promote to API driver',
+    ]);
+
+    app(SystemSettingsService::class)->applyRuntimeConfiguration();
+
+    expect(config('services.telegram.driver'))->toBe('api')
+        ->and(app(TelegramGateway::class))->toBeInstanceOf(ApiTelegramGateway::class);
+});
+
+it('keeps the log telegram gateway when no bot token is configured', function (): void {
+    config()->set('services.telegram.driver', 'log');
+
+    app(SystemSettingsService::class)->updateGroup('telegram', [
+        'telegram_enabled' => true,
+        'bot_username' => '@legal_alerts_bot',
+        'bot_token' => null,
+        'default_chat_target' => '-1001234567890',
+        'configuration_notes' => 'No token present',
+    ]);
+
+    app(SystemSettingsService::class)->applyRuntimeConfiguration();
+
+    expect(config('services.telegram.driver'))->toBe('log')
+        ->and(app(TelegramGateway::class))->toBeInstanceOf(LogTelegramGateway::class);
 });

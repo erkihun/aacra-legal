@@ -127,6 +127,7 @@ class SystemSettingsService
         Config::set('mail.from.name', $email['mail_from_name'] ?? config('mail.from.name'));
         Config::set('mail.from.address', $email['mail_from_address'] ?? config('mail.from.address'));
         Config::set('session.lifetime', max(5, (int) ($security['session_timeout_minutes'] ?? config('session.lifetime', 120))));
+        Config::set('services.telegram.driver', $this->telegramDriver($telegram));
         Config::set('services.telegram.bot_token', $telegram['bot_token']);
         Config::set('services.telegram.bot_username', $telegram['bot_username']);
         Config::set('services.telegram.default_chat_target', $telegram['default_chat_target']);
@@ -485,6 +486,24 @@ class SystemSettingsService
             'default_chat_target' => (string) ($telegram['default_chat_target'] ?? ''),
             'configuration_notes' => (string) ($telegram['configuration_notes'] ?? ''),
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $telegram
+     */
+    private function telegramDriver(array $telegram): string
+    {
+        $configuredDriver = trim((string) config('services.telegram.driver', ''));
+
+        if ($configuredDriver === 'null') {
+            return 'null';
+        }
+
+        if (($telegram['has_bot_token'] ?? false) === true) {
+            return 'api';
+        }
+
+        return $configuredDriver !== '' ? $configuredDriver : 'log';
     }
 
     /**
