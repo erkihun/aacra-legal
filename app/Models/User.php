@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
@@ -30,6 +31,7 @@ class User extends Authenticatable implements MustVerifyEmail
     use HasUuidPrimaryKey;
     use LogsActivity;
     use Notifiable;
+    use SoftDeletes;
 
     protected $fillable = [
         'department_id',
@@ -64,6 +66,7 @@ class User extends Authenticatable implements MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'last_login_at' => 'datetime',
+            'deleted_at' => 'datetime',
             'is_active' => 'boolean',
             'locale' => LocaleCode::class,
             'password' => 'hashed',

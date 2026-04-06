@@ -3,6 +3,7 @@ import EmptyState from '@/Components/Ui/EmptyState';
 import FiltersToolbar from '@/Components/Ui/FiltersToolbar';
 import PageContainer from '@/Components/Ui/PageContainer';
 import Pagination from '@/Components/Ui/Pagination';
+import ConfirmationDialog from '@/Components/Ui/ConfirmationDialog';
 import SectionHeader from '@/Components/Ui/SectionHeader';
 import StatusBadge from '@/Components/Ui/StatusBadge';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
@@ -21,6 +22,11 @@ type UserRow = {
     department?: { id: string; name_en: string; name_am: string } | null;
     team?: { id: string; name_en: string; name_am: string } | null;
     is_active: boolean;
+    can: {
+        update: boolean;
+        ban: boolean;
+        delete: boolean;
+    };
 };
 
 type UserSort = 'name' | 'email' | 'created_at' | 'last_login_at';
@@ -58,12 +64,21 @@ type UsersPageProps = {
     can: {
         create: boolean;
         update: boolean;
+        ban: boolean;
+        delete: boolean;
     };
 };
+
+type PendingAction =
+    | { type: 'ban'; user: UserRow }
+    | { type: 'activate'; user: UserRow }
+    | { type: 'delete'; user: UserRow };
 
 export default function UsersIndex({ filters, users, filterOptions, can }: UsersPageProps) {
     const { t, locale } = useI18n();
     const [isFiltering, setIsFiltering] = useState(false);
+    const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+    const [isActionProcessing, setIsActionProcessing] = useState(false);
     const form = useForm({
         search: filters.search ?? '',
         department_id: filters.department_id ?? '',
@@ -73,6 +88,40 @@ export default function UsersIndex({ filters, users, filterOptions, can }: Users
         sort: filters.sort ?? 'name',
         direction: filters.direction ?? 'asc',
     });
+    const redirectTo = typeof window === 'undefined' ? route('users.index') : `${window.location.pathname}${window.location.search}`;
+
+    const handleConfirmAction = () => {
+        if (pendingAction === null) {
+            return;
+        }
+
+        setIsActionProcessing(true);
+
+        if (pendingAction.type === 'delete') {
+            router.delete(route('users.destroy', pendingAction.user.id), {
+                data: { redirect_to: redirectTo },
+                preserveScroll: true,
+                onFinish: () => {
+                    setIsActionProcessing(false);
+                    setPendingAction(null);
+                },
+            });
+
+            return;
+        }
+
+        router.patch(
+            route(pendingAction.type === 'ban' ? 'users.ban' : 'users.activate', pendingAction.user.id),
+            { redirect_to: redirectTo },
+            {
+                preserveScroll: true,
+                onFinish: () => {
+                    setIsActionProcessing(false);
+                    setPendingAction(null);
+                },
+            },
+        );
+    };
 
     return (
         <AuthenticatedLayout
@@ -195,10 +244,30 @@ export default function UsersIndex({ filters, users, filterOptions, can }: Users
                             emptyTitle={t('users.empty_title')}
                             emptyDescription={t('users.empty_description')}
                             actions={(row) => {
-                                const actions = [{ label: t('common.view'), href: route('users.show', row.id) }];
+                                const actions: Array<{ label: string; href?: string; onClick?: () => void }> = [
+                                    { label: t('common.view'), href: route('users.show', row.id) },
+                                ];
 
-                                if (can.update) {
+                                if (row.can.update) {
                                     actions.push({ label: t('common.edit'), href: route('users.edit', row.id) });
+                                }
+
+                                if (row.can.ban) {
+                                    actions.push({
+                                        label: row.is_active ? t('common.ban') : t('common.activate'),
+                                        onClick: () =>
+                                            setPendingAction({
+                                                type: row.is_active ? 'ban' : 'activate',
+                                                user: row,
+                                            }),
+                                    });
+                                }
+
+                                if (row.can.delete) {
+                                    actions.push({
+                                        label: t('common.delete'),
+                                        onClick: () => setPendingAction({ type: 'delete', user: row }),
+                                    });
                                 }
 
                                 return actions;
@@ -267,6 +336,38 @@ export default function UsersIndex({ filters, users, filterOptions, can }: Users
                     </>
                 )}
             </PageContainer>
+
+            <ConfirmationDialog
+                open={pendingAction !== null}
+                title={
+                    pendingAction?.type === 'delete'
+                        ? t('users.delete_title')
+                        : pendingAction?.type === 'activate'
+                          ? t('users.activate_title')
+                          : t('users.ban_title')
+                }
+                description={
+                    pendingAction?.type === 'delete'
+                        ? t('users.delete_confirm')
+                        : pendingAction?.type === 'activate'
+                          ? t('users.activate_confirm')
+                          : t('users.ban_confirm')
+                }
+                confirmLabel={
+                    pendingAction?.type === 'delete'
+                        ? t('common.delete')
+                        : pendingAction?.type === 'activate'
+                          ? t('common.activate')
+                          : t('common.ban')
+                }
+                processing={isActionProcessing}
+                onCancel={() => {
+                    if (! isActionProcessing) {
+                        setPendingAction(null);
+                    }
+                }}
+                onConfirm={handleConfirmAction}
+            />
         </AuthenticatedLayout>
     );
 }

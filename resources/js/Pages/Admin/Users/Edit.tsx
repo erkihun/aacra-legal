@@ -11,7 +11,8 @@ import UserForm from './UserForm';
 
 export default function UsersEdit(props: any) {
     const { t } = useI18n();
-    const [confirmOpen, setConfirmOpen] = useState(false);
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+    const [banConfirmOpen, setBanConfirmOpen] = useState(false);
 
     return (
         <AuthenticatedLayout
@@ -39,6 +40,28 @@ export default function UsersEdit(props: any) {
                     submit={{ method: 'patch', url: route('users.update', props.userItem.id) }}
                 />
 
+                {props.canBan ? (
+                    <SurfaceCard className="border-amber-300/30 bg-amber-500/5 dark:border-amber-500/20">
+                        <div className="flex flex-wrap items-center justify-between gap-4">
+                            <div>
+                                <h2 className="text-lg font-semibold text-[color:var(--text)]">
+                                    {props.userItem.is_active ? t('users.ban_title') : t('users.activate_title')}
+                                </h2>
+                                <p className="mt-1 text-sm text-[color:var(--muted-strong)]">
+                                    {props.userItem.is_active ? t('users.ban_description') : t('users.activate_description')}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                className={props.userItem.is_active ? 'btn-base btn-secondary focus-ring' : 'btn-base btn-primary focus-ring'}
+                                onClick={() => setBanConfirmOpen(true)}
+                            >
+                                {props.userItem.is_active ? t('common.ban') : t('common.activate')}
+                            </button>
+                        </div>
+                    </SurfaceCard>
+                ) : null}
+
                 {props.canDelete ? (
                     <SurfaceCard className="border-rose-300/30 bg-rose-500/5 dark:border-rose-500/20">
                         <div className="flex flex-wrap items-center justify-between gap-4">
@@ -46,7 +69,7 @@ export default function UsersEdit(props: any) {
                                 <h2 className="text-lg font-semibold text-[color:var(--text)]">{t('users.delete_title')}</h2>
                                 <p className="mt-1 text-sm text-[color:var(--muted-strong)]">{t('users.delete_description')}</p>
                             </div>
-                            <button type="button" className="btn-base btn-danger focus-ring" onClick={() => setConfirmOpen(true)}>
+                            <button type="button" className="btn-base btn-danger focus-ring" onClick={() => setDeleteConfirmOpen(true)}>
                                 {t('common.delete')}
                             </button>
                         </div>
@@ -55,11 +78,30 @@ export default function UsersEdit(props: any) {
             </PageContainer>
 
             <ConfirmationDialog
-                open={confirmOpen}
+                open={banConfirmOpen}
+                title={props.userItem.is_active ? t('users.ban_title') : t('users.activate_title')}
+                description={props.userItem.is_active ? t('users.ban_confirm') : t('users.activate_confirm')}
+                confirmLabel={props.userItem.is_active ? t('common.ban') : t('common.activate')}
+                onCancel={() => setBanConfirmOpen(false)}
+                onConfirm={() =>
+                    router.patch(
+                        route(props.userItem.is_active ? 'users.ban' : 'users.activate', props.userItem.id),
+                        {
+                            redirect_to:
+                                typeof window === 'undefined'
+                                    ? route('users.edit', props.userItem.id)
+                                    : `${window.location.pathname}${window.location.search}`,
+                        },
+                    )
+                }
+            />
+
+            <ConfirmationDialog
+                open={deleteConfirmOpen}
                 title={t('users.delete_title')}
                 description={t('users.delete_confirm')}
                 confirmLabel={t('common.delete')}
-                onCancel={() => setConfirmOpen(false)}
+                onCancel={() => setDeleteConfirmOpen(false)}
                 onConfirm={() => router.delete(route('users.destroy', props.userItem.id))}
             />
         </AuthenticatedLayout>

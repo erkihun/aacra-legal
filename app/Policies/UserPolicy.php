@@ -32,4 +32,9 @@ class UserPolicy
     {
         return $user->can('users.delete');
     }
+
+    public function ban(User $user, User $model): bool
+    {
+        return $user->can('users.ban');
+    }
 }

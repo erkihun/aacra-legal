@@ -22,6 +22,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'users.view',
             'users.create',
             'users.update',
+            'users.ban',
             'users.delete',
             'roles.manage',
             'departments.view',
@@ -96,7 +97,7 @@ class RolesAndPermissionsSeeder extends Seeder
             Permission::findOrCreate($permission, 'web');
         }
 
-        foreach ($this->rolePermissions() as $roleName => $permissions) {
+        foreach (self::rolePermissions() as $roleName => $permissions) {
             $role = Role::findOrCreate($roleName, 'web');
             $role->syncPermissions(array_values(array_unique($permissions)));
         }
@@ -105,7 +106,7 @@ class RolesAndPermissionsSeeder extends Seeder
     /**
      * @return array<string, array<int, string>>
      */
-    private function rolePermissions(): array
+    public static function rolePermissions(): array
     {
         return [
             SystemRole::SUPER_ADMIN->value => self::permissions(),

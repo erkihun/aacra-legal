@@ -148,7 +148,7 @@ it('allows a super admin to create, update, and delete users', function (): void
         ->delete(route('users.destroy', $user))
         ->assertRedirect(route('users.index'));
 
-    $this->assertDatabaseMissing('users', [
+    $this->assertSoftDeleted('users', [
         'id' => $user->id,
         'email' => 'admin.module.user@ldms.test',
     ]);
@@ -192,6 +192,116 @@ it('blocks unauthorized access to user management routes', function (): void {
     $this->actingAs($requester)
         ->get(route('users.create'))
         ->assertForbidden();
+});
+
+it('allows a user with users.ban permission to ban another user and blocks the banned account', function (): void {
+    $department = Department::query()->firstOrFail();
+    $actor = User::factory()->create([
+        'department_id' => $department->id,
+        'email' => 'ban-manager@ldms.test',
+    ]);
+    $actor->givePermissionTo('users.ban');
+
+    $target = User::factory()->create([
+        'department_id' => $department->id,
+        'email' => 'ban-target@ldms.test',
+        'is_active' => true,
+    ]);
+    $target->assignRole(SystemRole::LEGAL_EXPERT->value);
+
+    $this->actingAs($actor)
+        ->patch(route('users.ban', $target), [
+            'redirect_to' => route('users.index', absolute: false),
+        ])
+        ->assertRedirect(route('users.index', absolute: false))
+        ->assertSessionHas('success', __('User account banned successfully.'));
+
+    expect($target->fresh()?->is_active)->toBeFalse();
+
+    auth()->logout();
+    $this->assertGuest();
+
+    $this->actingAs($target->fresh())
+        ->get(route('dashboard'))
+        ->assertRedirect(route('login'));
+
+    $this->assertGuest();
+});
+
+it('blocks banning when the actor lacks users.ban permission', function (): void {
+    $requester = User::query()->where('email', 'requester@ldms.test')->firstOrFail();
+    $target = User::factory()->create([
+        'department_id' => Department::query()->firstOrFail()->id,
+    ]);
+    $target->assignRole(SystemRole::LEGAL_EXPERT->value);
+
+    $this->actingAs($requester)
+        ->patch(route('users.ban', $target))
+        ->assertForbidden();
+
+    expect($target->fresh()?->is_active)->toBeTrue();
+});
+
+it('allows a user with users.delete permission to delete another user when allowed', function (): void {
+    $department = Department::query()->firstOrFail();
+    $actor = User::factory()->create([
+        'department_id' => $department->id,
+        'email' => 'delete-manager@ldms.test',
+    ]);
+    $actor->givePermissionTo('users.delete');
+
+    $target = User::factory()->create([
+        'department_id' => $department->id,
+        'email' => 'delete-target@ldms.test',
+    ]);
+    $target->assignRole(SystemRole::LEGAL_EXPERT->value);
+
+    $this->actingAs($actor)
+        ->delete(route('users.destroy', $target), [
+            'redirect_to' => route('users.index', absolute: false),
+        ])
+        ->assertRedirect(route('users.index', absolute: false))
+        ->assertSessionHas('success', __('User deleted successfully.'));
+
+    $this->assertSoftDeleted('users', [
+        'id' => $target->id,
+        'email' => 'delete-target@ldms.test',
+    ]);
+});
+
+it('blocks deleting when the actor lacks users.delete permission', function (): void {
+    $requester = User::query()->where('email', 'requester@ldms.test')->firstOrFail();
+    $target = User::factory()->create([
+        'department_id' => Department::query()->firstOrFail()->id,
+    ]);
+    $target->assignRole(SystemRole::LEGAL_EXPERT->value);
+
+    $this->actingAs($requester)
+        ->delete(route('users.destroy', $target))
+        ->assertForbidden();
+
+    $this->assertDatabaseHas('users', [
+        'id' => $target->id,
+        'deleted_at' => null,
+    ]);
+});
+
+it('blocks deleting the only active super admin account from user management', function (): void {
+    $admin = User::query()->where('email', 'admin@ldms.test')->firstOrFail();
+    $actor = User::factory()->create([
+        'department_id' => Department::query()->firstOrFail()->id,
+        'email' => 'super-admin-safety@ldms.test',
+    ]);
+    $actor->givePermissionTo('users.delete');
+
+    $this->actingAs($actor)
+        ->delete(route('users.destroy', $admin))
+        ->assertSessionHas('error', __('The only remaining active Super Admin account cannot be deleted.'));
+
+    $this->assertDatabaseHas('users', [
+        'id' => $admin->id,
+        'deleted_at' => null,
+    ]);
 });
 
 it('lists all users with stable pagination and preserves applied filters', function (): void {

@@ -125,6 +125,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/settings/telegram/test', TelegramTestMessageController::class)->name('settings.telegram.test');
         Route::post('/roles', [RoleManagementController::class, 'store'])->name('roles.store');
         Route::delete('/roles/{role}', [RoleManagementController::class, 'destroy'])->name('roles.destroy');
+        Route::patch('/users/{user}/ban', [UserManagementController::class, 'ban'])->name('users.ban');
+        Route::patch('/users/{user}/activate', [UserManagementController::class, 'activate'])->name('users.activate');
     });
 });
 

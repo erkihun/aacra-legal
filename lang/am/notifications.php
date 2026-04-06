@@ -14,7 +14,7 @@ return [
         ],
         'titles' => [
             'advisory_assigned' => 'የሕግ ምክር ጥያቄ ተመድቧል',
-            'advisory_overdue' => 'የሕግ ምክር ጥያቄ ዘግይቷል',
+            'advisory_overdue' => 'የሕግ ምክር ጥያቄ ምላሽ ለማግኘት ዘግይቷል',
             'case_assigned' => 'የፍርድ ቤት ጉዳይ ተመድቧል',
             'case_upcoming_hearing' => 'የቀጣይ ችሎት ማሳወቂያ',
             'case_appeal_deadline' => 'የይግባኝ ጊዜ ገደብ ማሳወቂያ',

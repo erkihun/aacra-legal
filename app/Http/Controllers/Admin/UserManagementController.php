@@ -13,6 +13,7 @@ use App\Http\Requests\Admin\UserUpdateRequest;
 use App\Models\Department;
 use App\Models\Team;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -78,6 +79,8 @@ class UserManagementController extends Controller
             'can' => [
                 'create' => $request->user()?->can('create', User::class) ?? false,
                 'update' => $request->user()?->can('users.update') ?? false,
+                'ban' => $request->user()?->can('users.ban') ?? false,
+                'delete' => $request->user()?->can('users.delete') ?? false,
             ],
         ]);
     }
@@ -124,7 +127,8 @@ class UserManagementController extends Controller
             ],
             'can' => [
                 'update' => request()->user()?->can('update', $user) ?? false,
-                'delete' => request()->user()?->can('delete', $user) ?? false,
+                'ban' => $this->canBanUser(request()->user(), $user),
+                'delete' => $this->canDeleteUser(request()->user(), $user),
             ],
         ]);
     }
@@ -143,7 +147,8 @@ class UserManagementController extends Controller
                 'label' => $locale->label(),
             ])->values(),
             'canManageRoles' => $this->canManageRoles($request->user()),
-            'canDelete' => $request->user()?->can('delete', $user) ?? false,
+            'canBan' => $this->canBanUser($request->user(), $user),
+            'canDelete' => $this->canDeleteUser($request->user(), $user),
         ]);
     }
 
@@ -158,20 +163,66 @@ class UserManagementController extends Controller
     {
         $this->authorize('delete', $user);
 
-        if ($request->user()?->is($user)) {
-            return back()->with('error', __('You cannot delete your own user account from user management.'));
+        if ($redirect = $this->guardSelfManagementAction($request, $user, 'delete')) {
+            return $redirect;
         }
 
-        if (
-            $user->hasSystemRole(SystemRole::SUPER_ADMIN)
-            && User::query()->role(SystemRole::SUPER_ADMIN->value)->whereKeyNot($user->getKey())->count() === 0
-        ) {
-            return back()->with('error', __('At least one Super Admin account must remain active.'));
+        if ($redirect = $this->guardProtectedSuperAdmin($request, $user, 'delete')) {
+            return $redirect;
         }
 
-        $user->delete();
+        if ($redirect = $this->guardReferencedUserDeletion($request, $user)) {
+            return $redirect;
+        }
 
-        return to_route('users.index')->with('success', __('User deleted successfully.'));
+        try {
+            $user->delete();
+        } catch (QueryException) {
+            return $this->redirectBack($request)->with(
+                'error',
+                __('This user account cannot be deleted because it is referenced by other records.'),
+            );
+        }
+
+        return $this->redirectAfterMutation($request)->with('success', __('User deleted successfully.'));
+    }
+
+    public function ban(Request $request, User $user): RedirectResponse
+    {
+        $this->authorize('ban', $user);
+
+        if ($redirect = $this->guardSelfManagementAction($request, $user, 'ban')) {
+            return $redirect;
+        }
+
+        if ($redirect = $this->guardProtectedSuperAdmin($request, $user, 'ban')) {
+            return $redirect;
+        }
+
+        if (! $user->is_active) {
+            return $this->redirectBack($request)->with('error', __('This user account is already inactive.'));
+        }
+
+        $user->forceFill(['is_active' => false])->save();
+
+        return $this->redirectAfterMutation($request)->with('success', __('User account banned successfully.'));
+    }
+
+    public function activate(Request $request, User $user): RedirectResponse
+    {
+        $this->authorize('ban', $user);
+
+        if (! $user->trashed() && $user->is_active) {
+            return $this->redirectBack($request)->with('error', __('This user account is already active.'));
+        }
+
+        if ($user->trashed()) {
+            return $this->redirectBack($request)->with('error', __('Deleted user accounts cannot be reactivated from user management.'));
+        }
+
+        $user->forceFill(['is_active' => true])->save();
+
+        return $this->redirectAfterMutation($request)->with('success', __('User account activated successfully.'));
     }
 
     private function formOptions(): array
@@ -215,11 +266,114 @@ class UserManagementController extends Controller
             'email_verified_at' => $user->email_verified_at?->toIso8601String(),
             'last_login_at' => $user->last_login_at?->toIso8601String(),
             'created_at' => $user->created_at?->toIso8601String(),
+            'can' => [
+                'update' => request()->user()?->can('update', $user) ?? false,
+                'ban' => $this->canBanUser(request()->user(), $user),
+                'delete' => $this->canDeleteUser(request()->user(), $user),
+            ],
         ];
     }
 
     private function canManageRoles(?User $user): bool
     {
         return $user?->can('roles.manage') || $user?->can('users.assign_roles') || false;
+    }
+
+    private function canBanUser(?User $actor, User $user): bool
+    {
+        return $actor?->can('ban', $user)
+            && ! $actor->is($user)
+            && ! $this->isOnlyActiveSuperAdmin($user);
+    }
+
+    private function canDeleteUser(?User $actor, User $user): bool
+    {
+        return $actor?->can('delete', $user)
+            && ! $actor->is($user)
+            && ! $this->isOnlyActiveSuperAdmin($user)
+            && ! $this->userHasProtectedReferences($user);
+    }
+
+    private function guardSelfManagementAction(Request $request, User $user, string $action): ?RedirectResponse
+    {
+        if (! $request->user()?->is($user)) {
+            return null;
+        }
+
+        return $this->redirectBack($request)->with(
+            'error',
+            $action === 'ban'
+                ? __('You cannot ban your own user account from user management.')
+                : __('You cannot delete your own user account from user management.'),
+        );
+    }
+
+    private function guardProtectedSuperAdmin(Request $request, User $user, string $action): ?RedirectResponse
+    {
+        if (! $user->hasSystemRole(SystemRole::SUPER_ADMIN) || ! $this->isOnlyActiveSuperAdmin($user)) {
+            return null;
+        }
+
+        return $this->redirectBack($request)->with(
+            'error',
+            $action === 'delete'
+                ? __('The only remaining active Super Admin account cannot be deleted.')
+                : __('The only remaining active Super Admin account cannot be banned.'),
+        );
+    }
+
+    private function guardReferencedUserDeletion(Request $request, User $user): ?RedirectResponse
+    {
+        if (! $this->userHasProtectedReferences($user)) {
+            return null;
+        }
+
+        return $this->redirectBack($request)->with(
+            'error',
+            __('This user account cannot be deleted because it is referenced by other records.'),
+        );
+    }
+
+    private function isOnlyActiveSuperAdmin(User $user): bool
+    {
+        if (! $user->is_active || ! $user->hasSystemRole(SystemRole::SUPER_ADMIN)) {
+            return false;
+        }
+
+        return User::query()
+            ->role(SystemRole::SUPER_ADMIN->value)
+            ->where('is_active', true)
+            ->whereKeyNot($user->getKey())
+            ->count() === 0;
+    }
+
+    private function userHasProtectedReferences(User $user): bool
+    {
+        return $user->requestedAdvisories()->exists()
+            || $user->assignedAdvisories()->exists()
+            || $user->registeredCases()->exists()
+            || $user->assignedCases()->exists();
+    }
+
+    private function redirectAfterMutation(Request $request): RedirectResponse
+    {
+        $redirectTo = $request->string('redirect_to')->toString();
+
+        if ($redirectTo !== '' && str_starts_with($redirectTo, '/')) {
+            return redirect()->to($redirectTo);
+        }
+
+        return to_route('users.index');
+    }
+
+    private function redirectBack(Request $request): RedirectResponse
+    {
+        $redirectTo = $request->string('redirect_to')->toString();
+
+        if ($redirectTo !== '' && str_starts_with($redirectTo, '/')) {
+            return redirect()->to($redirectTo);
+        }
+
+        return back();
     }
 }
