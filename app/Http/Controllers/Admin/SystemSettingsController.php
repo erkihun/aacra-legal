@@ -27,6 +27,9 @@ class SystemSettingsController extends Controller
     public function index(Request $request): Response
     {
         $this->authorize('viewAny', SystemSetting::class);
+        $activeTab = $request->validate([
+            'tab' => ['nullable', 'in:general,organization,localization,notifications,email,sms,telegram,security,appearance,public_website'],
+        ])['tab'] ?? SystemSettingGroup::GENERAL->value;
 
         $allSettings = $this->settings->all();
         $allSettings[SystemSettingGroup::GENERAL->value]['system_logo_url'] = $this->settings->appMeta()['logo_url'];
@@ -37,6 +40,7 @@ class SystemSettingsController extends Controller
 
         return Inertia::render('Admin/SystemSettings/Index', [
             'settingsGroups' => $allSettings,
+            'activeTab' => $activeTab,
             'groups' => collect(SystemSettingGroup::cases())->map(fn (SystemSettingGroup $group): array => [
                 'key' => $group->value,
                 'label' => __($group->labelKey()),
@@ -84,12 +88,16 @@ class SystemSettingsController extends Controller
         $updated = $action->execute($groupKey, $request->validated(), $request->user());
 
         if ($groupKey === SystemSettingGroup::PUBLIC_WEBSITE && ! $this->heroSlideUploadsPersisted($request, $updated)) {
-            return back()->withErrors([
+            return redirect()
+                ->route('settings.index', ['tab' => $groupKey->value])
+                ->withErrors([
                 'hero_slides' => __('The uploaded hero slide image could not be saved.'),
             ]);
         }
 
-        return back()->with('success', __('Settings updated successfully.'));
+        return redirect()
+            ->route('settings.index', ['tab' => $groupKey->value])
+            ->with('success', __('Settings updated successfully.'));
     }
 
     /**

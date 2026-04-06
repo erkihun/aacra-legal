@@ -36,7 +36,7 @@ it('persists telegram settings and masks the bot token in admin responses', func
             'default_chat_target' => '-1001234567890',
             'configuration_notes' => 'Used for operational alerting.',
         ])
-        ->assertRedirect();
+        ->assertRedirect(route('settings.index', ['tab' => 'telegram'], absolute: false));
 
     $settings = app(SystemSettingsService::class);
     $telegram = $settings->group('telegram');
@@ -56,9 +56,17 @@ it('persists telegram settings and masks the bot token in admin responses', func
         ->get(route('settings.index'))
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('activeTab', 'general')
             ->where('settingsGroups.telegram.bot_token', '')
             ->where('settingsGroups.telegram.bot_token_configured', true)
             ->where('settingsGroups.telegram.bot_token_masked', fn (?string $value) => is_string($value) && $value !== '' && ! str_contains($value, $botToken)));
+
+    $this->actingAs($admin)
+        ->get(route('settings.index', ['tab' => 'telegram']))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('activeTab', 'telegram')
+            ->where('settingsGroups.telegram.bot_token_configured', true));
 });
 
 it('denies unauthorized users from updating telegram settings', function (): void {
@@ -100,7 +108,7 @@ it('sends a telegram test message using the saved settings', function (): void {
 
     $this->actingAs($admin)
         ->post(route('settings.telegram.test'))
-        ->assertRedirect()
+        ->assertRedirect(route('settings.index', ['tab' => 'telegram'], absolute: false))
         ->assertSessionHas('success', 'Telegram test message sent successfully.');
 });
 
@@ -118,7 +126,7 @@ it('rejects a telegram test message when the saved configuration is incomplete',
 
     $this->actingAs($admin)
         ->post(route('settings.telegram.test'))
-        ->assertRedirect()
+        ->assertRedirect(route('settings.index', ['tab' => 'telegram'], absolute: false))
         ->assertSessionHasErrors('telegram');
 });
 

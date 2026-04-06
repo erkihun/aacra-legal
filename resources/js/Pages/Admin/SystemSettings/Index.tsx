@@ -24,6 +24,7 @@ type SettingsGroupKey =
 
 type SettingsPageProps = {
     settingsGroups: Record<SettingsGroupKey, Record<string, any>>;
+    activeTab: SettingsGroupKey;
     groups: Array<{ key: SettingsGroupKey; label: string; update_route: string }>;
     locales: Array<{ value: string; label: string }>;
     timezones: string[];
@@ -36,6 +37,7 @@ type SettingsPageProps = {
 
 export default function SystemSettingsIndex({
     settingsGroups,
+    activeTab,
     groups,
     locales,
     timezones,
@@ -266,7 +268,19 @@ export default function SystemSettingsIndex({
                     action={<BackButton fallbackHref={route('dashboard')} />}
                 />
 
-                <Tabs items={tabItems} />
+                <Tabs
+                    items={tabItems}
+                    defaultTab={activeTab}
+                    onChange={(tab) => {
+                        if (typeof window === 'undefined') {
+                            return;
+                        }
+
+                        const url = new URL(window.location.href);
+                        url.searchParams.set('tab', tab);
+                        window.history.replaceState(window.history.state, '', url.toString());
+                    }}
+                />
             </PageContainer>
         </AuthenticatedLayout>
     );

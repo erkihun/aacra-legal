@@ -1,4 +1,4 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { cn } from '@/lib/cn';
 
 export type TabItem = {
@@ -10,11 +10,19 @@ export type TabItem = {
 export default function Tabs({
     items,
     defaultTab,
+    onChange,
 }: {
     items: TabItem[];
     defaultTab?: string;
+    onChange?: (key: string) => void;
 }) {
     const [activeTab, setActiveTab] = useState(defaultTab ?? items[0]?.key);
+
+    useEffect(() => {
+        if (defaultTab !== undefined) {
+            setActiveTab(defaultTab);
+        }
+    }, [defaultTab]);
 
     const activeItem = items.find((item) => item.key === activeTab) ?? items[0];
 
@@ -28,7 +36,10 @@ export default function Tabs({
                         <button
                             key={item.key}
                             type="button"
-                            onClick={() => setActiveTab(item.key)}
+                            onClick={() => {
+                                setActiveTab(item.key);
+                                onChange?.(item.key);
+                            }}
                             role="tab"
                             aria-selected={active}
                             aria-controls={`tab-panel-${item.key}`}

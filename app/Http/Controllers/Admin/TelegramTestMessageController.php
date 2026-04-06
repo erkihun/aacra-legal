@@ -22,9 +22,13 @@ class TelegramTestMessageController extends Controller
         try {
             $action->execute($request->user());
         } catch (ValidationException $exception) {
-            return back()->withErrors($exception->errors());
+            return redirect()
+                ->route('settings.index', ['tab' => 'telegram'])
+                ->withErrors($exception->errors());
         }
 
-        return back()->with('success', 'Telegram test message sent successfully.');
+        return redirect()
+            ->route('settings.index', ['tab' => 'telegram'])
+            ->with('success', 'Telegram test message sent successfully.');
     }
 }

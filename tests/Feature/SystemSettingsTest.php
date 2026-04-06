@@ -44,6 +44,7 @@ it('allows authorized admins to access system settings', function (): void {
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Admin/SystemSettings/Index')
+            ->where('activeTab', 'general')
             ->has('groups', 10)
             ->where('settingsGroups.general.application_short_name', 'LDMS')
             ->has('settingsGroups.public_website.hero_slides', 3));
