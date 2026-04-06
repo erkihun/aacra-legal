@@ -194,6 +194,79 @@ it('blocks unauthorized access to user management routes', function (): void {
         ->assertForbidden();
 });
 
+it('lists all users with stable pagination and preserves applied filters', function (): void {
+    $admin = User::query()->where('email', 'admin@ldms.test')->firstOrFail();
+    $department = Department::query()->firstOrFail();
+    $team = Team::query()->firstOrFail();
+
+    foreach (range(1, 15) as $index) {
+        $user = User::factory()->create([
+            'department_id' => $department->id,
+            'team_id' => $team->id,
+            'name' => sprintf('Paged User %02d', $index),
+            'email' => sprintf('paged-user-%02d@ldms.test', $index),
+            'phone' => sprintf('+251955000%03d', $index),
+        ]);
+
+        $user->assignRole(SystemRole::LEGAL_EXPERT->value);
+    }
+
+    $totalUsers = User::count();
+
+    $this->actingAs($admin)
+        ->get(route('users.index'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Admin/Users/Index')
+            ->has('users.data', 12)
+            ->where('users.current_page', 1)
+            ->where('users.last_page', 2)
+            ->where('users.per_page', 12)
+            ->where('users.total', $totalUsers));
+
+    $this->actingAs($admin)
+        ->get(route('users.index', ['page' => 2]))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Admin/Users/Index')
+            ->has('users.data', $totalUsers - 12)
+            ->where('users.current_page', 2)
+            ->where('users.last_page', 2)
+            ->where('users.total', $totalUsers)
+            ->where('users.data', fn ($rows) => collect($rows)->contains(
+                fn (array $row) => $row['email'] === 'paged-user-15@ldms.test'
+            )));
+
+    $this->actingAs($admin)
+        ->get(route('users.index', [
+            'search' => '+251955000013',
+            'department_id' => $department->id,
+        ]))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Admin/Users/Index')
+            ->where('filters.search', '+251955000013')
+            ->where('filters.department_id', $department->id)
+            ->where('users.total', 1)
+            ->has('users.data', 1)
+            ->where('users.data.0.email', 'paged-user-13@ldms.test'));
+
+    $this->actingAs($admin)
+        ->get(route('users.index', [
+            'search' => 'Paged User',
+            'department_id' => $department->id,
+        ]))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Admin/Users/Index')
+            ->where('users.current_page', 1)
+            ->where('users.last_page', 2)
+            ->where('users.next_page_url', fn (?string $url) => is_string($url)
+                && str_contains(urldecode($url), 'search=Paged User')
+                && str_contains($url, 'department_id='.$department->id)
+                && str_contains($url, 'page=2')));
+});
+
 it('validates national id and telegram username on user create and update', function (): void {
     $admin = User::query()->where('email', 'admin@ldms.test')->firstOrFail();
     $department = Department::query()->firstOrFail();

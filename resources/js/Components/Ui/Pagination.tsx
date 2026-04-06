@@ -7,20 +7,32 @@ type PaginationLink = {
     active: boolean;
 };
 
+type PaginationMeta = {
+    current_page?: number;
+    from?: number | null;
+    last_page?: number;
+    to?: number | null;
+    total?: number;
+};
+
 export default function Pagination({
     links,
+    meta,
 }: {
     links: PaginationLink[];
+    meta?: PaginationMeta;
 }) {
     const { t } = useI18n();
-    const items = links
-        .map((link) => ({
-            ...link,
-            label: normalizePaginationLabel(link.label, t('common.previous'), t('common.next')),
-        }))
-        .filter((link) => link.label !== t('common.previous') && link.label !== t('common.next'));
+    const items = links.map((link) => ({
+        ...link,
+        label: normalizePaginationLabel(link.label, t('common.previous'), t('common.next')),
+    }));
 
-    if (items.length <= 3) {
+    const hasAnotherPage =
+        (meta?.last_page ?? 1) > 1
+        || items.some((link) => link.url !== null && !link.active);
+
+    if (!hasAnotherPage) {
         return null;
     }
 
@@ -56,7 +68,7 @@ function normalizePaginationLabel(label: string, previousLabel: string, nextLabe
     return label
         .replace(/&laquo;\s*Previous/i, previousLabel)
         .replace(/Next\s*&raquo;/i, nextLabel)
-        .replace(/&laquo;/g, '«')
-        .replace(/&raquo;/g, '»')
-        .replace(/&hellip;/g, '…');
+        .replace(/&laquo;/g, '<<')
+        .replace(/&raquo;/g, '>>')
+        .replace(/&hellip;/g, '...');
 }

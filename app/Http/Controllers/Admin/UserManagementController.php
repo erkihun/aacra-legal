@@ -21,6 +21,8 @@ use Spatie\Permission\Models\Role;
 
 class UserManagementController extends Controller
 {
+    private const DEFAULT_PER_PAGE = 12;
+
     public function index(Request $request): Response
     {
         $this->authorize('viewAny', User::class);
@@ -35,14 +37,25 @@ class UserManagementController extends Controller
             'direction' => ['nullable', 'in:asc,desc'],
         ]);
 
+        $sortColumn = [
+            'name' => 'name',
+            'email' => 'email',
+            'created_at' => 'created_at',
+            'last_login_at' => 'last_login_at',
+        ][$filters['sort'] ?? 'name'];
+        $sortDirection = $filters['direction'] ?? 'asc';
+
         $users = User::query()
             ->with(['department', 'team', 'roles'])
             ->when($filters['search'] ?? null, function ($query, string $search): void {
+                $search = trim($search);
+
                 $query->where(function ($builder) use ($search): void {
                     $builder
                         ->where('name', 'like', "%{$search}%")
                         ->orWhere('email', 'like', "%{$search}%")
-                        ->orWhere('employee_number', 'like', "%{$search}%");
+                        ->orWhere('employee_number', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%");
                 });
             })
             ->when($filters['department_id'] ?? null, fn ($query, string $departmentId) => $query->where('department_id', $departmentId))
@@ -52,8 +65,9 @@ class UserManagementController extends Controller
                 array_key_exists('is_active', $filters) && $filters['is_active'] !== null && $filters['is_active'] !== '',
                 fn ($query) => $query->where('is_active', $filters['is_active'] === '1'),
             )
-            ->orderBy($filters['sort'] ?? 'name', $filters['direction'] ?? 'asc')
-            ->paginate(12)
+            ->orderBy($sortColumn, $sortDirection)
+            ->orderBy('id', $sortDirection)
+            ->paginate(self::DEFAULT_PER_PAGE)
             ->withQueryString()
             ->through(fn (User $user): array => $this->userPayload($user));
 

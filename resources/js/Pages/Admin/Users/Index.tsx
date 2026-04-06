@@ -23,7 +23,45 @@ type UserRow = {
     is_active: boolean;
 };
 
-export default function UsersIndex({ filters, users, filterOptions, can }: any) {
+type UserSort = 'name' | 'email' | 'created_at' | 'last_login_at';
+type UserSortDirection = 'asc' | 'desc';
+
+type UsersPageProps = {
+    filters: {
+        search?: string;
+        department_id?: string;
+        team_id?: string;
+        role?: string;
+        is_active?: string;
+        sort?: UserSort;
+        direction?: UserSortDirection;
+    };
+    users: {
+        data: UserRow[];
+        links: Array<{
+            url: string | null;
+            label: string;
+            active: boolean;
+        }>;
+        current_page: number;
+        from: number | null;
+        last_page: number;
+        per_page: number;
+        to: number | null;
+        total: number;
+    };
+    filterOptions: {
+        departments: Array<{ id: string; name_en: string; name_am: string }>;
+        teams: Array<{ id: string; name_en: string; name_am: string }>;
+        roles: Array<{ id: string; name: string }>;
+    };
+    can: {
+        create: boolean;
+        update: boolean;
+    };
+};
+
+export default function UsersIndex({ filters, users, filterOptions, can }: UsersPageProps) {
     const { t, locale } = useI18n();
     const [isFiltering, setIsFiltering] = useState(false);
     const form = useForm({
@@ -119,13 +157,21 @@ export default function UsersIndex({ filters, users, filterOptions, can }: any) 
                         <option value="1">{t('common.active')}</option>
                         <option value="0">{t('common.inactive')}</option>
                     </select>
-                    <select value={form.data.sort} onChange={(event) => form.setData('sort', event.target.value)} className="select-ui">
+                    <select
+                        value={form.data.sort}
+                        onChange={(event) => form.setData('sort', event.target.value as UserSort)}
+                        className="select-ui"
+                    >
                         <option value="name">{t('auth.name')}</option>
                         <option value="email">{t('profile.email')}</option>
                         <option value="created_at">{t('users.created_at')}</option>
                         <option value="last_login_at">{t('users.last_login')}</option>
                     </select>
-                    <select value={form.data.direction} onChange={(event) => form.setData('direction', event.target.value)} className="select-ui">
+                    <select
+                        value={form.data.direction}
+                        onChange={(event) => form.setData('direction', event.target.value as UserSortDirection)}
+                        className="select-ui"
+                    >
                         <option value="asc">{t('common.ascending')}</option>
                         <option value="desc">{t('common.descending')}</option>
                     </select>
@@ -135,6 +181,14 @@ export default function UsersIndex({ filters, users, filterOptions, can }: any) 
                     <EmptyState title={t('users.empty_title')} description={t('users.empty_description')} />
                 ) : (
                     <>
+                        <div className="mb-4 flex items-center justify-between gap-3 text-sm text-[color:var(--muted)]">
+                            <p>
+                                {users.from}-{users.to} / {users.total} {t('common.records')}
+                            </p>
+                            <p>
+                                {users.current_page} / {users.last_page}
+                            </p>
+                        </div>
                         <DataTable<UserRow>
                             rows={users.data}
                             rowKey={(row) => row.id}
@@ -200,7 +254,16 @@ export default function UsersIndex({ filters, users, filterOptions, can }: any) 
                                 },
                             ]}
                         />
-                        <Pagination links={users.links} />
+                        <Pagination
+                            links={users.links}
+                            meta={{
+                                current_page: users.current_page,
+                                from: users.from,
+                                last_page: users.last_page,
+                                to: users.to,
+                                total: users.total,
+                            }}
+                        />
                     </>
                 )}
             </PageContainer>
