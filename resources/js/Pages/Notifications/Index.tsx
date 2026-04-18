@@ -8,11 +8,13 @@ import { useDateFormatter } from '@/lib/dates';
 import { useI18n } from '@/lib/i18n';
 import { PageProps } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { useMemo } from 'react';
 
 type NotificationsPageProps = {
     notifications: {
         data: Array<{
             id: string;
+            dedupe_key?: string;
             type: string;
             type_label: string;
             title: string;
@@ -39,6 +41,23 @@ export default function NotificationsIndex({ notifications }: NotificationsPageP
     const { formatDateTime } = useDateFormatter();
     const { props } = usePage<PageProps>();
     const unreadCount = props.notificationSummary?.unread_count ?? 0;
+    const uniqueNotifications = useMemo(
+        () =>
+            notifications.data.filter((item, index, items) => {
+                const fallbackKey =
+                    item.dedupe_key ??
+                    `${item.type}|${item.data.advisory_request_id ?? item.data.legal_case_id ?? item.data.request_number ?? item.data.case_number ?? item.created_at ?? item.id}`;
+
+                return items.findIndex((candidate) => {
+                    const candidateKey =
+                        candidate.dedupe_key ??
+                        `${candidate.type}|${candidate.data.advisory_request_id ?? candidate.data.legal_case_id ?? candidate.data.request_number ?? candidate.data.case_number ?? candidate.created_at ?? candidate.id}`;
+
+                    return candidateKey === fallbackKey;
+                }) === index;
+            }),
+        [notifications.data],
+    );
 
     return (
         <AuthenticatedLayout
@@ -76,27 +95,27 @@ export default function NotificationsIndex({ notifications }: NotificationsPageP
                         <p className="text-xs font-semibold uppercase text-[color:var(--muted)]">
                             {t('notifications.total')}
                         </p>
-                        <p className="mt-3 text-3xl font-semibold text-[color:var(--text)]">{notifications.data.length}</p>
+                        <p className="mt-3 text-3xl font-semibold text-[color:var(--text)]">{uniqueNotifications.length}</p>
                     </SurfaceCard>
                     <SurfaceCard className="py-5">
                         <p className="text-xs font-semibold uppercase text-[color:var(--muted)]">
                             {t('notifications.last_updated')}
                         </p>
                         <p className="mt-3 text-sm font-semibold text-[color:var(--text)]">
-                            {notifications.data[0]?.created_at
-                                ? formatDateTime(notifications.data[0].created_at, t('common.not_available'))
+                            {uniqueNotifications[0]?.created_at
+                                ? formatDateTime(uniqueNotifications[0]?.created_at, t('common.not_available'))
                                 : t('common.not_available')}
                         </p>
                     </SurfaceCard>
                 </div>
 
                 <div className="grid gap-4">
-                    {notifications.data.length === 0 ? (
+                    {uniqueNotifications.length === 0 ? (
                         <EmptyState title={t('notifications.title')} description={t('notifications.empty')} />
                     ) : (
-                        notifications.data.map((item) => (
+                        uniqueNotifications.map((item) => (
                             <SurfaceCard
-                                key={item.id}
+                                key={item.dedupe_key ?? item.id}
                                 className={item.read_at ? '' : 'border-cyan-300/30 bg-cyan-400/10 dark:border-cyan-400/20'}
                             >
                                 <div className="flex flex-wrap items-start justify-between gap-4">

@@ -65,6 +65,7 @@ it('shows only the authenticated users database notifications', function (): voi
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Notifications/Index')
             ->has('notifications.data', 1)
+            ->where('notificationSummary.unread_count', 1)
             ->where('notifications.data.0.data.request_number', 'ADV-2026-0001')
             ->where('notifications.data.0.type', 'advisory.overdue')
             ->where('notifications.data.0.type_label', __('notifications.feed.types.advisory_overdue')));
@@ -116,4 +117,51 @@ it('marks all authenticated user notifications as read without affecting other u
 
     expect($requester->fresh()->unreadNotifications()->count())->toBe(0);
     expect($director->fresh()->unreadNotifications()->count())->toBe(1);
+});
+
+it('deduplicates duplicate notification rows on the notifications page and marks the duplicate group as read', function (): void {
+    $requester = User::query()->where('email', 'requester@ldms.test')->firstOrFail();
+    $advisoryRequest = AdvisoryRequest::query()->where('request_number', 'ADV-2026-0001')->firstOrFail();
+
+    $requester->notifications()->create([
+        'id' => (string) \Illuminate\Support\Str::uuid(),
+        'type' => OverdueRequestNotification::class,
+        'data' => [
+            'type' => 'advisory.overdue',
+            'title' => 'Overdue advisory request',
+            'advisory_request_id' => $advisoryRequest->getKey(),
+            'request_number' => $advisoryRequest->request_number,
+            'due_date' => optional($advisoryRequest->due_date)->toDateString(),
+            'url' => route('advisory.show', $advisoryRequest),
+        ],
+        'read_at' => null,
+    ]);
+
+    $duplicate = $requester->notifications()->create([
+        'id' => (string) \Illuminate\Support\Str::uuid(),
+        'type' => OverdueRequestNotification::class,
+        'data' => [
+            'type' => 'advisory.overdue',
+            'title' => 'Overdue advisory request',
+            'advisory_request_id' => $advisoryRequest->getKey(),
+            'request_number' => $advisoryRequest->request_number,
+            'due_date' => optional($advisoryRequest->due_date)->toDateString(),
+            'url' => route('advisory.show', $advisoryRequest),
+        ],
+        'read_at' => null,
+    ]);
+
+    $this->actingAs($requester)
+        ->get(route('notifications.index'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Notifications/Index')
+            ->has('notifications.data', 1)
+            ->where('notificationSummary.unread_count', 1));
+
+    $this->actingAs($requester)
+        ->patch(route('notifications.read', $duplicate->id))
+        ->assertRedirect();
+
+    expect($requester->fresh()->unreadNotifications()->count())->toBe(0);
 });

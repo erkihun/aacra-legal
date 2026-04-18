@@ -43,6 +43,7 @@ class CaseAssignedNotification extends Notification implements DeduplicatesNotif
         return [
             'type' => 'case.assigned',
             'title' => 'Legal case assigned',
+            'legal_case_id' => $this->legalCase->getKey(),
             'case_number' => $this->legalCase->case_number,
             'assigned_by' => $this->assignedBy->name,
             'url' => route('cases.show', $this->legalCase),

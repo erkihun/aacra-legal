@@ -43,6 +43,7 @@ class AdvisoryAssignedNotification extends Notification implements DeduplicatesN
         return [
             'type' => 'advisory.assigned',
             'title' => 'Advisory request assigned',
+            'advisory_request_id' => $this->advisoryRequest->getKey(),
             'request_number' => $this->advisoryRequest->request_number,
             'subject' => $this->advisoryRequest->subject,
             'assigned_by' => $this->assignedBy->name,

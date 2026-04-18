@@ -47,6 +47,7 @@ class UpcomingHearingReminderNotification extends Notification implements Dedupl
         return [
             'type' => 'case.upcoming_hearing',
             'title' => 'Upcoming hearing reminder',
+            'legal_case_id' => $this->legalCase->getKey(),
             'case_number' => $this->legalCase->case_number,
             'next_hearing_date' => optional($this->legalCase->next_hearing_date)->toDateString(),
             'url' => route('cases.show', $this->legalCase),

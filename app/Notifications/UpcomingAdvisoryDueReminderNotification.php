@@ -47,6 +47,7 @@ class UpcomingAdvisoryDueReminderNotification extends Notification implements De
         return [
             'type' => 'advisory.due_soon',
             'title' => 'Upcoming advisory due date',
+            'advisory_request_id' => $this->advisoryRequest->getKey(),
             'request_number' => $this->advisoryRequest->request_number,
             'due_date' => optional($this->advisoryRequest->due_date)->toDateString(),
             'url' => route('advisory.show', $this->advisoryRequest),

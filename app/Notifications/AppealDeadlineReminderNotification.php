@@ -47,6 +47,7 @@ class AppealDeadlineReminderNotification extends Notification implements Dedupli
         return [
             'type' => 'case.appeal_deadline',
             'title' => 'Appeal deadline reminder',
+            'legal_case_id' => $this->legalCase->getKey(),
             'case_number' => $this->legalCase->case_number,
             'appeal_deadline' => $this->legalCase->appeal_deadline?->toDateString(),
             'url' => route('cases.show', $this->legalCase),

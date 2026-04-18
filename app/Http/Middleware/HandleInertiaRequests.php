@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Middleware;
 
 use App\Services\SystemSettingsService;
+use App\Support\NotificationFingerprint;
 use App\Support\Translations;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -63,7 +64,7 @@ class HandleInertiaRequests extends Middleware
             'translations' => Translations::forLocale(app()->getLocale()),
             'appMeta' => $appMeta,
             'notificationSummary' => $request->user() ? [
-                'unread_count' => $request->user()->unreadNotifications()->count(),
+                'unread_count' => NotificationFingerprint::deduplicate($request->user()->unreadNotifications()->get())->count(),
             ] : [
                 'unread_count' => 0,
             ],

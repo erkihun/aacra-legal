@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Support\NotificationFingerprint;
 use App\Support\SafeUrl;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\DatabaseNotification;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -15,14 +17,32 @@ class NotificationController extends Controller
 {
     public function index(Request $request): Response
     {
-        $notifications = $request->user()
+        $allNotifications = $request->user()
             ->notifications()
             ->latest()
-            ->paginate(12)
-            ->through(fn (DatabaseNotification $notification) => $this->transformNotification($notification));
+            ->get();
+
+        $notifications = NotificationFingerprint::deduplicate($allNotifications);
+        $page = LengthAwarePaginator::resolveCurrentPage();
+        $perPage = 12;
+        $pageItems = $notifications
+            ->slice(($page - 1) * $perPage, $perPage)
+            ->values()
+            ->map(fn (DatabaseNotification $notification) => $this->transformNotification($notification));
+
+        $paginator = new LengthAwarePaginator(
+            $pageItems,
+            $notifications->count(),
+            $perPage,
+            $page,
+            [
+                'path' => $request->url(),
+                'query' => $request->query(),
+            ],
+        );
 
         return Inertia::render('Notifications/Index', [
-            'notifications' => $notifications,
+            'notifications' => $paginator,
         ]);
     }
 
@@ -35,9 +55,21 @@ class NotificationController extends Controller
 
     public function markRead(Request $request, string $notification): RedirectResponse
     {
-        $request->user()
+        $target = $request->user()
             ->notifications()
             ->whereKey($notification)
+            ->firstOrFail();
+
+        $fingerprint = NotificationFingerprint::fromDatabaseNotification($target);
+        $matchingIds = $request->user()
+            ->notifications()
+            ->get()
+            ->filter(fn (DatabaseNotification $candidate): bool => NotificationFingerprint::fromDatabaseNotification($candidate) === $fingerprint)
+            ->pluck('id');
+
+        $request->user()
+            ->notifications()
+            ->whereKey($matchingIds)
             ->update(['read_at' => now()]);
 
         return back();
@@ -52,6 +84,7 @@ class NotificationController extends Controller
 
         return [
             'id' => $notification->id,
+            'dedupe_key' => NotificationFingerprint::fromDatabaseNotification($notification),
             'type' => $type,
             'type_label' => $this->notificationTypeLabel($type),
             'title' => $this->notificationTitle($type, $notification),
