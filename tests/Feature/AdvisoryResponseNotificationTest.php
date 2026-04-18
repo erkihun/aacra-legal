@@ -12,9 +12,12 @@ use App\Models\User;
 use App\Notifications\AdvisoryResponseRecordedNotification;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\ReferenceDataSeeder;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Notification;
 
 beforeEach(function (): void {
+    Cache::flush();
+
     $this->seed([
         PermissionSeeder::class,
         ReferenceDataSeeder::class,

@@ -25,10 +25,13 @@ use App\Notifications\UpcomingAdvisoryDueReminderNotification;
 use App\Notifications\UpcomingHearingReminderNotification;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\ReferenceDataSeeder;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 
 beforeEach(function (): void {
+    Cache::flush();
+
     $this->seed([
         PermissionSeeder::class,
         ReferenceDataSeeder::class,

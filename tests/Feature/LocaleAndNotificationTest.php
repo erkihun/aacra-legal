@@ -10,10 +10,12 @@ use Database\Seeders\DemoUserSeeder;
 use Database\Seeders\DemoWorkflowSeeder;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\ReferenceDataSeeder;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Testing\AssertableInertia;
 
 beforeEach(function (): void {
     $this->withoutVite();
+    Cache::flush();
 
     $this->seed([
         PermissionSeeder::class,
@@ -77,14 +79,36 @@ it('shows only the authenticated users database notifications', function (): voi
     expect($director->fresh()->unreadNotifications()->count())->toBe(1);
 });
 
+it('deduplicates identical database notifications for the same user and event', function (): void {
+    $requester = User::query()->where('email', 'requester@ldms.test')->firstOrFail();
+    $advisoryRequest = AdvisoryRequest::query()->where('request_number', 'ADV-2026-0001')->firstOrFail();
+
+    $requester->notify(new OverdueRequestNotification($advisoryRequest, '2026-04-18'));
+    $requester->notify(new OverdueRequestNotification($advisoryRequest, '2026-04-18'));
+
+    expect($requester->fresh()->notifications()->count())->toBe(1);
+});
+
+it('keeps distinct reminder events separate when their dedupe context changes', function (): void {
+    $requester = User::query()->where('email', 'requester@ldms.test')->firstOrFail();
+    $advisoryRequest = AdvisoryRequest::query()->where('request_number', 'ADV-2026-0001')->firstOrFail();
+
+    $requester->notify(new OverdueRequestNotification($advisoryRequest, '2026-04-18'));
+    $requester->notify(new OverdueRequestNotification($advisoryRequest, '2026-04-19'));
+
+    expect($requester->fresh()->notifications()->count())->toBe(2);
+});
+
 it('marks all authenticated user notifications as read without affecting other users', function (): void {
     $requester = User::query()->where('email', 'requester@ldms.test')->firstOrFail();
     $director = User::query()->where('email', 'director@ldms.test')->firstOrFail();
     $advisoryRequest = AdvisoryRequest::query()->where('request_number', 'ADV-2026-0001')->firstOrFail();
 
-    $requester->notify(new OverdueRequestNotification($advisoryRequest));
-    $requester->notify(new OverdueRequestNotification($advisoryRequest));
-    $director->notify(new OverdueRequestNotification($advisoryRequest));
+    $requester->notify(new OverdueRequestNotification($advisoryRequest, '2026-04-18'));
+    $requester->notify(new OverdueRequestNotification($advisoryRequest, '2026-04-18'));
+    $director->notify(new OverdueRequestNotification($advisoryRequest, '2026-04-18'));
+
+    expect($requester->fresh()->unreadNotifications()->count())->toBe(1);
 
     $this->actingAs($requester)
         ->patch(route('notifications.read-all'))

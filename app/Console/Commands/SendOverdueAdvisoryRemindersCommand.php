@@ -142,11 +142,19 @@ class SendOverdueAdvisoryRemindersCommand extends Command
     private function dispatchMobileChannels(User $user, string $message): void
     {
         if ($this->settings->notificationsEnabled('sms') && $user->phone !== null) {
-            SendSmsMessageJob::dispatch($user->phone, $message);
+            SendSmsMessageJob::dispatch(
+                $user->phone,
+                $message,
+                implode('|', ['advisory.reminder', (string) $user->getKey(), $message, 'sms']),
+            );
         }
 
         if ($this->settings->notificationsEnabled('telegram') && filled($user->telegram_chat_id)) {
-            SendTelegramMessageJob::dispatch($user->telegram_chat_id, $message);
+            SendTelegramMessageJob::dispatch(
+                $user->telegram_chat_id,
+                $message,
+                implode('|', ['advisory.reminder', (string) $user->getKey(), $message, 'telegram']),
+            );
         }
     }
 }

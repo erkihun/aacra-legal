@@ -6,15 +6,18 @@ namespace App\Notifications;
 
 use App\Models\AdvisoryRequest;
 use App\Models\User;
+use App\Notifications\Concerns\BuildsNotificationDedupeKey;
 use App\Notifications\Concerns\ResolvesNotificationChannels;
+use App\Notifications\Contracts\DeduplicatesNotificationDelivery;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class AdvisoryAssignedNotification extends Notification implements ShouldQueue
+class AdvisoryAssignedNotification extends Notification implements DeduplicatesNotificationDelivery, ShouldQueue
 {
     use Queueable;
+    use BuildsNotificationDedupeKey;
     use ResolvesNotificationChannels;
 
     public function __construct(
@@ -25,6 +28,14 @@ class AdvisoryAssignedNotification extends Notification implements ShouldQueue
     public function via(object $notifiable): array
     {
         return $this->resolveChannels();
+    }
+
+    public function dedupeFingerprint(object $notifiable, string $channel): string
+    {
+        return $this->buildDedupeFingerprint($notifiable, $channel, 'advisory.assigned', [
+            'advisory_request_id' => $this->advisoryRequest->getKey(),
+            'assigned_by_id' => $this->assignedBy->getKey(),
+        ]);
     }
 
     public function toArray(object $notifiable): array

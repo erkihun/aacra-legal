@@ -87,9 +87,23 @@ export function ToastProvider({ children }: PropsWithChildren) {
             return;
         }
 
-        const id = nextIdRef.current++;
+        let shouldEnqueue = false;
+        let id = 0;
 
-        setToasts((current) => [...current, { ...toast, message, id }]);
+        setToasts((current) => {
+            if (current.some((item) => item.variant === toast.variant && item.message === message)) {
+                return current;
+            }
+
+            id = nextIdRef.current++;
+            shouldEnqueue = true;
+
+            return [...current, { ...toast, message, id }];
+        });
+
+        if (! shouldEnqueue) {
+            return;
+        }
 
         const timeoutId = window.setTimeout(() => {
             dismissToast(id);

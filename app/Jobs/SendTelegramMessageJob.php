@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Services\NotificationDeliveryDeduplicator;
 use App\Services\Telegram\TelegramGateway;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -20,10 +21,21 @@ class SendTelegramMessageJob implements ShouldQueue
     public function __construct(
         public readonly string $chatId,
         public readonly string $message,
+        public readonly ?string $dedupeKey = null,
     ) {}
 
-    public function handle(TelegramGateway $gateway): void
+    public function handle(TelegramGateway $gateway, NotificationDeliveryDeduplicator $deduplicator): void
     {
+        $fingerprint = $this->fingerprint();
+
+        if ($deduplicator->has($fingerprint)) {
+            Log::info('Telegram delivery skipped as a duplicate.', [
+                'chat_id' => $this->chatId,
+            ]);
+
+            return;
+        }
+
         $result = $gateway->send($this->chatId, $this->message);
 
         if (! $result->sent && $result->retryable) {
@@ -35,7 +47,11 @@ class SendTelegramMessageJob implements ShouldQueue
                 'chat_id' => $this->chatId,
                 'reason' => $result->error,
             ]);
+
+            return;
         }
+
+        $deduplicator->remember($fingerprint);
     }
 
     /**
@@ -54,5 +70,10 @@ class SendTelegramMessageJob implements ShouldQueue
             'exception' => $exception::class,
             'error' => $exception->getMessage(),
         ]);
+    }
+
+    private function fingerprint(): string
+    {
+        return 'telegram|'.sha1(($this->dedupeKey ?? "{$this->chatId}|{$this->message}"));
     }
 }

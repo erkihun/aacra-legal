@@ -6,7 +6,6 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useI18n } from '@/lib/i18n';
 import { PageProps } from '@/types';
 import { Head } from '@inertiajs/react';
-import AppearancePreferencesForm from './Partials/AppearancePreferencesForm';
 import UpdatePasswordForm from './Partials/UpdatePasswordForm';
 import UpdateProfileInformationForm from './Partials/UpdateProfileInformationForm';
 
@@ -33,22 +32,16 @@ export default function Edit({
                     action={<BackButton fallbackHref={route('dashboard')} />}
                 />
 
-                <div className="grid gap-5 xl:grid-cols-[minmax(0,1.45fr),minmax(19rem,0.82fr)] xl:items-start">
-                    <div className="min-w-0 space-y-4">
-                        <UpdateProfileInformationForm
-                            mustVerifyEmail={mustVerifyEmail}
-                            status={status}
-                            className="max-w-none"
-                        />
+                <div className="min-w-0 space-y-4">
+                    <UpdateProfileInformationForm
+                        mustVerifyEmail={mustVerifyEmail}
+                        status={status}
+                        className="max-w-none"
+                    />
 
-                        <SurfaceCard className="p-5 sm:p-6">
-                            <UpdatePasswordForm className="max-w-none" />
-                        </SurfaceCard>
-                    </div>
-
-                    <div className="min-w-0">
-                        <AppearancePreferencesForm />
-                    </div>
+                    <SurfaceCard className="p-5 sm:p-6">
+                        <UpdatePasswordForm className="max-w-none" />
+                    </SurfaceCard>
                 </div>
             </PageContainer>
         </AuthenticatedLayout>
