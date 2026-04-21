@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions;
 
 use App\Models\AdvisoryRequest;
+use App\Models\Complaint;
 use App\Models\LegalCase;
 use App\Models\SequenceCounter;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -64,8 +65,19 @@ class GenerateSequenceNumberAction
                 ->where('case_number', 'like', "{$prefix}%")
                 ->orderByDesc('case_number')
                 ->value('case_number'),
+            'CMP' => Complaint::query()
+                ->where('complaint_number', 'like', "{$prefix}%")
+                ->orderByDesc('complaint_number')
+                ->value('complaint_number'),
             default => null,
         };
+
+        if ($existingNumber === null && ! in_array(strtoupper($scope), ['ADV', 'CASE'], true)) {
+            $existingNumber = Complaint::query()
+                ->where('complaint_number', 'like', "{$prefix}%")
+                ->orderByDesc('complaint_number')
+                ->value('complaint_number');
+        }
 
         if (! is_string($existingNumber) || ! str_starts_with($existingNumber, $prefix)) {
             return 1;

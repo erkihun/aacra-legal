@@ -6,6 +6,7 @@ namespace App\Policies;
 
 use App\Models\AdvisoryRequest;
 use App\Models\Comment;
+use App\Models\Complaint;
 use App\Models\LegalCase;
 use App\Models\User;
 
@@ -19,7 +20,7 @@ class CommentPolicy
 
         $commentable = $comment->commentable;
 
-        if ($commentable instanceof AdvisoryRequest || $commentable instanceof LegalCase) {
+        if ($commentable instanceof AdvisoryRequest || $commentable instanceof LegalCase || $commentable instanceof Complaint) {
             return $user->can('view', $commentable);
         }
 
@@ -39,8 +40,9 @@ class CommentPolicy
 
         $commentable = $comment->commentable;
 
-        if (($commentable instanceof AdvisoryRequest || $commentable instanceof LegalCase)
+        if (($commentable instanceof AdvisoryRequest || $commentable instanceof LegalCase || $commentable instanceof Complaint)
             && ! ($commentable instanceof LegalCase && $commentable->isClosed())
+            && ! ($commentable instanceof Complaint && $commentable->isClosed())
             && $user->can('view', $commentable)
             && $comment->user_id === $user->getKey()) {
             return $user->can('comments.create');

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\ComplaintRegistrationController;
 use App\Http\Controllers\Auth\ConfirmablePasswordController;
 use App\Http\Controllers\Auth\EmailVerificationNotificationController;
 use App\Http\Controllers\Auth\EmailVerificationPromptController;
@@ -12,6 +13,12 @@ use App\Http\Controllers\Auth\VerifyEmailController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
+    Route::get('complaints/register', [ComplaintRegistrationController::class, 'create'])
+        ->name('complaints.register');
+
+    Route::post('complaints/register', [ComplaintRegistrationController::class, 'store'])
+        ->name('complaints.register.store');
+
     Route::get('register', [RegisteredUserController::class, 'create'])
         ->name('register');
 

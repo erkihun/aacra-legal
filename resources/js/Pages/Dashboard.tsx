@@ -29,9 +29,12 @@ type DashboardProps = {
         overdue_advisory_requests: number;
         judgments_recorded_this_month: number;
         closed_matters_this_month: number;
+        open_complaints: number;
+        escalated_complaints: number;
         monthly_completions: {
             advisory: number;
             cases: number;
+            complaints: number;
         };
     };
     cases_by_status: Array<{
@@ -57,6 +60,13 @@ type DashboardProps = {
         plaintiff: string;
         status: string;
         next_hearing_date?: string | null;
+    }>;
+    recent_complaints: Array<{
+        id: string;
+        complaint_number: string;
+        subject: string;
+        status: string;
+        department_response_deadline_at?: string | null;
     }>;
     recently_updated_matters: Array<{
         id: string;
@@ -89,6 +99,7 @@ export default function Dashboard({
     work_by_expert,
     recent_advisories,
     recent_cases,
+    recent_complaints,
     recently_updated_matters,
 }: DashboardProps) {
     const { t } = useI18n();
@@ -98,6 +109,11 @@ export default function Dashboard({
     const canViewReports = permissions.includes('reports.view');
     const canViewAdvisory = permissions.includes('advisory.view_any') || permissions.includes('advisory.view_own') || permissions.includes('advisory-requests.view');
     const canViewCases = permissions.includes('cases.view_any') || permissions.includes('cases.view_own') || permissions.includes('legal-cases.view');
+    const canViewComplaints =
+        permissions.includes('complaints.view') ||
+        permissions.includes('complaints.view_all') ||
+        permissions.includes('complaints.view_department') ||
+        permissions.includes('complaints.view_own');
     const canCreateAdvisory = permissions.includes('advisory.create') || permissions.includes('advisory-requests.create');
     const maxCaseStatusTotal = Math.max(...cases_by_status.map((item) => item.total), 1);
     const maxWorkload = Math.max(...work_by_expert.map((item) => sumWorkload(item)), 1);
@@ -172,6 +188,16 @@ export default function Dashboard({
                         label={t('dashboard.metrics.overdue_advisory_requests')}
                         value={metrics.overdue_advisory_requests}
                         icon={dashboardIcon('M12 7v5m0 4h.01M5.8 19h12.4c1.1 0 1.8-1.2 1.3-2.15L13.3 6.2c-.55-1-1.95-1-2.5 0L4.5 16.85C4 17.8 4.7 19 5.8 19Z')}
+                    />
+                    <MetricCard
+                        label="Open complaints"
+                        value={metrics.open_complaints}
+                        icon={dashboardIcon('M6.5 6.5h11A1.5 1.5 0 0 1 19 8v8a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 16V8a1.5 1.5 0 0 1 1.5-1.5Zm2.5 3h6m-6 3h6')}
+                    />
+                    <MetricCard
+                        label="Escalated complaints"
+                        value={metrics.escalated_complaints}
+                        icon={dashboardIcon('M12 6v12m0-12 4 4m-4-4-4 4')}
                     />
                 </div>
 
@@ -250,6 +276,7 @@ export default function Dashboard({
                             <MiniStat label={t('dashboard.metrics.judgments_this_month')} value={metrics.judgments_recorded_this_month} />
                             <MiniStat label={t('dashboard.metrics.closed_this_month')} value={metrics.closed_matters_this_month} />
                             <MiniStat label={t('dashboard.metrics.monthly_advisory')} value={metrics.monthly_completions.advisory} />
+                            <MiniStat label="Monthly complaints resolved" value={metrics.monthly_completions.complaints} />
                         </div>
                     </SurfaceCard>
 
@@ -397,6 +424,23 @@ export default function Dashboard({
                                 reference: item.case_number,
                                 subject: item.plaintiff,
                                 secondary: item.next_hearing_date ? `${t('dashboard.next_hearing')}: ${formatDate(item.next_hearing_date)}` : t('dashboard.no_hearing_scheduled'),
+                                status: item.status,
+                            }))}
+                        />
+
+                        <MatterList
+                            title="Recent Complaints"
+                            emptyLabel="No recent complaints"
+                            href={canViewComplaints ? route('complaints.index') : undefined}
+                            hrefLabel={canViewComplaints ? t('common.view_all') : undefined}
+                            items={recent_complaints.map((item) => ({
+                                id: item.id,
+                                href: route('complaints.show', item.id),
+                                reference: item.complaint_number,
+                                subject: item.subject,
+                                secondary: item.department_response_deadline_at
+                                    ? `Response deadline: ${formatDate(item.department_response_deadline_at)}`
+                                    : 'No response deadline',
                                 status: item.status,
                             }))}
                         />

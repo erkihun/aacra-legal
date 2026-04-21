@@ -14,4 +14,6 @@ enum SystemRole: string
     case DEPARTMENT_REQUESTER = 'Department Requester';
     case REGISTRAR = 'Registrar';
     case AUDITOR = 'Auditor';
+    case COMPLAINT_COMMITTEE = 'Complaint Committee';
+    case COMPLAINT_CLIENT = 'Complaint Client';
 }

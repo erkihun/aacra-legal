@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Admin\AdvisoryCategoryController as AdminAdvisoryCategoryController;
+use App\Http\Controllers\Admin\BranchController as AdminBranchController;
+use App\Http\Controllers\Admin\ComplaintCategoryController as AdminComplaintCategoryController;
 use App\Http\Controllers\Admin\CourtController as AdminCourtController;
 use App\Http\Controllers\Admin\DepartmentController as AdminDepartmentController;
 use App\Http\Controllers\Admin\LegalCaseTypeController as AdminLegalCaseTypeController;
@@ -16,6 +18,8 @@ use App\Http\Controllers\AdvisoryRequestController;
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\BrandingAssetController;
+use App\Http\Controllers\ComplaintController;
+use App\Http\Controllers\ComplaintReportController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\LegalCaseController;
 use App\Http\Controllers\LocaleController;
@@ -56,6 +60,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/advisory/{advisoryRequest}/responses/{advisoryResponse}', [AdvisoryRequestController::class, 'showResponse'])->name('advisory.responses.show');
     Route::get('/advisory/{advisoryRequest}', [AdvisoryRequestController::class, 'show'])->name('advisory.show');
 
+    Route::get('/complaints', [ComplaintController::class, 'index'])->name('complaints.index');
+    Route::get('/complaints/create', [ComplaintController::class, 'create'])->name('complaints.create');
+    Route::get('/complaints/{complaint}/edit', [ComplaintController::class, 'edit'])->name('complaints.edit');
+    Route::get('/complaints/settings', [ComplaintController::class, 'settings'])->name('complaints.settings');
+    Route::get('/complaints/reports', [ComplaintReportController::class, 'index'])->name('complaints.reports');
+    Route::get('/complaints/{complaint}', [ComplaintController::class, 'show'])->name('complaints.show');
+
     Route::get('/cases', [LegalCaseController::class, 'index'])->name('cases.index');
     Route::get('/cases/create', [LegalCaseController::class, 'create'])->name('cases.create');
     Route::get('/cases/{legalCase}/edit', [LegalCaseController::class, 'edit'])->name('cases.edit');
@@ -75,9 +86,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/settings', [SystemSettingsController::class, 'index'])->name('settings.index');
 
     Route::resource('departments', AdminDepartmentController::class)->except([]);
+    Route::resource('branches', AdminBranchController::class)->except([]);
     Route::resource('teams', AdminTeamController::class)->except([]);
     Route::resource('advisory-categories', AdminAdvisoryCategoryController::class)
         ->parameters(['advisory-categories' => 'advisoryCategory'])
+        ->except([]);
+    Route::resource('complaint-categories', AdminComplaintCategoryController::class)
+        ->parameters(['complaint-categories' => 'complaintCategory'])
         ->except([]);
     Route::resource('courts', AdminCourtController::class)->except([]);
     Route::resource('legal-case-types', AdminLegalCaseTypeController::class)
@@ -102,6 +117,14 @@ Route::middleware('auth')->group(function () {
         
         Route::post('/advisory/{advisoryRequest}/comments', [AdvisoryRequestController::class, 'addComment'])->name('advisory.comments.store');
         Route::post('/advisory/{advisoryRequest}/attachments', [AdvisoryRequestController::class, 'addAttachment'])->name('advisory.attachments.store');
+
+        Route::post('/complaints', [ComplaintController::class, 'store'])->name('complaints.store');
+        Route::patch('/complaints/{complaint}', [ComplaintController::class, 'update'])->name('complaints.update');
+        Route::post('/complaints/{complaint}/response', [ComplaintController::class, 'respondDepartment'])->name('complaints.respond');
+        Route::post('/complaints/{complaint}/forward', [ComplaintController::class, 'forwardToCommittee'])->name('complaints.forward');
+        Route::post('/complaints/{complaint}/decision', [ComplaintController::class, 'recordCommitteeDecision'])->name('complaints.decide');
+        Route::post('/complaints/{complaint}/attachments', [ComplaintController::class, 'addAttachment'])->name('complaints.attachments.store');
+        Route::put('/complaints/settings', [ComplaintController::class, 'updateSettings'])->name('complaints.settings.update');
 
         Route::post('/cases', [LegalCaseController::class, 'store'])->name('cases.store');
         Route::patch('/cases/{legalCase}', [LegalCaseController::class, 'update'])->name('cases.update');

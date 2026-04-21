@@ -16,6 +16,7 @@ enum SystemSettingGroup: string
     case SECURITY = 'security';
     case APPEARANCE = 'appearance';
     case PUBLIC_WEBSITE = 'public_website';
+    case COMPLAINTS = 'complaints';
 
     public function labelKey(): string
     {
@@ -30,6 +31,7 @@ enum SystemSettingGroup: string
             self::SECURITY => 'settings.groups.security',
             self::APPEARANCE => 'settings.groups.appearance',
             self::PUBLIC_WEBSITE => 'settings.groups.public_website',
+            self::COMPLAINTS => 'settings.groups.complaints',
         };
     }
 }

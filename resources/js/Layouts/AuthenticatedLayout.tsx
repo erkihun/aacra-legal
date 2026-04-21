@@ -225,6 +225,13 @@ export default function AuthenticatedLayout({
                         icon: navigationIcon('M7 6.5h10A1.5 1.5 0 0 1 18.5 8v8A1.5 1.5 0 0 1 17 17.5H7A1.5 1.5 0 0 1 5.5 16V8A1.5 1.5 0 0 1 7 6.5Zm2 3h6m-6 3h6'),
                     },
                     {
+                        key: 'complaints',
+                        label: 'Complaints',
+                        routeName: 'complaints.index',
+                        permissions: ['complaints.view', 'complaints.view_all', 'complaints.view_department', 'complaints.view_own'],
+                        icon: navigationIcon('M6.5 6.5h11A1.5 1.5 0 0 1 19 8v8a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 16V8a1.5 1.5 0 0 1 1.5-1.5Zm2.5 3h6m-6 3h6m-6 3h4'),
+                    },
+                    {
                         key: 'reports',
                         label: t('navigation.reports'),
                         routeName: 'reports.index',
@@ -272,6 +279,13 @@ export default function AuthenticatedLayout({
                         icon: navigationIcon('M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm8 3.5-2.2.8a6.8 6.8 0 0 1-.5 1.2l1 2.1-2.1 2.1-2.1-1a6.8 6.8 0 0 1-1.2.5L12 20l-1.1-2.2a6.8 6.8 0 0 1-1.2-.5l-2.1 1-2.1-2.1 1-2.1a6.8 6.8 0 0 1-.5-1.2L4 12l2.2-1.1a6.8 6.8 0 0 1 .5-1.2l-1-2.1 2.1-2.1 2.1 1a6.8 6.8 0 0 1 1.2-.5L12 4l1.1 2.2a6.8 6.8 0 0 1 1.2.5l2.1-1 2.1 2.1-1 2.1c.2.4.4.8.5 1.2L20 12Z'),
                     },
                     {
+                        key: 'complaint-settings',
+                        label: 'Complaint Settings',
+                        routeName: 'complaints.settings',
+                        permissions: ['complaints.settings.manage'],
+                        icon: navigationIcon('M7 7.5h10m-10 4h10m-10 4h6'),
+                    },
+                    {
                         key: 'public-posts',
                         label: t('navigation.public_posts'),
                         routeName: 'public-posts.index',
@@ -284,6 +298,13 @@ export default function AuthenticatedLayout({
                 key: 'master-data',
                 title: t('navigation.master_data'),
                 items: [
+                    {
+                        key: 'branches',
+                        label: t('navigation.branches'),
+                        routeName: 'branches.index',
+                        permissions: ['branches.view', 'branches.create', 'branches.update', 'branches.delete'],
+                        icon: navigationIcon('M5.5 18.5h13M7 18.5v-8h3v8m4 0V8h3v10.5M4.5 8.5 12 4l7.5 4.5'),
+                    },
                     {
                         key: 'departments',
                         label: t('navigation.departments'),
@@ -303,6 +324,13 @@ export default function AuthenticatedLayout({
                         label: t('navigation.advisory_categories'),
                         routeName: 'advisory-categories.index',
                         permissions: ['advisory-categories.view', 'advisory-categories.manage'],
+                        icon: navigationIcon('M6 7.5h12M6 12h12M6 16.5h7'),
+                    },
+                    {
+                        key: 'complaint-categories',
+                        label: t('navigation.complaint_categories'),
+                        routeName: 'complaint-categories.index',
+                        permissions: ['complaint-categories.view', 'complaint-categories.manage'],
                         icon: navigationIcon('M6 7.5h12M6 12h12M6 16.5h7'),
                     },
                     {

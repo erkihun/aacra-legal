@@ -22,3 +22,7 @@ Schedule::command('legal:send-appeal-deadline-reminders')
     ->weekdays()
     ->dailyAt('09:00')
     ->withoutOverlapping();
+
+Schedule::command('complaints:escalate-overdue')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping();

@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="am">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AACRA LCMS - Full Presentation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Ethiopic:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root {
+            --primary: #002D62; /* AACRA Blue */
+            --secondary: #228B22; /* AACRA Green */
+            --bg-dark: #0f172a;
+            --bg-light: #f8fafc;
+            --text-dark: #1e293b;
+            --text-muted: #64748b;
+        }
+
+        body, html {
+            margin: 0; padding: 0; height: 100%;
+            font-family: 'Noto Sans Ethiopic', sans-serif;
+            background-color: #cbd5e1;
+            display: flex; justify-content: center; align-items: center;
+            overflow: hidden;
+        }
+
+        /* 16:9 Presentation Container */
+        .presentation-container {
+            width: 100vw; height: 100vh;
+            background: white;
+            position: relative;
+            overflow: hidden;
+            display: flex; flex-direction: column;
+            box-shadow: 0 0 20px rgba(0,0,0,0.2);
+        }
+
+        @media (min-aspect-ratio: 16/9) {
+            .presentation-container { width: 177.78vh; height: 100vh; }
+        }
+        @media (max-aspect-ratio: 16/9) {
+            .presentation-container { width: 100vw; height: 56.25vw; }
+        }
+
+        /* Header / Progress Bar */
+        .top-bar {
+            height: 8px; background: #e2e8f0; width: 100%; position: absolute; top: 0; left: 0; z-index: 100;
+        }
+        .progress {
+            height: 100%; background: var(--secondary); width: 0%; transition: width 0.3s ease;
+        }
+
+        /* Slide track */
+        .slider {
+            display: flex; height: 100%; transition: transform 0.5s ease-in-out;
+        }
+
+        .slide {
+            min-width: 100%; height: 100%;
+            padding: 60px 80px; box-sizing: border-box;
+            display: flex; flex-direction: column;
+            justify-content: center;
+        }
+
+        /* Slide Layouts */
+        .slide-cover { background: linear-gradient(135deg, var(--primary), #1e3a8a); color: white; text-align: center; align-items: center; justify-content: center; }
+        .slide-cover h1 { font-size: 50px; margin-bottom: 20px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        .slide-cover h2 { font-size: 32px; color: #4ade80; margin-bottom: 40px; }
+        .slide-cover p { font-size: 24px; color: #e2e8f0; }
+
+        .slide-content { background: white; color: var(--text-dark); justify-content: flex-start; padding-top: 80px;}
+        .slide-content h2 { font-size: 40px; color: var(--primary); margin-top: 0; margin-bottom: 30px; border-bottom: 4px solid var(--secondary); padding-bottom: 10px; display: inline-block; }
+        .slide-content h3 { font-size: 30px; color: var(--secondary); margin-top: 20px; margin-bottom: 15px; }
+        
+        .slide-text { font-size: 26px; line-height: 1.8; color: var(--text-dark); }
+        
+        ul.custom-list { list-style: none; padding: 0; margin: 0; }
+        ul.custom-list li { font-size: 26px; line-height: 1.8; margin-bottom: 15px; position: relative; padding-left: 40px; }
+        ul.custom-list li::before {
+            content: '\f058'; font-family: 'Font Awesome 6 Free'; font-weight: 900;
+            color: var(--secondary); position: absolute; left: 0; top: 2px; font-size: 24px;
+        }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start; }
+        
+        .box { background: var(--bg-light); border: 1px solid #cbd5e1; padding: 25px; border-radius: 10px; border-left: 6px solid var(--primary); }
+
+        /* Navigation Controls */
+        .controls {
+            position: absolute; bottom: 30px; right: 40px; left: 40px;
+            display: flex; justify-content: space-between; align-items: center; z-index: 100;
+        }
+        .controls-right { display: flex; gap: 15px; }
+        
+        .btn {
+            background: var(--primary); color: white; border: none; padding: 12px 25px;
+            font-size: 18px; font-weight: bold; border-radius: 8px; cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: all 0.2s; font-family: inherit;
+        }
+        .btn:hover { background: #1e3a8a; transform: translateY(-2px); }
+        .btn:disabled { background: #94a3b8; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        .slide-counter { font-size: 20px; font-weight: bold; color: var(--primary); background: white; padding: 5px 15px; border-radius: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+
+        .slide-cover .slide-counter { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="presentation-container">
+    <div class="top-bar"><div class="progress" id="progress"></div></div>
+
+    <div class="slider" id="slider">
+        
+        <!-- Slide 1 -->
+        <div class="slide slide-cover">
+            <i class="fa-solid fa-road" style="font-size: 80px; margin-bottom: 20px;"></i>
+            <h1>የአዲስ አበባ መንገዶች ባለስልጣን</h1>
+            <h2>የህግ አገልግሎት ዳይሬክቶሬት</h2>
+            <div style="background: rgba(255,255,255,0.1); padding: 30px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.2); margin-bottom: 30px;">
+                <h1 style="margin: 0; font-size: 45px; text-shadow: none;">የህግ ጉዳዮች ማስተዳደሪያ ሲስተም</h1>
+                <p style="font-size: 30px; margin-top: 10px; font-weight: bold;">የአጠቃቀም ማኑዋል (ሙሉ ዝግጅት)</p>
+            </div>
+            <p>አዘጋጅ፡ እርቅይሁን በዕውቀት<br>2018 ዓ.ም</p>
+        </div>
+
+        <!-- Slide 2 -->
+        <div class="slide slide-content">
+            <h2>1. መግቢያ</h2>
+            <div class="slide-text">
+                <p>ይህ መመሪያ የህግ መዝገብ እና ምክር አስተዳደር ስርዓት አጠቃቀም በግልጽ፣ በተቋማዊ እና በተግባራዊ መንገድ ለማብራራት የተዘጋጀ ነው። ሰነዱ ለሲስተም አስተዳዳሪዎች፣ ለዳይሬክተሮች፣ ለቡድን መሪዎች፣ ለህግ ባለሙያዎች፣ ለሬጂስትራሮች፣ ለየስራ ክፍል ጥያቄ አቅራቢዎች እና ለሲስተም ኦዲተሮች ታሳቢ ተደርጎ የቀረበ መመሪያ ነው።</p>
+                <p>ስርዓቱ የህግ ምክር ጥያቄዎችን፣ የፍርድ ጉዳዮችን፣ የችሎት ሂደቶችን፣ ምላሾችን፣ አባሪ ሰነዶችን፣ አስተያየቶችን፣ ማሳወቂያዎችን፣ ሪፖርቶችን እና የስርዓት አስተዳደር ተግባራትን በተደራጀ መልኩ እንዲከናወኑ ይደግፋል።</p>
+            </div>
+        </div>
+
+        <!-- Slide 3 -->
+        <div class="slide slide-content">
+            <h2>2. ሲስተሙን ለማልማት ያስፈለገበት ዋና ዓላማ</h2>
+            <div class="slide-text">
+                <p>ሲስተሙ የተቋሙን የህግ ሥራ በተደራጀ፣ ክትትል በሚደረግበት እና በተጠያቂነት ባለው መንገድ ለማስተዳደር በማሰብ የለማ ነው። የህግ ምክር ጥያቄዎችን እና ተቋሙን የሚለከት የፍርድ ቤት ጉዳች መዝገብ ክትትል እና ቁጥጥር የዚህ ሲስተም ሁለት ዋና የአሰራር ዘርፎች ናቸው።</p>
+            </div>
+        </div>
+
+        <!-- Slide 4 -->
+        <div class="slide slide-content">
+            <h2>2.1 የህግ ምክር አገልጎሎት</h2>
+            <ul class="custom-list">
+                <li>የስራ ክፍሎች የህግ ምክር ጥያቄዎችን ያቀርባሉ።</li>
+                <li>የህግ ዳይሬክተሩ ጥያቄውን ይገመግማል።</li>
+                <li>ጥያቄው ለተገቢው የቡድን መሪ ይመደባል።</li>
+                <li>የቡድን መሪው ለህግ ባለሙያ ይመድባል።</li>
+                <li>የህግ ባለሙያው በተሰጠው እና ባለው የስራ ድርሻ መሰረት ምላሹን ይሰጣል ይመዘግባል።</li>
+            </ul>
+        </div>
+
+        <!-- Slide 5 -->
+        <div class="slide slide-content">
+            <h2>2.2 የፍርድ መዝገብ</h2>
+            <ul class="custom-list">
+                <li>የፍርድ ጉዳዮች አስፈላጊው መረጃዎችን በሪጅስትራል ወይም በፀሀፊ በመመዝገብ መዝገብ ይፈጠራል።</li>
+                <li>የህግ ዳይሬክተሩ ጉዳዩን ይገመግማል።</li>
+                <li>ጉዳዩን ለሚመለከተው ቡድን መሪ ይመደባል።</li>
+                <li>የቡድን መሪው ለህግ ባለሙያ ይመድባል።</li>
+                <li>የህግ ባለሙያው በየዚዜው የሚካሄዱ የችሎት ሂደቶች፣ አስፈላጊ አባሪ ሰነዶች፣ እንዲሁም የዳይሬክተር እና የቡድን መሪ የህግ ባለሙያው በእየለቱ ስለሚሰራቸው ስራዎች አስተያየቶች እና የመዝገብ ማሻሻያዎች ይሰጣሉ ይመዘገባሉ።</li>
+            </ul>
+        </div>
+
+        <!-- Slide 6 -->
+        <div class="slide slide-content">
+            <h2>3. የተጠቃሚ ሚናዎች እና ኃላፊነቶች</h2>
+            <h3>3.1 የሲስተም ዋና አስተዳዳሪ</h3>
+            <p class="slide-text">የሲስተም ዋና አስተዳዳሪው የስርዓቱን አጠቃላይ ሁኔታ ይቆጣጠራል ያስተዳድራል።</p>
+            <ul class="custom-list">
+                <li>ተጠቃሚዎችን፣ ሚናዎችን እና ፈቃዶችን ማስተዳደር</li>
+                <li>የስራ ክፍሎችን፣ ቡድኖችን እና መረጃዎችን ማስተዳደር</li>
+                <li>የሲስተም ሁኔታዎችን እና የዋና ድረ ገጽ ይዘትን ማስተዳደር</li>
+            </ul>
+        </div>
+
+        <!-- Slide 7 -->
+        <div class="slide slide-content">
+            <h3>3.2 የህግ ዳይሬክተር</h3>
+            <ul class="custom-list">
+                <li>የቀረቡ የህግ ምክር ጥያቄዎችን እና የተመዘገቡ የፍርድ ጉዳዮችን መገምገም</li>
+                <li>ጉዳዮችን ለተገቢ ቡድን መሪዎች መመደብ</li>
+                <li>የሥራ ሁኔታዎችን ማየትና አሰተያየት መስጠት እና ሪፖርቶችን መከታተል</li>
+            </ul>
+            <br>
+            <h3>3.3 የህግ ምክር ቡድን መሪ</h3>
+            <ul class="custom-list">
+                <li>ከዳይሬክተሩ የተመደቡ ጥያቄዎችን መቀበል</li>
+                <li>ጥያቄዎችን ለህግ ባለሙያ መመደብ</li>
+                <li>የሥራ ሁኔታዎችን ማየትና አሰተያየት መስጠት እና ሪፖርቶችን መከታተል</li>
+            </ul>
+        </div>
+
+        <!-- Slide 8 -->
+        <div class="slide slide-content">
+            <h3>3.4 የፍርድ-ቤት መዝገብ ክትትል ቡድን መሪ</h3>
+            <ul class="custom-list">
+                <li>ከዳይሬክተሩ የተመደቡ የፍርድ ጉዳዮችን መቀበል</li>
+                <li>ጉዳዮችን ለህግ መኮንን ወይም ለህግ ባለሙያ መመደብ</li>
+                <li>የችሎት ሂደቶችን እና የሥራ ሂደትን መከታተል</li>
+            </ul>
+            <br>
+            <h3>3.5 የህግ ባለሙያ / የህግ መኮንን</h3>
+            <ul class="custom-list">
+                <li>የህግ ምክር ምላሾችን መስጠት</li>
+                <li>የችሎት ሂደት ዝርዝሮችን መመዝገብ</li>
+                <li>አባሪ ሰነዶችን መጫን እና የመዝገብ ሂደትን በአስፈላጊው ጊዜ ማዘመን</li>
+            </ul>
+        </div>
+
+        <!-- Slide 9 -->
+        <div class="slide slide-content">
+            <h3>3.6 ሬጂስትራር/ፀሀፊ</h3>
+            <ul class="custom-list">
+                <li>አዲስ የፍርድ ጉዳዮችን ይመዘግባሉ</li>
+                <li>አዲስ የፍርድቤት መዝገቦችን ይመዘግባሉ/ይከፍታሉ</li>
+                <li>የመጀመሪያ መነሻ ሰነዶችን ከመዝገቡ ጋር ያያይዛሉ</li>
+            </ul>
+            <br>
+            <h3>3.7 የስራ ክፍል የህግ ምክር ጥያቄ አቅራቢ</h3>
+            <ul class="custom-list">
+                <li>የህግ ምክር ጥያቄዎችን ማቅረብ</li>
+                <li>የጥያቄውን ሁኔታ መከታተል</li>
+                <li>የተሰጡ ምላሾችን መመልከት</li>
+            </ul>
+        </div>
+
+        <!-- Slide 10 -->
+        <div class="slide slide-content">
+            <h3>3.8 ሲስተም ኦዲተር</h3>
+            <ul class="custom-list">
+                <li>መዝገቦችን እና ሪፖርቶችን መገምገም</li>
+                <li>የአሰራር ሂደትን መከታተል</li>
+                <li>ሲስተም ላይ የተደረጉ ለውጦችን በኦዲት እይታ መቆጣጠር</li>
+            </ul>
+        </div>
+
+        <!-- Slide 11 -->
+        <div class="slide slide-content">
+            <h2>4. ወደ ስርዓቱ መግባት እና መዳሰስ</h2>
+            <h3>4.1 የመጀመሪያ የፊት ገጽ</h3>
+            <p class="slide-text">ድረ ገጹ ለማንኛውም ተጠዋሚ የተከፈተ ክፍል ሲሆን ጎብኚዎች ስለ ህግ የስራ ክፍልው መረጃ ማግኘት እና ወደ ስርዓቱ መግባት የሚያስችል ገፅ ነው።</p>
+            
+            <h3>4.2 የውስጥ / አስተዳደር ክፍል</h3>
+            <p class="slide-text">ይህ ክፍል ለፈቃድ ያላቸው ተጠቃሚዎች ብቻ የሚታይ ነው። ተጠቃሚዎች እንደ ሚናቸው እና እንደ ፈቃዳቸው ወደ ተገቢው ክፍል ያያሉ ይመራሉ።</p>
+        </div>
+
+        <!-- Slide 12 -->
+        <div class="slide slide-content">
+            <h3>4.3 የመግቢያ ደረጃዎች</h3>
+            <ul class="custom-list">
+                <li>1. የመግቢያ ገጹን ይክፈቱ።</li>
+                <li>2. የኢሜይል አድራሻዎን ያስገቡ።</li>
+                <li>3. የይለፍ ቃልዎን ያስገቡ።</li>
+                <li>4. የመግቢያ ቁልፉን ይጫኑ።</li>
+                <li>5. በተሳካ ሁኔታ ከገቡ በኋላ ዳሽቦርድዎ ይታያል።</li>
+            </ul>
+            <br>
+            <h3>4.4 መውጣት</h3>
+            <p class="slide-text">ክፍለ ጊዜዎን በደህና ለማጠናቀቅ ከላይኛው አሰሳ ወይም ከመለያ ምናሌው ያለውን የመውጫ አማራጭ ይጠቀሙ።</p>
+        </div>
+
+        <!-- Slide 13 -->
+        <div class="slide slide-content">
+            <h2>5. የዋና አሰሳ አጠቃላይ እይታ</h2>
+            <p class="slide-text">ስርዓቱ በአጠቃላይ የላይኛው አሰሳ አሞሌ፣ የግራ ጎን ምናሌ፣ የገጽ ርዕስ ክፍል እና ዋና የይዘት ማሳያ ቦታን ያካትታል።</p>
+            <div class="grid-2">
+                <ul class="custom-list">
+                    <li>ዳሽቦርድ</li>
+                    <li>ተጠቃሚዎች</li>
+                    <li>ሚናዎች</li>
+                    <li>የስራ ክፍሎች</li>
+                    <li>ቡድኖች</li>
+                </ul>
+                <ul class="custom-list">
+                    <li>የህግ ምክር ጥያቄዎች</li>
+                    <li>የፍርድ ጉዳዮች</li>
+                    <li>ሪፖርቶች</li>
+                    <li>የስርዓት ማስተካከያዎች</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Slide 14 -->
+        <div class="slide slide-content">
+            <h2>6. ዳሽቦርድ</h2>
+            <p class="slide-text">ዳሽቦርዱ ለአብዛኞቹ ተጠቃሚዎች ከመግቢያ በኋላ የሚታይ የመጀመሪያ የሥራ ገጽ ነው።</p>
+            <ul class="custom-list">
+                <li>በመጠባበቅ ላይ ያሉ የህግ ምክር ጥያቄዎች</li>
+                <li>በመጠባበቅ ላይ ያሉ የፍርድ መዝገብ ምደባዎች</li>
+                <li>የቅርብ ጊዜ እንቅስቃሴዎች</li>
+                <li>በሁኔታ የተከፋፈሉ ቁጥራዊ ማጠቃለያዎች</li>
+                <li>ፈጣን የእርምጃ መግቢያዎች</li>
+                <li>የሥራ ጫና አጠቃላይ እይታ</li>
+            </ul>
+        </div>
+
+        <!-- Slide 15 -->
+        <div class="slide slide-content">
+            <h2>7. የሲስተም ተጠቃሚዎች መረጃ አስተዳደር</h2>
+            <p class="slide-text">ተጠቃሚዎች የራሳቸውን የመገለጫ መረጃ ማዘመን ይችላሉ።</p>
+            <div class="grid-2">
+                <ul class="custom-list">
+                    <li>ሙሉ ስም</li>
+                    <li>ኢሜይል አድራሻ</li>
+                    <li>ስልክ ቁጥር</li>
+                    <li>የቋንቋ ምርጫ</li>
+                    <li>የመገለጫ ምስል</li>
+                </ul>
+                <ul class="custom-list">
+                    <li>የፊርማ ምስል</li>
+                    <li>የማህተም ምስል</li>
+                    <li>ብሔራዊ መታወቂያ ቁጥር</li>
+                    <li>የTelegram ተጠቃሚ ስም</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Slide 16 -->
+        <div class="slide slide-content">
+            <h3>7.1 መረጃ/ፕሮፋይል/ ማዘመን</h3>
+            <ul class="custom-list">
+                <li>1. ገጹን ይክፈቱ።</li>
+                <li>2. የሚፈለጉትን መስኮች ያዘምኑ።</li>
+                <li>3. Save የሚለውን ቁልፍ ይጫኑ።</li>
+                <li>4. ማዘመኑ ከተሳካ የስኬት መልዕክት ይታያል።</li>
+            </ul>
+            <br>
+            <h3>7.2 በላይኛው ክፍል የሚገኝ የተጠቃሚ ምስል</h3>
+            <p class="slide-text">የመገለጫ ምስል ከተጫነ በላይኛው አሰሳ ክፍል ላይ ሊታይ ይችላል።</p>
+            <br>
+            <h3>7.3 አስፈላጊ ደንብ</h3>
+            <p class="slide-text">በስርዓቱ ደንቦች መሠረት የራስ መለያን መሰረዝ ከተከለከለ፣ ተጠቃሚው ከመገለጫ ገጹ የራሱን መለያ መሰረዝ አይችልም።</p>
+        </div>
+
+        <!-- Slide 17 -->
+        <div class="slide slide-content">
+            <h2>8. የተጠቃሚዎች አስተዳደር ሞጁል</h2>
+            <p class="slide-text">ይህ ሞጁል ፈቃድ ባላቸው አስተዳዳሪዎች ብቻ ይጠቀሙበታል።</p>
+            <ul class="custom-list">
+                <li>ተጠቃሚ መፍጠር</li>
+                <li>ተጠቃሚ ማስተካከል</li>
+                <li>ተጠቃሚን ማግበር / ማቦዘን</li>
+                <li>የስራ ክፍል እና ቡድን መመደብ</li>
+                <li>ሚናዎችን መመደብ</li>
+                <li>ከመገለጫ ጋር የተያያዙ መረጃዎችን ማስተዳደር</li>
+            </ul>
+        </div>
+
+        <!-- Slide 18 -->
+        <div class="slide slide-content">
+            <h2>9. የሚናዎች አስተዳደር ሞጁል</h2>
+            <p class="slide-text">የሚና አስተዳደር ሞጁሉ የስርዓቱን ሚናዎች እና ከእነርሱ ጋር የተያያዙ ፈቃዶችን ለማስተዳደር ይጠቅማል።</p>
+            <ul class="custom-list">
+                <li>ሚና መፍጠር</li>
+                <li>ሚና ማስተካከል</li>
+                <li>ሚና መሰረዝ</li>
+                <li>ፈቃዶችን ለሚና መመደብ</li>
+            </ul>
+            <br>
+            <div class="box">
+                <p><strong>9.1 አስፈላጊ መርህ፡</strong> የመተግበሪያው የሥራ ፍሰቶች በሚና ስሞች ላይ ሳይሆን በፈቃዶች ላይ መመርኮዝ አለባቸው።</p>
+                <p><strong>9.2 የሱፐር አስተዳዳሪ ጥበቃ፡</strong> የሱፐር አስተዳዳሪ ሚና ከአደገኛ የስም ለውጥ ወይም የሰረዛ እርምጃዎች ሊጠበቅ ይችላል።</p>
+            </div>
+        </div>
+
+        <!-- Slide 19 -->
+        <div class="slide slide-content">
+            <h2>10. የየስራ ክፍል አስተዳደር</h2>
+            <ul class="custom-list">
+                <li>የስራ ክፍል መፍጠር</li>
+                <li>የስራ ክፍል ማስተካከል</li>
+                <li>የስራ ክፍልን መከልከል</li>
+                <li>የየስራ ክፍል መረጃ እና የደረጃ መረጃ ማስተዳደር</li>
+            </ul>
+            <br>
+            <h2>11. የቡድን አስተዳደር</h2>
+            <ul class="custom-list">
+                <li>ቡድን መፍጠር</li>
+                <li>ቡድን ማስተካከል</li>
+                <li>ተጠቃሚዎችን ወደ ቡድን መመደብ</li>
+                <li>የቡድሉን የስራ ድርሻ እና የስራ ፍሰት ማዋቀር</li>
+            </ul>
+        </div>
+
+        <!-- Slide 20 -->
+        <div class="slide slide-content">
+            <h2>12. የህግ ምክር አይነት አስተዳደር</h2>
+            <p class="slide-text">ይህ ሞጁል በህግ ምክር ጥያቄዎች ውስጥ የሚጠቀሙ የምክር ምድቦችን ያስተዳድራል።</p>
+            <ul class="custom-list">
+                <li>የውል ምክር</li>
+                <li>የሰራተኛ ህግ ምክር</li>
+                <li>የተገዢነት ምክር</li>
+            </ul>
+            <br>
+            <h2>13. የፍርድ ቤት አስተዳደር</h2>
+            <ul class="custom-list">
+                <li>የፍርድ ቤት መዝገብ መፍጠር</li>
+                <li>የፍርድ ቤት መዝገብ ማስተካከል</li>
+                <li>የፍርድ ቤት ስም እና ዝርዝር መረጃ ማስተዳደር</li>
+            </ul>
+        </div>
+
+        <!-- Slide 21 -->
+        <div class="slide slide-content">
+            <h2>14. የህግ መዝገብ ዓይነት አስተዳደር</h2>
+            <p class="slide-text">ይህ ሞጁል የህግ መዝገብ ዓይነቶችን ይይዛል።የመዝገብ ዓይነቶች አንድ መዝገብ ለመፍጠር መነሻ መረጃዎች ናቸው።</p>
+            <ul class="custom-list">
+                <li>የፍትሐ ብሔር መዝገብ</li>
+                <li>የወንጀል መዝገብ</li>
+                <li>የሥራ ክርክር</li>
+            </ul>
+        </div>
+
+        <!-- Slide 22 -->
+        <div class="slide slide-content">
+            <h2>15. የስርዓት ማስተካከያዎች ሞጁል</h2>
+            <p class="slide-text">የስርዓት ማስተካከያዎች ሞጁሉ የመተግበሪያውን አጠቃላይ ማስተካከያዎች ለማስተዳደር ይጠቅማል።</p>
+            <h3>15.1 ዋና የማስተካከያ ክፍሎች</h3>
+            <div class="grid-2">
+                <ul class="custom-list">
+                    <li>አጠቃላይ ማስተካከያዎች</li>
+                    <li>ብራንዲንግ</li>
+                    <li>ገጽታ</li>
+                </ul>
+                <ul class="custom-list">
+                    <li>የዋና ድረ ገጽ ማስተካከያዎች</li>
+                    <li>ዋና ስላይዶች</li>
+                    <li>የግንኙነት ማስተካከያዎች</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Slide 23 -->
+        <div class="slide slide-content">
+            <h3>15.2 ብራንዲንግ</h3>
+            <ul class="custom-list">
+                <li>የመተግበሪያ ስም</li>
+                <li>የተቋሙ ስም</li>
+                <li>favicon</li>
+                <li>ማህተም</li>
+                <li>ሎጎዎች</li>
+            </ul>
+            <br>
+            <h3>15.3 ዋና ስላይዶች</h3>
+            <ul class="custom-list">
+                <li>ርዕስ</li>
+                <li>ንዑስ ርዕስ</li>
+                <li>ምስል</li>
+                <li>የቅደም ተከተል ወይም የታይነት ማስተካከያ</li>
+            </ul>
+        </div>
+
+        <!-- Slide 24 -->
+        <div class="slide slide-content">
+            <h3>15.4 ገጽታ እና ማሳወቂያ</h3>
+            <p class="slide-text">የገጽታ ማስተካከያዎች የስታይል፣ የአቀማመጥ እና የቀለም ምርጫዎችን ያካትታሉ። በሚገኙበት ጊዜ ለTelegram እና ለሌሎች የመገናኛ መንገዶች የማሳወቂያ ማስተካከያዎች ሊዋቀሩ ይችላሉ።</p>
+            <br>
+            <h2>16. የዋና ድረ ገጽ አስተዳደር</h2>
+            <ul class="custom-list">
+                <li>ዋና የማሳያ ክፍል</li>
+                <li>ስላይዶች</li>
+                <li>የዋና ልጥፎች</li>
+                <li>ለህዝብ የሚታዩ መረጃዎች</li>
+            </ul>
+        </div>
+
+        <!-- Slide 25 -->
+        <div class="slide slide-content">
+            <h2>17. የህግ ምክር ጥያቄ የሥራ ፍሰት</h2>
+            <h3>17.1 የሥራ ፍሰት ደረጃዎች</h3>
+            <ul class="custom-list">
+                <li>1. የየስራ ክፍል ጥያቄ አቅራቢው ጥያቄ ይፈጥራል።</li>
+                <li>2. የህግ ዳይሬክተሩ ጥያቄውን ይገመግማል።</li>
+                <li>3. ጥያቄው ለቡድን መሪ ይመደባል።</li>
+                <li>4. የቡድን መሪው ለህግ ባለሙያ ይመድባል።</li>
+                <li>5. የህግ ባለሙያው ምላሽ ይመዘግባል።</li>
+                <li>6. ለጥያቄ አቅራቢው ምላሽ ይሰጣል።</li>
+            </ul>
+        </div>
+
+        <!-- Slide 26 -->
+        <div class="slide slide-content">
+            <h3>17.2 የሚፈለጉ መስኮች</h3>
+            <div class="grid-2">
+                <ul class="custom-list">
+                    <li>የጥያቄ ኮድ</li>
+                    <li>የስራ ክፍል</li>
+                    <li>ርዕስ</li>
+                </ul>
+                <ul class="custom-list">
+                    <li>ዝርዝር መግለጫ</li>
+                    <li>የምክር ምድብ</li>
+                    <li>አባሪ ሰነዶች</li>
+                </ul>
+            </div>
+            <br>
+            <h3>17.3 የሁኔታ ለውጦች</h3>
+            <ul class="custom-list">
+                <li>ቀርቧል</li>
+                <li>በግምገማ ላይ/በዳይሬክተር/</li>
+                <li>ለቡድን መሪ ተመድቧል</li>
+                <li>ለህግ ባለሙያ ተመድቧል</li>
+                <li>ምላሽ ተሰጥቷል</li>
+                <li>ተጠናቋል / ተዘግቷል</li>
+            </ul>
+        </div>
+
+        <!-- Slide 27 -->
+        <div class="slide slide-content">
+            <h2>18. የህግ ምክር ምላሽ አስተዳደር</h2>
+            <h3>18.1 ምላሽ ይዘት</h3>
+            <ul class="custom-list">
+                <li>ርዕስ</li>
+                <li>የምላሽ ይዘት</li>
+                <li>አባሪ ሰነዶች</li>
+            </ul>
+            <br>
+            <h3>18.2 የምላሽ ዝርዝር ማሳያ</h3>
+            <div class="grid-2">
+                <ul class="custom-list">
+                    <li>ተራ ቁጥር</li>
+                    <li>ቀን</li>
+                    <li>የጥያቄ ኮድ</li>
+                    <li>ጥያቄ አቅራቢ</li>
+                </ul>
+                <ul class="custom-list">
+                    <li>የስራ ክፍል</li>
+                    <li>አስፈጻሚ</li>
+                    <li>የማየት እርምጃ</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Slide 28 -->
+        <div class="slide slide-content">
+            <h3>18.3 ምላሽ ማየት እና ማሻሻል</h3>
+            <p class="slide-text">የምላሽ ማየት ገጹ ሙሉ ርዕስ፣ ሙሉ የምላሽ አካል፣ ተዛማጅ መረጃዎች እና አባሪ ሰነዶችን ማሳየት አለበት። አግባብ ያለው ፈቃድ ካለ ምላሹ ሊሻሻል ወይም ሊሰረዝ ይችላል።</p>
+            <br>
+            <h2>19. የፍርድ መዝገብ የሥራ ፍሰት</h2>
+            <h3>19.1 የሥራ ፍሰት ደረጃዎች</h3>
+            <ul class="custom-list">
+                <li>1. ሬጂስትራር ወይም ፈቃድ ያለው ተጠቃሚ ጉዳዩን ይመዘግባል።</li>
+                <li>2. የህግ ዳይሬክተሩ ጉዳዩን ለክስ ክትትል ቡድን መሪ ይመድባል።</li>
+                <li>3. የቡድን መሪው ጉዳዩን ለህግ ባለሙያ ይመድባል።</li>
+                <li>4. የተመደቡ የህግ ሰራተኞች የችሎት ሂደትን ይመዘግባሉ።</li>
+                <li>5. ጉዳዩ በአግባቡ ሲጠናቀቅ ውጤቱ ተመዝግቦ ይዘጋል።</li>
+            </ul>
+        </div>
+
+        <!-- Slide 29 -->
+        <div class="slide slide-content">
+            <h3>19.2 መዝገብ የእንደገና መክፈት ሂደት</h3>
+            <p class="slide-text">መዝገብ እንደገና መክፈት ባህሪ ካለ፣ ተገቢ ፈቃድ ያላቸው ተጠቃሚዎች ብቻ የተዘጋ መዝገብን እንደገና መክፈት እና ምክንያቱን መመዝገብ ይችላሉ።</p>
+            <br>
+            <h2>20. የችሎት ሂደቶች አስተዳደር</h2>
+            <h3>20.1 የችሎት ተግባራት</h3>
+            <div class="grid-2">
+                <ul class="custom-list">
+                    <li>ችሎቶችን ማየት</li>
+                    <li>ችሎት መጨመር</li>
+                    <li>ችሎት ዝርዝር ማየት</li>
+                </ul>
+                <ul class="custom-list">
+                    <li>ችሎት ማስተካከል</li>
+                    <li>ችሎት መሰረዝ</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Slide 30 -->
+        <div class="slide slide-content">
+            <h3>20.2 የችሎት መረጃ</h3>
+            <ul class="custom-list">
+                <li>የችሎት ቀን</li>
+                <li>ቀጣይ የችሎት ቀን</li>
+                <li>የችሎቱ ማጠቃለያ</li>
+                <li>ውጤት ወይም ውሳኔ</li>
+                <li>ማስታወሻዎች</li>
+            </ul>
+            <br>
+            <h2>21. የአስተያየት አስተዳደር</h2>
+            <p class="slide-text">አስተያየቶች የውስጥ ውይይቶችን ወይም ማስታወሻዎችን ለመከታተል ይረዳሉ።</p>
+            <ul class="custom-list">
+                <li>አስተያየት መጨመር</li>
+                <li>አስተያየት ማየት</li>
+                <li>አስተያየት ማስተካከል</li>
+                <li>አስተያየት መሰረዝ</li>
+            </ul>
+        </div>
+
+        <!-- Slide 31 -->
+        <div class="slide slide-content">
+            <h2>22. የአባሪ ሰነዶች አስተዳደር</h2>
+            <h3>22.1 የአባሪ ሰነድ ተግባራት</h3>
+            <div class="grid-2">
+                <ul class="custom-list">
+                    <li>አባሪ ሰነድ መጫን</li>
+                    <li>አባሪ ሰነድ ማየት</li>
+                    <li>አባሪ ሰነድ ማውረድ</li>
+                </ul>
+                <ul class="custom-list">
+                    <li>ሜታዳታ ማስተካከል</li>
+                    <li>አባሪ ሰነድ መሰረዝ</li>
+                </ul>
+            </div>
+            <br>
+            <h3>22.2 የተለመዱ የፋይል አይነቶች</h3>
+            <ul class="custom-list">
+                <li>PDF</li>
+                <li>Word ሰነዶች</li>
+                <li>የምስል ፋይሎች</li>
+                <li>የተስካኑ ሰነዶች</li>
+            </ul>
+        </div>
+
+        <!-- Slide 32 -->
+        <div class="slide slide-content">
+            <h3>22.3 አባሪ ሰነዶች የሚታዩባቸው የሥራ ፍሰቶች</h3>
+            <ul class="custom-list">
+                <li>የህግ ምክር ጥያቄዎች</li>
+                <li>የህግ ምክር ምላሾች</li>
+                <li>የህግ ጉዳዮች</li>
+                <li>የችሎት መዝገቦች</li>
+            </ul>
+            <br>
+            <h2>23. ማሳወቂያዎች</h2>
+            <p class="slide-text">ስርዓቱ በአስፈላጊ የሥራ ፍሰት ሂደቶች ላይ ለተጠቃሚዎች ማሳወቂያዎችን ሊልክ ይችላል።</p>
+            <ul class="custom-list">
+                <li>የህግ ምክር ምላሽ ተመዝግቧል</li>
+                <li>ምደባ ተጠናቋል</li>
+                <li>የመዝገብ ሁኔታ ተቀይሯል</li>
+                <li>በመርሐ ግብር የተዘጋጁ አስታዋሾች</li>
+            </ul>
+        </div>
+
+        <!-- Slide 33 -->
+        <div class="slide slide-content">
+            <h3>23.1 የማሳወቂያ መንገዶች</h3>
+            <ul class="custom-list">
+                <li>በስርዓቱ ውስጥ የብቅ ባይ/ፖፕአፕ/ መልዕክቶች</li>
+                <li>የሲስተም ማሳወቂያዎች</li>
+                <li>የኢሜይል ማሳወቂያዎች</li>
+                <li>የTelegram ማሳወቂያዎች</li>
+            </ul>
+            <br>
+            <h2>24. ሪፖርቶች እና የኦዲት አጠቃቀም</h2>
+            <h3>24.1 ሪፖርቶች</h3>
+            <ul class="custom-list">
+                <li>በሁኔታ የተከፋፈሉ የህግ ምክር ጥያቄ ብዛቶች</li>
+                <li>በሁኔታ የተከፋፈሉ የፍርድ መዝገብ ብዛቶች</li>
+                <li>የሥራ ጫና ማጠቃለያዎች</li>
+                <li>የየስራ ክፍል እንቅስቃሴ ሪፖርቶች</li>
+            </ul>
+        </div>
+
+        <!-- Slide 34 -->
+        <div class="slide slide-content">
+            <h3>24.2 የኦዲት ሎጎች</h3>
+            <ul class="custom-list">
+                <li>መዝገብ ማን ፈጠረ</li>
+                <li>መዝገብ ማን አዘመነ</li>
+                <li>መዝገብ ማን ሰረዘ</li>
+                <li>ሥራ ማን መደበ</li>
+            </ul>
+            <br>
+            <h2>25. ቋንቋ እና ገጽታ</h2>
+            <p class="slide-text">ስርዓቱ እንግሊዝኛ እና አማርኛን ጨምሮ ብዙ ቋንቋዎችን ሊደግፍ ይችላል። ተጠቃሚዎች ከገጽታ ምርጫዎች ወይም ከተጠቃሚ ልምድ ጋር የተያያዙ ማስተካከያዎች ሊጠቀሙ ይችላሉ።</p>
+        </div>
+
+        <!-- Slide 35 -->
+        <div class="slide slide-content">
+            <h2>26. የብቅ ባይ/ፖፕአፕ/ መልዕክቶች እና የቅጽ ባህሪ</h2>
+            <h3>26.1 የትክክለኛነት መልዕክት</h3>
+            <ul class="custom-list">
+                <li>አረንጓዴ የስኬት መልዕክት መታየት አለበት</li>
+                <li>ገጹ ሊታደስ ወይም ሊዘመን ይችላል</li>
+                <li>አግባብ ያላቸው ቅጾች ከስኬት በኋላ ሊነጻጸሩ ይችላሉ</li>
+            </ul>
+            <br>
+            <h3>26.2 የስህተት መልዕክት</h3>
+            <ul class="custom-list">
+                <li>ቀይ የስህተት መልዕክት መታየት አለበት</li>
+                <li>የተሞሉ የቅጽ መረጃዎች በተቻለ መጠን መቆየት አለባቸው</li>
+                <li>ተጠቃሚዎች ስህተቱን አስተካክለው እንደገና ማቅረብ ይችላሉ</li>
+            </ul>
+        </div>
+
+        <!-- Slide 36 -->
+        <div class="slide slide-content">
+            <h2>27. የተለመዱ የተጠቃሚ ተግባራት</h2>
+            <div class="grid-2">
+                <div>
+                    <h3>27.1 የህግ ምክር ጥያቄ መፍጠር</h3>
+                    <ul class="custom-list" style="font-size: 22px;">
+                        <li>1. የህግ ምክር ጥያቄዎች ሞጁሉን ይክፈቱ።</li>
+                        <li>2. Create የሚለውን ቁልፍ ይጫኑ።</li>
+                        <li>3. ርዕሱን እና መግለጫውን ይሙሉ።</li>
+                        <li>4. ካስፈለገ አባሪ ሰነዶችን ያክሉ።</li>
+                        <li>5. ቅጹን ያስገቡ።</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3>27.2 የህግ ምክር ጥያቄ መገምገም</h3>
+                    <ul class="custom-list" style="font-size: 22px;">
+                        <li>1. የህግ ምክር ጥያቄውን ይክፈቱ።</li>
+                        <li>2. ይዘቱን ይገመግሙ።</li>
+                        <li>3. ለቡድን መሪ ይመድቡ ወይም ተገቢውን እርምጃ ይውሰዱ።</li>
+                        <li>4. ያስቀምጡ።</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 37 -->
+        <div class="slide slide-content">
+            <div class="grid-2">
+                <div>
+                    <h3>27.3 የህግ ምክር ምላሽ መፍጠር</h3>
+                    <ul class="custom-list" style="font-size: 22px;">
+                        <li>1. የጥያቄውን ወይም የምላሽ ክፍሉን ይክፈቱ።</li>
+                        <li>2. Add Response ይጫኑ።</li>
+                        <li>3. ርዕሱን እና የምላሹን ይዘት ይሙሉ።</li>
+                        <li>4. ካስፈለገ አባሪ ሰነዶችን ያክሉ።</li>
+                        <li>5. ያስገቡ።</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3>27.4 የፍርድ መዝገብ መፍጠር</h3>
+                    <ul class="custom-list" style="font-size: 22px;">
+                        <li>1. የፍርድ ጉዳዮች ሞጁሉን ይክፈቱ።</li>
+                        <li>2. Create የሚለውን ቁልፍ ይጫኑ።</li>
+                        <li>3. ዋናውን የመዝገብ ዓይነት ይምረጡ።</li>
+                        <li>4. ለዚያ ዓይነት የሚፈለጉትን መስኮች ይሙሉ።</li>
+                        <li>5. ጉዳዩን ያስቀምጡ።</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 38 -->
+        <div class="slide slide-content">
+            <div class="grid-2">
+                <div>
+                    <h3>27.5 የችሎት መዝገብ ማስገባት</h3>
+                    <ul class="custom-list" style="font-size: 22px;">
+                        <li>1. ጉዳዩን ይክፈቱ።</li>
+                        <li>2. ወደ የችሎት ክፍል ይሂዱ።</li>
+                        <li>3. Add Hearing ይጫኑ።</li>
+                        <li>4. የችሎት ዝርዝሮችን ይሙሉ።</li>
+                        <li>5. ያስቀምጡ።</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3>27.6 አባሪ ሰነድ መጫን</h3>
+                    <ul class="custom-list" style="font-size: 22px;">
+                        <li>1. ተዛማጅ መዝገቡን ይክፈቱ።</li>
+                        <li>2. የአባሪ ሰነዶች ክፍሉን ይክፈቱ።</li>
+                        <li>3. Add Attachment ይጫኑ።</li>
+                        <li>4. ፋይሉን ይምረጡ።</li>
+                        <li>5. ያስቀምጡ።</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 39 -->
+        <div class="slide slide-content">
+            <h2>28. የችግኝ መፍትሔ መመሪያ</h2>
+            <h3>28.1 በተን አይሠራም ?</h3>
+            <ul class="custom-list">
+                <li>ተገቢው ፈቃድ የለዎትም</li>
+                <li>የሥራ ፍሰቱ ሁኔታ ያንን እርምጃ አይፈቅድም</li>
+                <li>አስፈላጊ የቅጽ መረጃ ጎድሏል</li>
+            </ul>
+            <br>
+            <h3>28.2 ዝርዝር አዲስ መዝገቦችን አያሳይም ?</h3>
+            <ul class="custom-list">
+                <li>ገጹ አልታደሰም</li>
+                <li>መዝገቡ ተቀምጧል ነገር ግን የማጣሪያ ቅንብሩ ደብቆታል</li>
+                <li>ተዛማጅ የዝርዝር መረጃ አልታደሰም</li>
+            </ul>
+        </div>
+
+        <!-- Slide 40 -->
+        <div class="slide slide-content">
+            <h3>28.3 ምስል አይታይም ?</h3>
+            <ul class="custom-list">
+                <li>የምስል መንገድ በትክክል አልተቀመጠም</li>
+                <li>ፋይሉ ተጭኗል ነገር ግን URL መፍጠር አልተሳካም</li>
+                <li>storage/public route በትክክል አልተዋቀረም</li>
+            </ul>
+            <br>
+            <h3>28.4 ሞጁል ማየት አልቻልኩም ?</h3>
+            <ul class="custom-list">
+                <li>ሚናዎ ወይም ፈቃዶችዎ አይፈቅዱም</li>
+                <li>አሰሳው በፈቃድ ላይ የተመሠረተ ነው</li>
+            </ul>
+        </div>
+
+        <!-- Slide 41 -->
+        <div class="slide slide-content">
+            <h3>28.5 የቅጽ ማስገባት አልተሳካም ?</h3>
+            <ul class="custom-list">
+                <li>አስፈላጊ መስኮች ባዶ ናቸው</li>
+                <li>የተጫነው የፋይል አይነት ተቀባይነት የለውም</li>
+                <li>የኢሜይል ወይም የስልክ ቅርጸት ትክክል አይደለም</li>
+                <li>የፈቃድ ችግር አለ</li>
+            </ul>
+        </div>
+
+        <!-- Slide 42 -->
+        <div class="slide slide-content">
+            <h2>29. ለአስተዳዳሪዎች መመሪያ</h2>
+            <ul class="custom-list">
+                <li>ሚናዎችን በጥንቃቄ ማስተዳደር</li>
+                <li>የሥራ ፍሰት መዳረሻን ለመቆጣጠር ፈቃዶችን መጠቀም</li>
+                <li>አላስፈላጊ ፈቃዶችን ከመስጠት መቆጠብ</li>
+                <li>የየስራ ክፍል፣ የቡድን እና የማጣቀሻ መረጃዎችን ዘመናዊ እና ትክክለኛ ማድረግ</li>
+                <li>የተጠቃሚ ንቁነትን እና የሚና ምደባዎችን በመደበኛነት መገምገም</li>
+                <li>ብራንዲንግን እና የዋና ይዘትን በጥንቃቄ መከታተል</li>
+            </ul>
+        </div>
+
+        <!-- Slide 43 -->
+        <div class="slide slide-content">
+            <h3>29.1 ማስተካከያዎችን በሚቀይሩበት ጊዜ</h3>
+            <ul class="custom-list">
+                <li>ተፈላጊ ለውጦችን ብቻ ያስቀምጡ</li>
+                <li>ከለውጦች በኋላ ለህዝብ የሚታየውን ይዘት ያረጋግጡ</li>
+                <li>የተጫኑ የብራንድ ንብረቶች በትክክል መታየታቸውን ያረጋግጡ</li>
+            </ul>
+            <br>
+            <h2>30. ጥሩ የአጠቃቀም ልምዶች (1)</h2>
+            <ul class="custom-list">
+                <li>አንድ መረጃ ከመመዝገቡ በፊት የገባውን መረጃ ደጋግሞ ማየት እና ትክክለኛነቱን ማረጋገጥ።</li>
+                <li>በጥያቄዎች እና በምላሾች ውስጥ ግልጽ እና ሙያዊ ቋንቋ ይጠቀሙ።</li>
+                <li>ተዛማጅ እና በትክክል የተሰየሙ ሰነዶችን ይጫኑ።</li>
+            </ul>
+        </div>
+
+        <!-- Slide 44 -->
+        <div class="slide slide-content">
+            <h2>30. ጥሩ የአጠቃቀም ልምዶች (2)</h2>
+            <ul class="custom-list">
+                <li>የተጠቃሚ መግቢያ መረጃዎችን አያጋሩ።</li>
+                <li>የጋራ ኮምፒዩተር ከተጠቀሙ በኋላ ሎግአውት ብለው ይውጡ።</li>
+                <li>አስተያየቶችን እና አባሪ ሰነዶችን በትክክለኛው መዝገብ ላይ ይጠቀሙ።</li>
+                <li>የሥራ ፍሰቱን በትክክለኛው ቅደም ተከተል ይከተሉ።</li>
+                <li>ሥራን ለተገቢው ኃላፊ ተጠቃሚ ብቻ ይመድቡ።</li>
+                <li>የየስራ ክፍል፣ የቡድን እና የማጣቀሻ መዝገቦችን ወቅታዊ ያድርጉ።</li>
+            </ul>
+        </div>
+
+        <!-- Slide 45 -->
+        <div class="slide slide-content">
+            <h2>ማጠቃለያ - ለጥያቄ አቅራቢዎች እና ዳይሬክተር</h2>
+            <div class="grid-2">
+                <div class="box">
+                    <h3>ለየስራ ክፍል ጥያቄ አቅራቢዎች</h3>
+                    <ul class="custom-list" style="font-size: 20px;">
+                        <li>ወደ ስርዓቱ ይግቡ</li>
+                        <li>የህግ ምክር ጥያቄ ይፍጠሩ</li>
+                        <li>የጥያቄውን ሁኔታ ይከታተሉ</li>
+                        <li>ምላሽ ሲቀርብ ይመልከቱ</li>
+                    </ul>
+                </div>
+                <div class="box">
+                    <h3>ለህግ ዳይሬክተር</h3>
+                    <ul class="custom-list" style="font-size: 20px;">
+                        <li>የህግ ምክር ጥያቄዎችን ይገመግሙ</li>
+                        <li>የህግ ምክር ሥራን ለቡድን መሪ ይመድቡ</li>
+                        <li>የፍርድ ጉዳዮችን ለክስ ክትትል ቡድን መሪ ይመድቡ</li>
+                        <li>የህግ የሥራ ፍሰቶችን ይከታተሉ</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 46 -->
+        <div class="slide slide-content">
+            <h2>ማጠቃለያ - ለቡድን መሪዎች፣ ባለሙያዎችና አስተዳዳሪዎች</h2>
+            <div class="grid-2">
+                <div class="box">
+                    <h3>ለቡድን መሪዎች</h3>
+                    <ul class="custom-list" style="font-size: 20px;">
+                        <li>የተመደቡ መዝገቦችን ይክፈቱ</li>
+                        <li>ለህግ መኮንን / ለህግ ባለሙያ ይመድቡ</li>
+                        <li>የሥራ እድገትን ይከታተሉ</li>
+                    </ul>
+                </div>
+                <div class="box">
+                    <h3>ለህግ ባለሙያዎች</h3>
+                    <ul class="custom-list" style="font-size: 20px;">
+                        <li>የተመደበውን ሥራ ይክፈቱ</li>
+                        <li>ምላሽ ወይም የችሎት ዝርዝር ያስገቡ</li>
+                        <li>አስፈላጊ አባሪ ሰነዶችን ይጫኑ</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 47 -->
+        <div class="slide slide-cover" style="text-align: center;">
+            <i class="fa-solid fa-users-gear" style="font-size: 80px; margin-bottom: 20px;"></i>
+            <h2 style="font-size: 40px;">ለአስተዳዳሪዎች</h2>
+            <ul style="list-style: none; padding: 0; font-size: 28px; line-height: 2;">
+                <li>ተጠቃሚዎችን ያስተዳድሩ</li>
+                <li>ሚናዎችን እና ፈቃዶችን ያስተዳድሩ</li>
+                <li>ማስተካከያዎችን ያስተዳድሩ</li>
+                <li>የዋና ይዘትን ያስተዳድሩ</li>
+            </ul>
+            <p style="margin-top: 40px; font-size: 20px; font-style: italic; max-width: 800px;">
+                ይህ የተጠቃሚ መመሪያ ለመጨረሻ ተጠቃሚዎችም ሆነ ለአስተዳዳሪዎች እንደ መመሪያ እንዲያገለግል የተዘጋጀ ነው። ስርዓቱ ዋና የሥራ ፍሰት፣ የተጠቃሚ በይነ ገጽ፣ ሚና ወይም ሞጁል ለውጦችን በሚያስገባ ጊዜ ሰነዱ በተዘመነ መልኩ መጠበቅ ይኖርበታል።
+            </p>
+        </div>
+
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+        <div class="slide-counter" id="counter">1 / 47</div>
+        <div class="controls-right">
+            <button class="btn" id="prevBtn" onclick="moveSlide(-1)"><i class="fa-solid fa-arrow-left"></i> ወደ ኋላ</button>
+            <button class="btn" id="nextBtn" onclick="moveSlide(1)">ቀጣይ <i class="fa-solid fa-arrow-right"></i></button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentSlide = 0;
+    const slides = document.querySelectorAll('.slide');
+    const totalSlides = slides.length;
+    const slider = document.getElementById('slider');
+    const progress = document.getElementById('progress');
+    const counter = document.getElementById('counter');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+
+    function updatePresentation() {
+        // Move slider
+        slider.style.transform = `translateX(-${currentSlide * 100}%)`;
+        
+        // Update progress bar
+        const progressPercentage = ((currentSlide + 1) / totalSlides) * 100;
+        progress.style.width = `${progressPercentage}%`;
+        
+        // Update counter
+        counter.textContent = `${currentSlide + 1} / ${totalSlides}`;
+        
+        // Update button states
+        prevBtn.disabled = currentSlide === 0;
+        nextBtn.disabled = currentSlide === totalSlides - 1;
+    }
+
+    function moveSlide(direction) {
+        currentSlide += direction;
+        
+        // Boundaries
+        if (currentSlide < 0) currentSlide = 0;
+        if (currentSlide >= totalSlides) currentSlide = totalSlides - 1;
+        
+        updatePresentation();
+    }
+
+    // Keyboard navigation
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowRight' || e.key === ' ') {
+            moveSlide(1);
+        } else if (e.key === 'ArrowLeft') {
+            moveSlide(-1);
+        }
+    });
+
+    // Initialize
+    updatePresentation();
+</script>
+
+</body>
+</html>

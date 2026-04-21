@@ -36,6 +36,7 @@ class User extends Authenticatable implements MustVerifyEmail
     protected $fillable = [
         'department_id',
         'team_id',
+        'branch_id',
         'employee_number',
         'name',
         'email',
@@ -79,6 +80,11 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->belongsTo(Department::class);
     }
 
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class);
+    }
+
     public function team(): BelongsTo
     {
         return $this->belongsTo(Team::class);
@@ -97,6 +103,11 @@ class User extends Authenticatable implements MustVerifyEmail
     public function registeredCases(): HasMany
     {
         return $this->hasMany(LegalCase::class, 'registered_by_id');
+    }
+
+    public function complaints(): HasMany
+    {
+        return $this->hasMany(Complaint::class, 'complainant_user_id');
     }
 
     public function assignedCases(): HasMany

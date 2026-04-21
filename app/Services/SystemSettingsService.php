@@ -387,6 +387,65 @@ class SystemSettingsService
         return max(1, (int) ($this->group(SystemSettingGroup::NOTIFICATIONS)['appeal_deadline_reminder_days'] ?? 5));
     }
 
+    public function complaintDeadlineDays(): int
+    {
+        return max(1, (int) ($this->group(SystemSettingGroup::COMPLAINTS)['default_response_deadline_days'] ?? 5));
+    }
+
+    public function complaintAutoEscalationEnabled(): bool
+    {
+        return (bool) ($this->group(SystemSettingGroup::COMPLAINTS)['auto_escalation_enabled'] ?? true);
+    }
+
+    public function complaintReminderIntervalHours(): int
+    {
+        return max(1, (int) ($this->group(SystemSettingGroup::COMPLAINTS)['reminder_interval_hours'] ?? 24));
+    }
+
+    public function complaintCodePrefix(): string
+    {
+        $prefix = trim((string) ($this->group(SystemSettingGroup::COMPLAINTS)['complaint_code_prefix'] ?? 'CMP'));
+
+        return $prefix !== '' ? strtoupper($prefix) : 'CMP';
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function complaintAllowedAttachmentTypes(): array
+    {
+        $configured = Arr::wrap($this->group(SystemSettingGroup::COMPLAINTS)['allowed_attachment_types'] ?? $this->allowedUploadFileTypes());
+
+        return collect($configured)
+            ->map(fn (mixed $value): string => Str::lower(trim((string) $value)))
+            ->filter(fn (string $value): bool => in_array($value, $this->supportedUploadFileTypes(), true))
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    public function complaintMaxAttachmentSizeMb(): int
+    {
+        return max(1, (int) ($this->group(SystemSettingGroup::COMPLAINTS)['max_attachment_size_mb'] ?? 10));
+    }
+
+    public function complaintClientSelfRegistrationEnabled(): bool
+    {
+        return (bool) ($this->group(SystemSettingGroup::COMPLAINTS)['allow_client_self_registration'] ?? true);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function complaintCommitteeRecipientIds(): array
+    {
+        return collect(Arr::wrap($this->group(SystemSettingGroup::COMPLAINTS)['committee_notification_user_ids'] ?? []))
+            ->map(fn (mixed $value): string => (string) $value)
+            ->filter()
+            ->values()
+            ->all();
+    }
+
     /**
      * @return array<int, string>
      */
@@ -594,6 +653,16 @@ class SystemSettingsService
             SystemSettingGroup::PUBLIC_WEBSITE->value => [
                 ...$this->publicWebsiteDefaults(),
                 'hero_slides' => $this->publicWebsiteDefaultSlides(),
+            ],
+            SystemSettingGroup::COMPLAINTS->value => [
+                'default_response_deadline_days' => 5,
+                'auto_escalation_enabled' => true,
+                'reminder_interval_hours' => 24,
+                'committee_notification_user_ids' => [],
+                'allow_client_self_registration' => true,
+                'complaint_code_prefix' => 'CMP',
+                'allowed_attachment_types' => ['pdf', 'doc', 'docx', 'png', 'jpg', 'jpeg'],
+                'max_attachment_size_mb' => 10,
             ],
         ];
     }

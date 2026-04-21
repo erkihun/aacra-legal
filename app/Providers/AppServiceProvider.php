@@ -10,11 +10,18 @@ use App\Models\AdvisoryResponse;
 use App\Models\Attachment;
 use App\Models\CaseType;
 use App\Models\Comment;
+use App\Models\Complaint;
+use App\Models\ComplaintCategory;
+use App\Models\ComplaintCommitteeDecision;
+use App\Models\ComplaintEscalation;
+use App\Models\ComplaintResponse;
+use App\Models\ComplaintStatusHistory;
 use App\Models\Court;
 use App\Models\Department;
 use App\Models\LegalCase;
 use App\Models\LegalCaseType;
 use App\Models\PublicPost;
+use App\Models\Branch;
 use App\Models\SystemSetting;
 use App\Models\Team;
 use App\Models\User;
@@ -62,6 +69,7 @@ class AppServiceProvider extends ServiceProvider
 
         Relation::enforceMorphMap([
             'user' => User::class,
+            'branch' => Branch::class,
             'department' => Department::class,
             'team' => Team::class,
             'advisory_category' => AdvisoryCategory::class,
@@ -70,6 +78,12 @@ class AppServiceProvider extends ServiceProvider
             'legal_case_type' => LegalCaseType::class,
             'advisory_request' => AdvisoryRequest::class,
             'advisory_response' => AdvisoryResponse::class,
+            'complaint' => Complaint::class,
+            'complaint_category' => ComplaintCategory::class,
+            'complaint_response' => ComplaintResponse::class,
+            'complaint_escalation' => ComplaintEscalation::class,
+            'complaint_committee_decision' => ComplaintCommitteeDecision::class,
+            'complaint_status_history' => ComplaintStatusHistory::class,
             'legal_case' => LegalCase::class,
             'attachment' => Attachment::class,
             'comment' => Comment::class,

@@ -7,6 +7,9 @@ namespace App\Policies;
 use App\Models\AdvisoryRequest;
 use App\Models\AdvisoryResponse;
 use App\Models\Attachment;
+use App\Models\Complaint;
+use App\Models\ComplaintCommitteeDecision;
+use App\Models\ComplaintResponse;
 use App\Models\LegalCase;
 use App\Models\User;
 
@@ -62,6 +65,23 @@ class AttachmentPolicy
             return $user->can('respond', $attachable->advisoryRequest);
         }
 
+        if ($attachable instanceof Complaint) {
+            if ($attachable->isClosed()) {
+                return false;
+            }
+
+            return $user->can('attach', $attachable);
+        }
+
+        if ($attachable instanceof ComplaintResponse) {
+            return $user->can('update', $attachable)
+                || $user->can('respondDepartment', $attachable->complaint);
+        }
+
+        if ($attachable instanceof ComplaintCommitteeDecision) {
+            return $user->can('decideCommittee', $attachable->complaint);
+        }
+
         return false;
     }
 
@@ -94,6 +114,23 @@ class AttachmentPolicy
             return $user->can('respond', $attachable->advisoryRequest);
         }
 
+        if ($attachable instanceof Complaint) {
+            if ($attachable->isClosed()) {
+                return false;
+            }
+
+            return $user->can('attach', $attachable);
+        }
+
+        if ($attachable instanceof ComplaintResponse) {
+            return $user->can('update', $attachable)
+                || $user->can('respondDepartment', $attachable->complaint);
+        }
+
+        if ($attachable instanceof ComplaintCommitteeDecision) {
+            return $user->can('decideCommittee', $attachable->complaint);
+        }
+
         return false;
     }
 
@@ -107,6 +144,14 @@ class AttachmentPolicy
 
         if ($attachable instanceof AdvisoryResponse) {
             return $user->can('view', $attachable->advisoryRequest);
+        }
+
+        if ($attachable instanceof Complaint) {
+            return $user->can('view', $attachable);
+        }
+
+        if ($attachable instanceof ComplaintResponse || $attachable instanceof ComplaintCommitteeDecision) {
+            return $user->can('view', $attachable->complaint);
         }
 
         return false;

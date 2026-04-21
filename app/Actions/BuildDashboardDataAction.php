@@ -7,6 +7,7 @@ namespace App\Actions;
 use App\Enums\AdvisoryRequestStatus;
 use App\Enums\CaseStatus;
 use App\Models\AdvisoryRequest;
+use App\Models\Complaint;
 use App\Models\LegalCase;
 use App\Models\User;
 use Illuminate\Support\Collection;
@@ -20,6 +21,14 @@ class BuildDashboardDataAction
     {
         $advisoryQuery = AdvisoryRequest::query()->visibleTo($user);
         $caseQuery = LegalCase::query()->visibleTo($user);
+        $complaintQuery = $user->canAnyPermissions([
+            'complaints.view',
+            'complaints.view_all',
+            'complaints.view_department',
+            'complaints.view_own',
+        ])
+            ? Complaint::query()->visibleTo($user)
+            : Complaint::query()->whereRaw('1 = 0');
 
         return [
             'role_context' => $this->roleContext($user),
@@ -63,6 +72,12 @@ class BuildDashboardDataAction
                         ->whereMonth('completed_at', now()->month)
                         ->whereYear('completed_at', now()->year)
                         ->count(),
+                'open_complaints' => (clone $complaintQuery)
+                    ->whereNotIn('status', ['resolved', 'closed'])
+                    ->count(),
+                'escalated_complaints' => (clone $complaintQuery)
+                    ->where('is_escalated', true)
+                    ->count(),
                 'monthly_completions' => [
                     'advisory' => (clone $advisoryQuery)
                         ->whereMonth('completed_at', now()->month)
@@ -71,6 +86,10 @@ class BuildDashboardDataAction
                     'cases' => (clone $caseQuery)
                         ->whereMonth('completed_at', now()->month)
                         ->whereYear('completed_at', now()->year)
+                        ->count(),
+                    'complaints' => (clone $complaintQuery)
+                        ->whereMonth('resolved_at', now()->month)
+                        ->whereYear('resolved_at', now()->year)
                         ->count(),
                 ],
             ],
@@ -95,6 +114,11 @@ class BuildDashboardDataAction
                 ->latest('updated_at')
                 ->limit(5)
                 ->get(['id', 'case_number', 'plaintiff', 'status', 'next_hearing_date']),
+            'recent_complaints' => Complaint::query()
+                ->visibleTo($user)
+                ->latest('updated_at')
+                ->limit(5)
+                ->get(['id', 'complaint_number', 'subject', 'status', 'department_response_deadline_at']),
             'recently_updated_matters' => $this->recentMatters($user)->all(),
         ];
     }
@@ -252,8 +276,24 @@ class BuildDashboardDataAction
                 'route' => route('cases.show', $legalCase),
             ]);
 
+        $complaints = Complaint::query()
+            ->visibleTo($user)
+            ->latest('updated_at')
+            ->limit(6)
+            ->get()
+            ->map(fn (Complaint $complaint) => [
+                'id' => $complaint->id,
+                'module' => 'Complaints',
+                'reference' => $complaint->complaint_number,
+                'subject' => $complaint->subject,
+                'status' => $complaint->status?->value,
+                'updated_at' => $complaint->updated_at?->toIso8601String(),
+                'route' => route('complaints.show', $complaint),
+            ]);
+
         return $advisories
             ->concat($cases)
+            ->concat($complaints)
             ->sortByDesc('updated_at')
             ->take(8)
             ->values();
