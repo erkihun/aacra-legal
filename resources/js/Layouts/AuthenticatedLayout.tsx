@@ -13,8 +13,10 @@ type NavItem = {
     key: string;
     label: string;
     routeName?: string;
+    routePatterns?: string[];
     permissions?: string[];
     icon: ReactNode;
+    children?: NavItem[];
 };
 
 type NavSection = {
@@ -25,23 +27,72 @@ type NavSection = {
 
 const collapseStorageKey = 'ldms-sidebar-collapsed';
 
-function navigationIcon(path: string) {
+function navigationIcon(path: string, className = 'h-5 w-5') {
     return (
-        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8">
             <path d={path} strokeLinecap="round" strokeLinejoin="round" />
         </svg>
     );
 }
 
+function itemRoutePatterns(item: NavItem): string[] {
+    return item.routePatterns ?? (item.routeName ? [item.routeName] : []);
+}
+
+function isItemActive(item: NavItem): boolean {
+    return itemRoutePatterns(item).some((pattern) => route().current(pattern)) || (item.children?.some(isItemActive) ?? false);
+}
+
 function SidebarItem({
     item,
     collapsed,
+    depth = 0,
 }: {
     item: NavItem;
     collapsed: boolean;
+    depth?: number;
 }) {
-    const active = item.routeName ? route().current(item.routeName) : false;
+    const active = isItemActive(item);
     const { t } = useI18n();
+    const childItem = depth > 0;
+
+    if ((item.children?.length ?? 0) > 0) {
+        return (
+            <div className="space-y-1.5">
+                <div
+                    className={cn(
+                        'flex items-center gap-3 rounded-2xl px-3 py-3 text-[15px] font-medium transition',
+                        active
+                            ? 'bg-[color:var(--primary-soft)] text-[color:var(--primary)]'
+                            : 'text-[color:var(--muted-strong)] hover:bg-[color:var(--surface-muted)]',
+                        collapsed && 'justify-center px-2',
+                        childItem && 'rounded-xl px-3 py-2.5 text-[14px]',
+                    )}
+                    title={collapsed ? item.label : undefined}
+                >
+                    <span>{item.icon}</span>
+                    {!collapsed ? <span className="flex-1">{item.label}</span> : null}
+                    {!collapsed ? (
+                        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+                            <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                    ) : null}
+                </div>
+
+                <div
+                    className={cn(
+                        'space-y-1',
+                        collapsed ? 'pl-0' : 'border-s border-[color:var(--border)]',
+                        !collapsed && (childItem ? 'ml-4 ps-2.5' : 'ml-6 ps-3'),
+                    )}
+                >
+                    {item.children?.map((child) => (
+                        <SidebarItem key={child.key} item={child} collapsed={collapsed} depth={depth + 1} />
+                    ))}
+                </div>
+            </div>
+        );
+    }
 
     if (!item.routeName) {
         return (
@@ -68,6 +119,7 @@ function SidebarItem({
                     ? 'bg-[var(--primary)] text-white shadow-sm dark:text-slate-950'
                     : 'text-[color:var(--muted-strong)] hover:bg-[color:var(--surface-muted)]',
                 collapsed && 'justify-center px-2',
+                childItem && 'rounded-xl px-3 py-2.5 text-[14px]',
             )}
             title={collapsed ? item.label : undefined}
         >
@@ -197,6 +249,36 @@ export default function AuthenticatedLayout({
         permissions === undefined ||
         permissions.some((permission) => user?.permissions.includes(permission));
 
+    const hasRoute = (routeName?: string): boolean => {
+        if (routeName === undefined) {
+            return false;
+        }
+
+        const router = route() as { has?: (name: string) => boolean };
+
+        return typeof router.has === 'function' ? router.has(routeName) : true;
+    };
+
+    const filterNavItem = (item: NavItem): NavItem | null => {
+        const children = item.children
+            ?.map(filterNavItem)
+            .filter((child): child is NavItem => child !== null);
+
+        if (children !== undefined) {
+            return children.length > 0 ? { ...item, children } : null;
+        }
+
+        if (!hasAnyPermission(item.permissions)) {
+            return null;
+        }
+
+        if (item.routeName !== undefined && !hasRoute(item.routeName)) {
+            return null;
+        }
+
+        return item;
+    };
+
     const sections: NavSection[] = useMemo(
         () => [
             {
@@ -225,13 +307,6 @@ export default function AuthenticatedLayout({
                         icon: navigationIcon('M7 6.5h10A1.5 1.5 0 0 1 18.5 8v8A1.5 1.5 0 0 1 17 17.5H7A1.5 1.5 0 0 1 5.5 16V8A1.5 1.5 0 0 1 7 6.5Zm2 3h6m-6 3h6'),
                     },
                     {
-                        key: 'complaints',
-                        label: 'Complaints',
-                        routeName: 'complaints.index',
-                        permissions: ['complaints.view', 'complaints.view_all', 'complaints.view_department', 'complaints.view_own'],
-                        icon: navigationIcon('M6.5 6.5h11A1.5 1.5 0 0 1 19 8v8a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 16V8a1.5 1.5 0 0 1 1.5-1.5Zm2.5 3h6m-6 3h6m-6 3h4'),
-                    },
-                    {
                         key: 'reports',
                         label: t('navigation.reports'),
                         routeName: 'reports.index',
@@ -251,7 +326,7 @@ export default function AuthenticatedLayout({
                         permissions: ['audit.view', 'audit-logs.view'],
                         icon: navigationIcon('M12 4v8l4.5 2.5M20 12A8 8 0 1 1 4 12a8 8 0 0 1 16 0Z'),
                     },
-                ].filter((item) => hasAnyPermission(item.permissions)),
+                ],
             },
             {
                 key: 'administration',
@@ -279,20 +354,13 @@ export default function AuthenticatedLayout({
                         icon: navigationIcon('M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm8 3.5-2.2.8a6.8 6.8 0 0 1-.5 1.2l1 2.1-2.1 2.1-2.1-1a6.8 6.8 0 0 1-1.2.5L12 20l-1.1-2.2a6.8 6.8 0 0 1-1.2-.5l-2.1 1-2.1-2.1 1-2.1a6.8 6.8 0 0 1-.5-1.2L4 12l2.2-1.1a6.8 6.8 0 0 1 .5-1.2l-1-2.1 2.1-2.1 2.1 1a6.8 6.8 0 0 1 1.2-.5L12 4l1.1 2.2a6.8 6.8 0 0 1 1.2.5l2.1-1 2.1 2.1-1 2.1c.2.4.4.8.5 1.2L20 12Z'),
                     },
                     {
-                        key: 'complaint-settings',
-                        label: 'Complaint Settings',
-                        routeName: 'complaints.settings',
-                        permissions: ['complaints.settings.manage'],
-                        icon: navigationIcon('M7 7.5h10m-10 4h10m-10 4h6'),
-                    },
-                    {
                         key: 'public-posts',
                         label: t('navigation.public_posts'),
                         routeName: 'public-posts.index',
                         permissions: ['public-posts.view', 'public-posts.manage'],
                         icon: navigationIcon('M6 6.5h12v11H6v-11Zm2.5 3h7m-7 3h5'),
                     },
-                ].filter((item) => hasAnyPermission(item.permissions)),
+                ],
             },
             {
                 key: 'master-data',
@@ -327,11 +395,43 @@ export default function AuthenticatedLayout({
                         icon: navigationIcon('M6 7.5h12M6 12h12M6 16.5h7'),
                     },
                     {
-                        key: 'complaint-categories',
-                        label: t('navigation.complaint_categories'),
-                        routeName: 'complaint-categories.index',
-                        permissions: ['complaint-categories.view', 'complaint-categories.manage'],
-                        icon: navigationIcon('M6 7.5h12M6 12h12M6 16.5h7'),
+                        key: 'complaint',
+                        label: t('navigation.complaint'),
+                        icon: navigationIcon('M6.5 6.5h11A1.5 1.5 0 0 1 19 8v8a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 16V8a1.5 1.5 0 0 1 1.5-1.5Zm2.5 3h6m-6 3h6m-6 3h4'),
+                        children: [
+                            {
+                                key: 'complaints',
+                                label: t('navigation.complaints'),
+                                routeName: 'complaints.index',
+                                routePatterns: ['complaints.index', 'complaints.create', 'complaints.edit', 'complaints.show'],
+                                permissions: ['complaints.view', 'complaints.view_all', 'complaints.view_department', 'complaints.view_own'],
+                                icon: navigationIcon('M6.5 6.5h11A1.5 1.5 0 0 1 19 8v8a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 16V8a1.5 1.5 0 0 1 1.5-1.5Zm2.5 3h6m-6 3h6m-6 3h4', 'h-4 w-4'),
+                            },
+                            {
+                                key: 'complaint-categories',
+                                label: t('navigation.complaint_categories'),
+                                routeName: 'complaint-categories.index',
+                                routePatterns: ['complaint-categories.*'],
+                                permissions: ['complaint-categories.view', 'complaint-categories.manage'],
+                                icon: navigationIcon('M6 7.5h12M6 12h12M6 16.5h7', 'h-4 w-4'),
+                            },
+                            {
+                                key: 'complaint-reports',
+                                label: t('navigation.complaint_reports'),
+                                routeName: 'complaints.reports',
+                                routePatterns: ['complaints.reports'],
+                                permissions: ['complaints.reports.view'],
+                                icon: navigationIcon('M6 18.5V9.5m6 9V5.5m6 13v-6', 'h-4 w-4'),
+                            },
+                            {
+                                key: 'complaint-settings',
+                                label: t('navigation.complaint_settings'),
+                                routeName: 'complaints.settings',
+                                routePatterns: ['complaints.settings', 'complaints.settings.update'],
+                                permissions: ['complaints.settings.manage'],
+                                icon: navigationIcon('M7 7.5h10m-10 4h10m-10 4h6', 'h-4 w-4'),
+                            },
+                        ],
                     },
                     {
                         key: 'courts',
@@ -347,10 +447,15 @@ export default function AuthenticatedLayout({
                         permissions: ['legal-case-types.view', 'legal-case-types.manage'],
                         icon: navigationIcon('M8 6.5h8M8 11.5h8M8 16.5h5M5.5 6.5h.01M5.5 11.5h.01M5.5 16.5h.01'),
                     },
-                ].filter((item) => hasAnyPermission(item.permissions)),
+                ],
             },
-        ],
-        [t, unreadNotifications, user],
+        ]
+            .map((section) => ({
+                ...section,
+                items: section.items.map(filterNavItem).filter((item): item is NavItem => item !== null),
+            }))
+            .filter((section) => section.items.length > 0),
+        [filterNavItem, t, unreadNotifications, user],
     );
 
     const sidebarFrameWidthClass = collapsed ? 'lg:w-[7.5rem]' : 'lg:w-[20.75rem]';
