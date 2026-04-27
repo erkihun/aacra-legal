@@ -54,6 +54,8 @@ class ComplaintController extends Controller
                     $builder
                         ->where('complaint_number', 'like', "%{$search}%")
                         ->orWhere('subject', 'like', "%{$search}%")
+                        ->orWhere('complaint_essence', 'like', "%{$search}%")
+                        ->orWhere('requested_resolution', 'like', "%{$search}%")
                         ->orWhere('complainant_name', 'like', "%{$search}%");
                 });
             })
@@ -107,6 +109,8 @@ class ComplaintController extends Controller
             ])->values(),
             'derivedComplainantType' => $derivedComplainantType?->value,
             'authUser' => [
+                'name' => $request->user()?->name,
+                'phone' => $request->user()?->phone,
                 'branch_id' => $request->user()?->branch_id,
                 'department_id' => $request->user()?->department_id,
             ],
@@ -119,7 +123,7 @@ class ComplaintController extends Controller
 
         return Inertia::render('Complaints/Create', [
             'mode' => 'edit',
-            'complaintItem' => ComplaintResource::make($complaint->load(['branch', 'department', 'complainant']))->resolve(),
+            'complaintItem' => ComplaintResource::make($complaint->load(['branch', 'department', 'complainant', 'attachments.uploadedBy']))->resolve(),
             'branches' => Branch::query()->active()->orderBy('name_en')->get(['id', 'name_en', 'name_am']),
             'departments' => Department::query()->active()->orderBy('name_en')->get(['id', 'name_en', 'name_am']),
             'priorityOptions' => collect(PriorityLevel::cases())->map(fn (PriorityLevel $priority) => [
@@ -132,6 +136,8 @@ class ComplaintController extends Controller
             ])->values(),
             'derivedComplainantType' => $complaint->complainant_type?->value ?? $this->derivedComplainantType($request->user())?->value,
             'authUser' => [
+                'name' => $request->user()?->name,
+                'phone' => $request->user()?->phone,
                 'branch_id' => $request->user()?->branch_id,
                 'department_id' => $request->user()?->department_id,
             ],
@@ -151,7 +157,7 @@ class ComplaintController extends Controller
 
     public function update(Complaint $complaint, UpdateComplaintRequest $request, UpdateComplaintAction $action): RedirectResponse
     {
-        $action->execute($complaint, $request->validated());
+        $action->execute($complaint, $request->validated(), $request->file('attachments', []));
 
         return to_route('complaints.show', $complaint)->with('success', __('Complaint updated successfully.'));
     }
@@ -188,6 +194,26 @@ class ComplaintController extends Controller
                 'value' => $outcome->value,
                 'label' => __("complaints.committee_outcomes.{$outcome->value}"),
             ])->values(),
+        ]);
+    }
+
+    public function print(Complaint $complaint): Response
+    {
+        $this->authorize('view', $complaint);
+
+        $complaint->load([
+            'complainant',
+            'branch',
+            'department',
+            'attachments.uploadedBy',
+            'responses.responder',
+            'responses.responderDepartment',
+            'committeeDecisions.committeeActor',
+            'histories.actor',
+        ]);
+
+        return Inertia::render('Complaints/Print', [
+            'complaintItem' => ComplaintResource::make($complaint)->resolve(),
         ]);
     }
 

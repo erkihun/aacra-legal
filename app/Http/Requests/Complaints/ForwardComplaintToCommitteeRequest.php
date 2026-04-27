@@ -23,4 +23,11 @@ class ForwardComplaintToCommitteeRequest extends FormRequest
             'dissatisfaction_reason' => ['required', 'string', 'min:5', 'max:5000'],
         ];
     }
+
+    public function attributes(): array
+    {
+        return [
+            'dissatisfaction_reason' => __('complaints.validation_attributes.dissatisfaction_reason'),
+        ];
+    }
 }

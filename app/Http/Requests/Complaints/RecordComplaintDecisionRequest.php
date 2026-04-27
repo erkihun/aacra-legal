@@ -35,4 +35,16 @@ class RecordComplaintDecisionRequest extends FormRequest
             'attachments.*' => ['file', "mimes:{$extensions}", "max:{$maxSize}"],
         ];
     }
+
+    public function attributes(): array
+    {
+        return [
+            'investigation_notes' => __('complaints.validation_attributes.investigation_notes'),
+            'decision_summary' => __('complaints.validation_attributes.decision_summary'),
+            'decision_detail' => __('complaints.validation_attributes.decision_detail'),
+            'outcome' => __('complaints.validation_attributes.outcome'),
+            'attachments' => __('complaints.validation_attributes.attachments'),
+            'attachments.*' => __('complaints.validation_attributes.attachment_file'),
+        ];
+    }
 }

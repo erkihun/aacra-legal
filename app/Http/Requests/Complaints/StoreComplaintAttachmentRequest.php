@@ -26,4 +26,12 @@ class StoreComplaintAttachmentRequest extends FormRequest
             'attachments.*' => ['file', "mimes:{$extensions}", "max:{$maxSize}"],
         ];
     }
+
+    public function attributes(): array
+    {
+        return [
+            'attachments' => __('complaints.validation_attributes.attachments'),
+            'attachments.*' => __('complaints.validation_attributes.attachment_file'),
+        ];
+    }
 }

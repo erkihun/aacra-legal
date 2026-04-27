@@ -6,6 +6,9 @@ import SectionHeader from '@/Components/Ui/SectionHeader';
 import SurfaceCard from '@/Components/Ui/SurfaceCard';
 import StatusBadge from '@/Components/Ui/StatusBadge';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { useDateFormatter } from '@/lib/dates';
+import { useI18n } from '@/lib/i18n';
+import { localizeName, translateComplaintValue } from '@/Pages/Complaints/shared';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 
 type ComplaintRow = {
@@ -71,6 +74,9 @@ export default function ComplaintIndex({ filters, complaints, statusOptions, com
         date_to: filters.date_to ?? '',
     });
 
+    const { locale, t } = useI18n();
+    const { formatDate } = useDateFormatter();
+
     const applyFilters = () => {
         router.get(route('complaints.index'), form.data, {
             preserveState: true,
@@ -85,62 +91,75 @@ export default function ComplaintIndex({ filters, complaints, statusOptions, com
     return (
         <AuthenticatedLayout
             breadcrumbs={[
-                { label: 'Dashboard', href: route('dashboard') },
-                { label: 'Complaints' },
+                { label: t('navigation.dashboard'), href: route('dashboard') },
+                { label: t('navigation.complaints') },
             ]}
         >
-            <Head title="Complaints" />
+            <Head title={t('navigation.complaints')} />
             <PageContainer>
                 <SectionHeader
-                    eyebrow="Complaint management"
-                    title="Complaints"
-                    description="Track complaint intake, department response deadlines, escalation, and committee review in one place."
+                    eyebrow={t('complaints.index.eyebrow')}
+                    title={t('complaints.index.title')}
+                    description={t('complaints.index.description')}
                     action={
                         <div className="flex gap-2">
-                            {can.viewReports ? <Link href={route('complaints.reports')} className="btn-base btn-secondary focus-ring">Reports</Link> : null}
-                            {can.manageSettings ? <Link href={route('complaints.settings')} className="btn-base btn-secondary focus-ring">Settings</Link> : null}
-                            {can.create ? <Link href={route('complaints.create')} className="btn-base btn-primary focus-ring">New Complaint</Link> : null}
+                            {can.viewReports ? <Link href={route('complaints.reports')} className="btn-base btn-secondary focus-ring">{t('navigation.complaint_reports')}</Link> : null}
+                            {can.manageSettings ? <Link href={route('complaints.settings')} className="btn-base btn-secondary focus-ring">{t('navigation.complaint_settings')}</Link> : null}
+                            {can.create ? <Link href={route('complaints.create')} className="btn-base btn-primary focus-ring">{t('complaints.actions.new')}</Link> : null}
                         </div>
                     }
                 />
 
                 <FiltersToolbar
-                    title="Filters"
+                    title={t('complaints.filters.title')}
                     actions={
                         <>
                             <button type="button" onClick={resetFilters} className="btn-base btn-secondary focus-ring">
-                                Reset
+                                {t('common.reset')}
                             </button>
                             <button type="button" onClick={applyFilters} className="btn-base btn-primary focus-ring">
-                                Apply Filters
+                                {t('common.apply_filters')}
                             </button>
                         </>
                     }
                 >
                     <label className="block space-y-2">
-                        <span className="text-sm font-medium text-[color:var(--text)]">Search</span>
-                        <input className="input-ui" value={form.data.search} onChange={(event) => form.setData('search', event.target.value)} />
+                        <span className="text-sm font-medium text-[color:var(--text)]">{t('complaints.filters.search')}</span>
+                        <input
+                            className="input-ui"
+                            value={form.data.search}
+                            placeholder={t('complaints.filters.search_placeholder')}
+                            onChange={(event) => form.setData('search', event.target.value)}
+                        />
                     </label>
-                    <SelectFilter label="Status" value={form.data.status} onChange={(value) => form.setData('status', value)} options={statusOptions} />
+                    <SelectFilter label={t('common.status')} value={form.data.status} onChange={(value) => form.setData('status', value)} options={statusOptions} allLabel={t('common.all')} />
                     <SelectFilter
-                        label="Branch"
+                        label={t('complaints.filters.branch')}
                         value={form.data.branch_id}
                         onChange={(value) => form.setData('branch_id', value)}
-                        options={branches.map((branch) => ({ value: branch.id, label: branch.name_en }))}
+                        options={branches.map((branch) => ({ value: branch.id, label: localizeName(branch, locale) }))}
+                        allLabel={t('common.all')}
                     />
                     <SelectFilter
-                        label="Department"
+                        label={t('complaints.filters.department')}
                         value={form.data.department_id}
                         onChange={(value) => form.setData('department_id', value)}
-                        options={departments.map((department) => ({ value: department.id, label: department.name_en }))}
+                        options={departments.map((department) => ({ value: department.id, label: localizeName(department, locale) }))}
+                        allLabel={t('common.all')}
                     />
-                    <SelectFilter label="Complainant Type" value={form.data.complainant_type} onChange={(value) => form.setData('complainant_type', value)} options={complainantTypeOptions} />
+                    <SelectFilter
+                        label={t('complaints.filters.complainant_type')}
+                        value={form.data.complainant_type}
+                        onChange={(value) => form.setData('complainant_type', value)}
+                        options={complainantTypeOptions}
+                        allLabel={t('common.all')}
+                    />
                     <label className="block space-y-2">
-                        <span className="text-sm font-medium text-[color:var(--text)]">Date From</span>
+                        <span className="text-sm font-medium text-[color:var(--text)]">{t('complaints.filters.date_from')}</span>
                         <input type="date" className="input-ui" value={form.data.date_from} onChange={(event) => form.setData('date_from', event.target.value)} />
                     </label>
                     <label className="block space-y-2">
-                        <span className="text-sm font-medium text-[color:var(--text)]">Date To</span>
+                        <span className="text-sm font-medium text-[color:var(--text)]">{t('complaints.filters.date_to')}</span>
                         <input type="date" className="input-ui" value={form.data.date_to} onChange={(event) => form.setData('date_to', event.target.value)} />
                     </label>
                 </FiltersToolbar>
@@ -149,34 +168,61 @@ export default function ComplaintIndex({ filters, complaints, statusOptions, com
                     <DataTable
                         rows={complaints.data}
                         rowKey={(row) => row.id}
-                        emptyTitle="No complaints found"
-                        emptyDescription="Adjust the current filters or submit the first complaint."
+                        emptyTitle={t('complaints.empty.index_title')}
+                        emptyDescription={t('complaints.empty.index_description')}
                         columns={[
-                            { key: 'complaint_number', header: 'Complaint No.', cell: (row) => row.complaint_number },
-                            { key: 'subject', header: 'Subject', cell: (row) => <div className="space-y-1"><p>{row.subject}</p>{row.is_overdue ? <span className="text-xs font-semibold uppercase tracking-[0.14em] text-rose-500">Overdue</span> : null}</div> },
-                            { key: 'complainant', header: 'Complainant', cell: (row) => <div className="space-y-1"><p>{row.complainant_name}</p><p className="text-xs text-[color:var(--muted)]">{row.complainant_type.replaceAll('_', ' ')}</p></div> },
-                            { key: 'department', header: 'Department', cell: (row) => row.department?.name_en ?? '-' },
-                            { key: 'branch', header: 'Branch', cell: (row) => row.branch?.name_en ?? '-' },
-                            { key: 'submitted_at', header: 'Submitted / Deadline', cell: (row) => <div className="space-y-1 text-sm"><p>{row.submitted_at ? new Date(row.submitted_at).toLocaleDateString() : '-'}</p><p className="text-[color:var(--muted)]">{row.department_response_deadline_at ? new Date(row.department_response_deadline_at).toLocaleDateString() : '-'}</p></div> },
-                            { key: 'status', header: 'Status', cell: (row) => <StatusBadge value={row.status} /> },
+                            { key: 'complaint_number', header: t('complaints.table.complaint_number'), cell: (row) => row.complaint_number },
+                            {
+                                key: 'subject',
+                                header: t('complaints.table.subject'),
+                                cell: (row) => (
+                                    <div className="space-y-1">
+                                        <p>{row.subject}</p>
+                                        {row.is_overdue ? <span className="text-xs font-semibold uppercase tracking-[0.14em] text-rose-500">{t('complaints.labels.overdue')}</span> : null}
+                                    </div>
+                                ),
+                            },
+                            {
+                                key: 'complainant',
+                                header: t('complaints.table.complainant'),
+                                cell: (row) => (
+                                    <div className="space-y-1">
+                                        <p>{row.complainant_name}</p>
+                                        <p className="text-xs text-[color:var(--muted)]">{translateComplaintValue('complaints.complainant_types', row.complainant_type, t)}</p>
+                                    </div>
+                                ),
+                            },
+                            { key: 'department', header: t('complaints.table.department'), cell: (row) => localizeName(row.department, locale) },
+                            { key: 'branch', header: t('complaints.table.branch'), cell: (row) => localizeName(row.branch, locale) },
+                            {
+                                key: 'submitted_at',
+                                header: t('complaints.table.submitted_deadline'),
+                                cell: (row) => (
+                                    <div className="space-y-1 text-sm">
+                                        <p>{formatDate(row.submitted_at, '-')}</p>
+                                        <p className="text-[color:var(--muted)]">{formatDate(row.department_response_deadline_at, '-')}</p>
+                                    </div>
+                                ),
+                            },
+                            { key: 'status', header: t('common.status'), cell: (row) => <StatusBadge value={row.status} /> },
                         ]}
                         actions={(row) => {
-                            const items = [{ label: 'View', href: route('complaints.show', row.id) }];
+                            const items = [{ label: t('common.view'), href: route('complaints.show', row.id) }];
 
                             if (row.can?.update) {
-                                items.push({ label: 'Edit', href: route('complaints.edit', row.id) });
+                                items.push({ label: t('common.edit'), href: route('complaints.edit', row.id) });
                             }
 
                             if (row.can?.respond_department) {
-                                items.push({ label: 'Respond', href: `${route('complaints.show', row.id)}#department-response` });
+                                items.push({ label: t('complaints.actions.respond'), href: `${route('complaints.show', row.id)}#department-response` });
                             }
 
                             if (row.can?.forward_to_committee) {
-                                items.push({ label: 'Forward', href: `${route('complaints.show', row.id)}#complainant-actions` });
+                                items.push({ label: t('complaints.actions.forward'), href: `${route('complaints.show', row.id)}#complainant-actions` });
                             }
 
                             if (row.can?.review_committee) {
-                                items.push({ label: 'Committee Review', href: `${route('complaints.show', row.id)}#committee-review` });
+                                items.push({ label: t('complaints.actions.committee_review'), href: `${route('complaints.show', row.id)}#committee-review` });
                             }
 
                             return items;
@@ -190,12 +236,24 @@ export default function ComplaintIndex({ filters, complaints, statusOptions, com
     );
 }
 
-function SelectFilter({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: Option[] }) {
+function SelectFilter({
+    label,
+    value,
+    onChange,
+    options,
+    allLabel,
+}: {
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    options: Option[];
+    allLabel: string;
+}) {
     return (
         <label className="block space-y-2">
             <span className="text-sm font-medium text-[color:var(--text)]">{label}</span>
             <select className="select-ui" value={value} onChange={(event) => onChange(event.target.value)}>
-                <option value="">All</option>
+                <option value="">{allLabel}</option>
                 {options.map((option) => (
                     <option key={option.value} value={option.value}>
                         {option.label}

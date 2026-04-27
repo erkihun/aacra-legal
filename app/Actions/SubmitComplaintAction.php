@@ -13,6 +13,7 @@ use App\Notifications\ComplaintSubmittedNotification;
 use App\Services\SystemSettingsService;
 use App\Support\RichTextSanitizer;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class SubmitComplaintAction
 {
@@ -31,19 +32,34 @@ class SubmitComplaintAction
     {
         return DB::transaction(function () use ($attributes, $complainant, $attachments): Complaint {
             $submittedAt = now();
+            $complaintEssence = trim((string) ($attributes['complaint_essence'] ?? ''));
+            $requestedResolution = trim((string) ($attributes['requested_resolution'] ?? ''));
+            $subject = Str::limit(Str::of($complaintEssence)->replaceMatches('/\s+/', ' ')->trim()->value(), 255, '');
+
             $complaint = Complaint::query()->create([
                 'complaint_number' => $this->generateSequenceNumberAction->execute($this->settings->complaintCodePrefix()),
                 'complainant_user_id' => $complainant->getKey(),
                 'branch_id' => $attributes['branch_id'] ?? $complainant->branch_id,
                 'department_id' => $attributes['department_id'],
+                'concerned_employee_name' => $this->nullableString($attributes['concerned_employee_name'] ?? null),
                 'complainant_type' => $this->resolveComplainantType($complainant)->value,
-                'complainant_name' => $complainant->name,
+                'complainant_name' => trim((string) ($attributes['complainant_name'] ?? $complainant->name)),
                 'complainant_email' => $complainant->email,
-                'complainant_phone' => $complainant->phone,
-                'subject' => trim((string) $attributes['subject']),
-                'details' => $this->richTextSanitizer->sanitize((string) $attributes['details']),
+                'complainant_phone' => trim((string) ($attributes['complainant_phone'] ?? $complainant->phone)),
+                'complainant_city' => $this->nullableString($attributes['complainant_city'] ?? null),
+                'complainant_sub_city' => $this->nullableString($attributes['complainant_sub_city'] ?? null),
+                'complainant_woreda' => $this->nullableString($attributes['complainant_woreda'] ?? null),
+                'complainant_house_number' => $this->nullableString($attributes['complainant_house_number'] ?? null),
+                'subject' => $subject,
+                'complaint_essence' => $complaintEssence,
+                'details' => $this->richTextSanitizer->sanitize($complaintEssence),
                 'category' => $attributes['category'] ?? null,
+                'evidence_note' => $this->nullableString($attributes['evidence_note'] ?? null),
+                'requested_resolution' => $requestedResolution,
                 'priority' => $attributes['priority'] ?? null,
+                'incident_date' => $attributes['incident_date'],
+                'incident_sub_city' => $this->nullableString($attributes['incident_sub_city'] ?? null),
+                'incident_woreda' => $this->nullableString($attributes['incident_woreda'] ?? null),
                 'submitted_at' => $submittedAt,
                 'department_response_deadline_at' => $submittedAt->copy()->addDays($this->settings->complaintDeadlineDays()),
                 'status' => ComplaintStatus::ASSIGNED_TO_DEPARTMENT,
@@ -100,5 +116,12 @@ class SubmitComplaintAction
         return $complainant->branch_id !== null
             ? ComplaintComplainantType::BRANCH_EMPLOYEE
             : ComplaintComplainantType::HEAD_OFFICE_EMPLOYEE;
+    }
+
+    private function nullableString(mixed $value): ?string
+    {
+        $normalized = trim((string) $value);
+
+        return $normalized !== '' ? $normalized : null;
     }
 }

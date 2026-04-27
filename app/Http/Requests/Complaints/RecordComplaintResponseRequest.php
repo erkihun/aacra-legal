@@ -31,4 +31,14 @@ class RecordComplaintResponseRequest extends FormRequest
             'attachments.*' => ['file', "mimes:{$extensions}", "max:{$maxSize}"],
         ];
     }
+
+    public function attributes(): array
+    {
+        return [
+            'subject' => __('complaints.validation_attributes.response_subject'),
+            'response_content' => __('complaints.validation_attributes.response_content'),
+            'attachments' => __('complaints.validation_attributes.attachments'),
+            'attachments.*' => __('complaints.validation_attributes.attachment_file'),
+        ];
+    }
 }

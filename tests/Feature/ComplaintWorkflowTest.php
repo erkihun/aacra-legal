@@ -47,6 +47,7 @@ it('loads the complaint create page for authorized complainants', function (): v
             ->where('derivedComplainantType', 'branch_employee')
             ->has('branches')
             ->has('departments')
+            ->where('authUser.name', $complainant->name)
         );
 });
 
@@ -57,26 +58,52 @@ it('allows a complainant to create a complaint and route it to the selected depa
     $department = Department::query()->where('code', 'LEG')->firstOrFail();
 
     $this->actingAs($complainant)
-        ->post(route('complaints.store'), [
-            'branch_id' => $branch->id,
-            'department_id' => $department->id,
-            'subject' => 'Procurement complaint routing',
-            'details' => '<p>The complaint details are long enough for validation.</p>',
-            'category' => 'Procurement',
-            'priority' => 'high',
-            'attachments' => [UploadedFile::fake()->create('complaint.pdf', 20, 'application/pdf')],
-        ])
+        ->post(route('complaints.store'), validComplaintSubmissionData($branch->id, $department->id))
         ->assertRedirect();
 
     $complaint = Complaint::query()->firstOrFail();
 
     expect($complaint->department_id)->toBe($department->id)
         ->and($complaint->branch_id)->toBe($branch->id)
+        ->and($complaint->complainant_name)->toBe('የቅሬታ አቅራቢ ሙሉ ስም')
+        ->and($complaint->complainant_city)->toBe('Addis Ababa')
+        ->and($complaint->complaint_essence)->toContain('የቅሬታው ፍሬ ሀሳብ')
+        ->and($complaint->requested_resolution)->toContain('በአጭሩ ግለጹ')
         ->and($complaint->status)->toBe(ComplaintStatus::ASSIGNED_TO_DEPARTMENT)
         ->and($complaint->attachments()->count())->toBe(1);
 
     Notification::assertSentToTimes($complainant, ComplaintSubmittedNotification::class, 1);
     Notification::assertSentToTimes($departmentUser, ComplaintAssignedToDepartmentNotification::class, 1);
+});
+
+it('validates required institutional complaint fields and preserves submitted values', function (): void {
+    $complainant = createComplaintUser(SystemRole::DEPARTMENT_REQUESTER, 'HR');
+    $branch = Branch::query()->firstOrFail();
+
+    $this->actingAs($complainant)
+        ->from(route('complaints.create'))
+        ->post(route('complaints.store'), [
+            'complainant_name' => 'Existing Input',
+            'complainant_phone' => '',
+            'complainant_city' => 'Addis Ababa',
+            'branch_id' => $branch->id,
+            'department_id' => '',
+            'complaint_essence' => '',
+            'incident_date' => '',
+            'requested_resolution' => '',
+        ])
+        ->assertRedirect(route('complaints.create'))
+        ->assertSessionHasErrors([
+            'complainant_phone',
+            'department_id',
+            'complaint_essence',
+            'incident_date',
+            'requested_resolution',
+        ])
+        ->assertSessionHasInput([
+            'complainant_name' => 'Existing Input',
+            'complainant_city' => 'Addis Ababa',
+        ]);
 });
 
 it('shows complaint index rows according to role visibility', function (): void {
@@ -122,7 +149,19 @@ it('shows complaint index rows according to role visibility', function (): void 
 
 it('loads the complaint show page with complaint details', function (): void {
     $complainant = createComplaintUser(SystemRole::DEPARTMENT_REQUESTER, 'HR');
-    $complaint = complaintFixture($complainant, 'LEG');
+    $complaint = complaintFixture($complainant, 'LEG', [
+        'complainant_city' => 'Addis Ababa',
+        'complainant_sub_city' => 'Bole',
+        'complainant_woreda' => '08',
+        'complainant_house_number' => 'H-201',
+        'complaint_essence' => 'Structured complaint essence for the grievance form.',
+        'incident_date' => now()->subDays(3)->toDateString(),
+        'incident_sub_city' => 'Kirkos',
+        'incident_woreda' => '05',
+        'concerned_employee_name' => 'Case worker name',
+        'evidence_note' => 'Photocopy of service request',
+        'requested_resolution' => 'Provide written corrective action.',
+    ]);
 
     $this->actingAs($complainant)
         ->get(route('complaints.show', $complaint))
@@ -130,6 +169,115 @@ it('loads the complaint show page with complaint details', function (): void {
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Complaints/Show')
             ->where('complaintItem.id', $complaint->id)
+            ->where('complaintItem.complaint_number', $complaint->complaint_number)
+            ->where('complaintItem.concerned_employee_name', 'Case worker name')
+            ->where('complaintItem.requested_resolution', 'Provide written corrective action.')
+        );
+});
+
+it('loads the complaint edit page with existing institutional intake values', function (): void {
+    $complainant = createComplaintUser(SystemRole::DEPARTMENT_REQUESTER, 'HR');
+    $complaint = complaintFixture($complainant, 'LEG', [
+        'complainant_city' => 'Addis Ababa',
+        'complainant_sub_city' => 'Yeka',
+        'complaint_essence' => 'Existing complaint essence for edit mode.',
+        'requested_resolution' => 'Requested remedy text.',
+        'concerned_employee_name' => 'Employee on record',
+    ]);
+
+    $this->actingAs($complainant)
+        ->get(route('complaints.edit', $complaint))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Complaints/Create')
+            ->where('mode', 'edit')
+            ->where('complaintItem.complainant_city', 'Addis Ababa')
+            ->where('complaintItem.concerned_employee_name', 'Employee on record')
+            ->where('complaintItem.requested_resolution', 'Requested remedy text.')
+        );
+});
+
+it('allows the complaint owner to update institutional intake fields', function (): void {
+    $complainant = createComplaintUser(SystemRole::DEPARTMENT_REQUESTER, 'HR');
+    $department = Department::query()->where('code', 'LEG')->firstOrFail();
+    $branch = Branch::query()->firstOrFail();
+    $complaint = complaintFixture($complainant, 'LEG');
+
+    $this->actingAs($complainant)
+        ->patch(route('complaints.update', $complaint), [
+            'complainant_name' => 'Updated Complainant Name',
+            'complainant_city' => 'Addis Ababa',
+            'complainant_sub_city' => 'Lideta',
+            'complainant_woreda' => '04',
+            'complainant_house_number' => 'H-222',
+            'complainant_phone' => '+251911000111',
+            'complaint_essence' => 'Updated institutional complaint essence for the revised intake form.',
+            'incident_date' => now()->subDay()->toDateString(),
+            'branch_id' => $branch->id,
+            'incident_sub_city' => 'Lideta',
+            'incident_woreda' => '04',
+            'department_id' => $department->id,
+            'concerned_employee_name' => 'Updated employee',
+            'evidence_note' => 'Updated evidence note.',
+            'requested_resolution' => 'Updated requested remedy.',
+        ])
+        ->assertRedirect(route('complaints.show', $complaint));
+
+    $complaint->refresh();
+
+    expect($complaint->complainant_name)->toBe('Updated Complainant Name')
+        ->and($complaint->complainant_sub_city)->toBe('Lideta')
+        ->and($complaint->concerned_employee_name)->toBe('Updated employee')
+        ->and($complaint->requested_resolution)->toBe('Updated requested remedy.');
+});
+
+it('denies unauthorized users from editing complaint intake fields', function (): void {
+    $complainant = createComplaintUser(SystemRole::DEPARTMENT_REQUESTER, 'HR');
+    $outsider = createComplaintUser(SystemRole::DEPARTMENT_REQUESTER, 'PROC');
+    $complaint = complaintFixture($complainant, 'LEG');
+
+    $this->actingAs($outsider)
+        ->get(route('complaints.edit', $complaint))
+        ->assertForbidden();
+
+    $this->actingAs($outsider)
+        ->patch(route('complaints.update', $complaint), validComplaintSubmissionData($complaint->branch_id, $complaint->department_id))
+        ->assertForbidden();
+});
+
+it('renders the complaint print view without error', function (): void {
+    $complainant = createComplaintUser(SystemRole::DEPARTMENT_REQUESTER, 'HR');
+    $complaint = complaintFixture($complainant, 'LEG', [
+        'complaint_essence' => 'Printable complaint essence.',
+        'requested_resolution' => 'Printable requested resolution.',
+    ]);
+
+    $this->actingAs($complainant)
+        ->get(route('complaints.print', $complaint))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Complaints/Print')
+            ->where('complaintItem.complaint_number', $complaint->complaint_number)
+        );
+});
+
+it('loads older complaints safely when the new intake fields are empty', function (): void {
+    $complainant = createComplaintUser(SystemRole::DEPARTMENT_REQUESTER, 'HR');
+    $complaint = complaintFixture($complainant, 'LEG', [
+        'complaint_essence' => null,
+        'incident_date' => null,
+        'incident_sub_city' => null,
+        'incident_woreda' => null,
+        'requested_resolution' => null,
+        'evidence_note' => null,
+        'concerned_employee_name' => null,
+    ]);
+
+    $this->actingAs($complainant)
+        ->get(route('complaints.show', $complaint))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Complaints/Show')
             ->where('complaintItem.complaint_number', $complaint->complaint_number)
         );
 });
@@ -335,6 +483,28 @@ function createComplaintUser(SystemRole $role, string $departmentCode): User
     return $user;
 }
 
+function validComplaintSubmissionData(string $branchId, string $departmentId): array
+{
+    return [
+        'complainant_name' => 'የቅሬታ አቅራቢ ሙሉ ስም',
+        'complainant_city' => 'Addis Ababa',
+        'complainant_sub_city' => 'Bole',
+        'complainant_woreda' => '09',
+        'complainant_house_number' => 'H-145',
+        'complainant_phone' => '+251911223344',
+        'complaint_essence' => 'የቅሬታው ፍሬ ሀሳብ ወይም ጥቆማ በበቂ ሁኔታ ተገልጿል።',
+        'incident_date' => now()->subDays(2)->toDateString(),
+        'branch_id' => $branchId,
+        'incident_sub_city' => 'Kirkos',
+        'incident_woreda' => '03',
+        'department_id' => $departmentId,
+        'concerned_employee_name' => 'Concerned service provider',
+        'evidence_note' => 'Photocopy of supporting evidence attached.',
+        'requested_resolution' => 'በአጭሩ ግለጹ የተፈለገው መፍትሄ እንዲሰጥ።',
+        'attachments' => [UploadedFile::fake()->create('complaint.pdf', 20, 'application/pdf')],
+    ];
+}
+
 function complaintFixture(User $complainant, string $departmentCode, array $overrides = []): Complaint
 {
     $department = Department::query()->where('code', $departmentCode)->firstOrFail();
@@ -352,10 +522,21 @@ function complaintFixture(User $complainant, string $departmentCode, array $over
         'complainant_name' => $complainant->name,
         'complainant_email' => $complainant->email,
         'complainant_phone' => $complainant->phone,
+        'complainant_city' => null,
+        'complainant_sub_city' => null,
+        'complainant_woreda' => null,
+        'complainant_house_number' => null,
         'subject' => 'Complaint workflow test matter',
+        'complaint_essence' => 'Structured complaint essence for the workflow tests.',
         'details' => '<p>This complaint contains enough detail for the test workflow.</p>',
         'category' => 'General',
+        'evidence_note' => null,
+        'requested_resolution' => 'Workflow test requested resolution.',
         'priority' => 'medium',
+        'incident_date' => now()->subDay()->toDateString(),
+        'incident_sub_city' => null,
+        'incident_woreda' => null,
+        'concerned_employee_name' => null,
         'submitted_at' => $submittedAt,
         'department_response_deadline_at' => now()->addDays(5),
         'status' => ComplaintStatus::ASSIGNED_TO_DEPARTMENT,

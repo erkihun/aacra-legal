@@ -63,6 +63,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/complaints', [ComplaintController::class, 'index'])->name('complaints.index');
     Route::get('/complaints/create', [ComplaintController::class, 'create'])->name('complaints.create');
     Route::get('/complaints/{complaint}/edit', [ComplaintController::class, 'edit'])->name('complaints.edit');
+    Route::get('/complaints/{complaint}/print', [ComplaintController::class, 'print'])->name('complaints.print');
     Route::get('/complaints/settings', [ComplaintController::class, 'settings'])->name('complaints.settings');
     Route::get('/complaints/reports', [ComplaintReportController::class, 'index'])->name('complaints.reports');
     Route::get('/complaints/{complaint}', [ComplaintController::class, 'show'])->name('complaints.show');
