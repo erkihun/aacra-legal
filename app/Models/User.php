@@ -10,6 +10,7 @@ use App\Enums\SystemRole;
 use App\Enums\TeamType;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Contracts\Translation\HasLocalePreference;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -22,7 +23,7 @@ use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Permission\Traits\HasRoles;
 
-class User extends Authenticatable implements MustVerifyEmail
+class User extends Authenticatable implements MustVerifyEmail, HasLocalePreference
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory;
@@ -279,6 +280,11 @@ class User extends Authenticatable implements MustVerifyEmail
             'cases.create',
             'legal-cases.create',
         ]);
+    }
+
+    public function preferredLocale(): string
+    {
+        return $this->locale?->value ?? config('app.locale');
     }
 
     public function isSuperAdmin(): bool

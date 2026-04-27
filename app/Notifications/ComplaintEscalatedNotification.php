@@ -42,7 +42,7 @@ class ComplaintEscalatedNotification extends Notification implements Deduplicate
     {
         return [
             'type' => 'complaint.escalated',
-            'title' => 'Complaint escalated to committee',
+            'title' => __('complaints.notifications.escalated.title'),
             'complaint_id' => $this->complaint->getKey(),
             'complaint_number' => $this->complaint->complaint_number,
             'subject' => $this->complaint->subject,
@@ -54,9 +54,15 @@ class ComplaintEscalatedNotification extends Notification implements Deduplicate
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject("Complaint escalated: {$this->complaint->complaint_number}")
-            ->line("Complaint {$this->complaint->complaint_number} has been escalated to the complaint committee.")
-            ->line("Subject: {$this->complaint->subject}")
-            ->action('Open complaint', route('complaints.show', $this->complaint));
+            ->subject(__('complaints.notifications.escalated.mail.subject', [
+                'complaint_number' => $this->complaint->complaint_number,
+            ]))
+            ->line(__('complaints.notifications.escalated.mail.line_1', [
+                'complaint_number' => $this->complaint->complaint_number,
+            ]))
+            ->line(__('complaints.notifications.common.subject_line', [
+                'subject' => $this->complaint->subject,
+            ]))
+            ->action(__('complaints.notifications.common.open'), route('complaints.show', $this->complaint));
     }
 }

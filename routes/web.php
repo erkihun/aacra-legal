@@ -62,11 +62,11 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/complaints', [ComplaintController::class, 'index'])->name('complaints.index');
     Route::get('/complaints/create', [ComplaintController::class, 'create'])->name('complaints.create');
-    Route::get('/complaints/{complaint}/edit', [ComplaintController::class, 'edit'])->name('complaints.edit');
-    Route::get('/complaints/{complaint}/print', [ComplaintController::class, 'print'])->name('complaints.print');
+    Route::get('/complaints/{complaint}/edit', [ComplaintController::class, 'edit'])->whereUuid('complaint')->name('complaints.edit');
+    Route::get('/complaints/{complaint}/print', [ComplaintController::class, 'print'])->whereUuid('complaint')->name('complaints.print');
     Route::get('/complaints/settings', [ComplaintController::class, 'settings'])->name('complaints.settings');
     Route::get('/complaints/reports', [ComplaintReportController::class, 'index'])->name('complaints.reports');
-    Route::get('/complaints/{complaint}', [ComplaintController::class, 'show'])->name('complaints.show');
+    Route::get('/complaints/{complaint}', [ComplaintController::class, 'show'])->whereUuid('complaint')->name('complaints.show');
 
     Route::get('/cases', [LegalCaseController::class, 'index'])->name('cases.index');
     Route::get('/cases/create', [LegalCaseController::class, 'create'])->name('cases.create');
@@ -120,11 +120,11 @@ Route::middleware('auth')->group(function () {
         Route::post('/advisory/{advisoryRequest}/attachments', [AdvisoryRequestController::class, 'addAttachment'])->name('advisory.attachments.store');
 
         Route::post('/complaints', [ComplaintController::class, 'store'])->name('complaints.store');
-        Route::patch('/complaints/{complaint}', [ComplaintController::class, 'update'])->name('complaints.update');
-        Route::post('/complaints/{complaint}/response', [ComplaintController::class, 'respondDepartment'])->name('complaints.respond');
-        Route::post('/complaints/{complaint}/forward', [ComplaintController::class, 'forwardToCommittee'])->name('complaints.forward');
-        Route::post('/complaints/{complaint}/decision', [ComplaintController::class, 'recordCommitteeDecision'])->name('complaints.decide');
-        Route::post('/complaints/{complaint}/attachments', [ComplaintController::class, 'addAttachment'])->name('complaints.attachments.store');
+        Route::patch('/complaints/{complaint}', [ComplaintController::class, 'update'])->whereUuid('complaint')->name('complaints.update');
+        Route::post('/complaints/{complaint}/response', [ComplaintController::class, 'respondDepartment'])->whereUuid('complaint')->name('complaints.respond');
+        Route::post('/complaints/{complaint}/forward', [ComplaintController::class, 'forwardToCommittee'])->whereUuid('complaint')->name('complaints.forward');
+        Route::post('/complaints/{complaint}/decision', [ComplaintController::class, 'recordCommitteeDecision'])->whereUuid('complaint')->name('complaints.decide');
+        Route::post('/complaints/{complaint}/attachments', [ComplaintController::class, 'addAttachment'])->whereUuid('complaint')->name('complaints.attachments.store');
         Route::put('/complaints/settings', [ComplaintController::class, 'updateSettings'])->name('complaints.settings.update');
 
         Route::post('/cases', [LegalCaseController::class, 'store'])->name('cases.store');

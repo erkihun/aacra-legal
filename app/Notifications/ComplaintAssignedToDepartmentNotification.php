@@ -40,7 +40,7 @@ class ComplaintAssignedToDepartmentNotification extends Notification implements 
     {
         return [
             'type' => 'complaint.assigned_department',
-            'title' => 'Complaint routed to your department',
+            'title' => __('complaints.notifications.assigned_department.title'),
             'complaint_id' => $this->complaint->getKey(),
             'complaint_number' => $this->complaint->complaint_number,
             'subject' => $this->complaint->subject,
@@ -51,9 +51,15 @@ class ComplaintAssignedToDepartmentNotification extends Notification implements 
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject("Complaint assigned: {$this->complaint->complaint_number}")
-            ->line("Complaint {$this->complaint->complaint_number} has been routed to your department.")
-            ->line("Subject: {$this->complaint->subject}")
-            ->action('Open complaint', route('complaints.show', $this->complaint));
+            ->subject(__('complaints.notifications.assigned_department.mail.subject', [
+                'complaint_number' => $this->complaint->complaint_number,
+            ]))
+            ->line(__('complaints.notifications.assigned_department.mail.line_1', [
+                'complaint_number' => $this->complaint->complaint_number,
+            ]))
+            ->line(__('complaints.notifications.common.subject_line', [
+                'subject' => $this->complaint->subject,
+            ]))
+            ->action(__('complaints.notifications.common.open'), route('complaints.show', $this->complaint));
     }
 }

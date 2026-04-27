@@ -254,12 +254,66 @@ it('renders the complaint print view in the active language', function (): void 
         );
 });
 
+it('renders the complaint settings page fully localized in amharic', function (): void {
+    $admin = complaintLocaleUser(SystemRole::SUPER_ADMIN, 'HR', LocaleCode::AMHARIC);
+
+    $this->actingAs($admin)
+        ->get(route('complaints.settings'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Complaints/Settings')
+            ->where('locale', LocaleCode::AMHARIC->value)
+            ->where('translations', complaintTranslationSubset([
+                'complaints.settings.title' => __('complaints.settings.title', locale: LocaleCode::AMHARIC->value),
+                'complaints.settings.fields.default_response_deadline_days' => __('complaints.settings.fields.default_response_deadline_days', locale: LocaleCode::AMHARIC->value),
+                'complaints.settings.actions.save' => __('complaints.settings.actions.save', locale: LocaleCode::AMHARIC->value),
+            ]))
+        );
+});
+
+it('renders the complaint reports page fully localized in english', function (): void {
+    $admin = complaintLocaleUser(SystemRole::SUPER_ADMIN, 'HR', LocaleCode::ENGLISH);
+
+    $this->actingAs($admin)
+        ->get(route('complaints.reports'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Complaints/Reports/Index')
+            ->where('locale', LocaleCode::ENGLISH->value)
+            ->where('translations', complaintTranslationSubset([
+                'complaints.reports.title' => __('complaints.reports.title', locale: LocaleCode::ENGLISH->value),
+                'complaints.reports.metrics.total' => __('complaints.reports.metrics.total', locale: LocaleCode::ENGLISH->value),
+                'complaints.reports.groups.by_status' => __('complaints.reports.groups.by_status', locale: LocaleCode::ENGLISH->value),
+            ]))
+        );
+});
+
+it('renders the complaint client registration page in the selected language', function (): void {
+    auth()->logout();
+
+    $this->withSession(['locale' => LocaleCode::AMHARIC->value])
+        ->get(route('complaints.register'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Complaints/Auth/Register')
+            ->where('locale', LocaleCode::AMHARIC->value)
+            ->where('translations', complaintTranslationSubset([
+                'complaints.register.title' => __('complaints.register.title', locale: LocaleCode::AMHARIC->value),
+                'complaints.register.heading' => __('complaints.register.heading', locale: LocaleCode::AMHARIC->value),
+                'complaints.register.actions.submit' => __('complaints.register.actions.submit', locale: LocaleCode::AMHARIC->value),
+            ]))
+        );
+});
+
 it('keeps complaint page source free of the known mixed-language complaint literals', function (): void {
     $files = [
         resource_path('js/Pages/Complaints/Create.tsx'),
         resource_path('js/Pages/Complaints/Index.tsx'),
         resource_path('js/Pages/Complaints/Show.tsx'),
         resource_path('js/Pages/Complaints/Print.tsx'),
+        resource_path('js/Pages/Complaints/Settings.tsx'),
+        resource_path('js/Pages/Complaints/Reports/Index.tsx'),
+        resource_path('js/Pages/Complaints/Auth/Register.tsx'),
     ];
 
     $forbiddenLiterals = [
@@ -270,6 +324,12 @@ it('keeps complaint page source free of the known mixed-language complaint liter
         'Apply Filters',
         'New Complaint',
         'Complaint management',
+        'Complaint Client Registration',
+        'Create a complaint account',
+        'Complaint Settings',
+        'Complaint Reports',
+        'Report Filters',
+        'Save Complaint Settings',
     ];
 
     foreach ($files as $file) {

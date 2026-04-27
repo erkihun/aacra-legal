@@ -42,7 +42,7 @@ class ComplaintDepartmentResponseRecordedNotification extends Notification imple
     {
         return [
             'type' => 'complaint.department_response',
-            'title' => 'Department response recorded',
+            'title' => __('complaints.notifications.department_response.title'),
             'complaint_id' => $this->complaint->getKey(),
             'complaint_number' => $this->complaint->complaint_number,
             'response_id' => $this->response->getKey(),
@@ -54,9 +54,15 @@ class ComplaintDepartmentResponseRecordedNotification extends Notification imple
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject("Department response received: {$this->complaint->complaint_number}")
-            ->line("Your complaint {$this->complaint->complaint_number} has received a department response.")
-            ->line("Subject: {$this->complaint->subject}")
-            ->action('Open complaint', route('complaints.show', $this->complaint));
+            ->subject(__('complaints.notifications.department_response.mail.subject', [
+                'complaint_number' => $this->complaint->complaint_number,
+            ]))
+            ->line(__('complaints.notifications.department_response.mail.line_1', [
+                'complaint_number' => $this->complaint->complaint_number,
+            ]))
+            ->line(__('complaints.notifications.common.subject_line', [
+                'subject' => $this->complaint->subject,
+            ]))
+            ->action(__('complaints.notifications.common.open'), route('complaints.show', $this->complaint));
     }
 }

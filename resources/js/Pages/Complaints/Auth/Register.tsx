@@ -1,6 +1,8 @@
 import PrimaryButton from '@/Components/PrimaryButton';
 import FormField from '@/Components/Ui/FormField';
 import GuestLayout from '@/Layouts/GuestLayout';
+import { useI18n } from '@/lib/i18n';
+import { localizeName } from '@/Pages/Complaints/shared';
 import { Head, Link, useForm } from '@inertiajs/react';
 import type { FormEvent } from 'react';
 
@@ -13,6 +15,7 @@ type Props = {
 };
 
 export default function ComplaintRegister({ branches }: Props) {
+    const { locale, t } = useI18n();
     const form = useForm({
         name: '',
         email: '',
@@ -29,36 +32,36 @@ export default function ComplaintRegister({ branches }: Props) {
 
     return (
         <GuestLayout>
-            <Head title="Complaint Client Registration" />
+            <Head title={t('complaints.register.title')} />
 
             <div className="mb-6">
-                <p className="text-xs font-semibold uppercase text-[color:var(--primary)]">Complaint portal</p>
-                <h1 className="mt-2 text-3xl font-semibold text-[color:var(--text)]">Create a complaint account</h1>
+                <p className="text-xs font-semibold uppercase text-[color:var(--primary)]">{t('complaints.register.eyebrow')}</p>
+                <h1 className="mt-2 text-3xl font-semibold text-[color:var(--text)]">{t('complaints.register.heading')}</h1>
                 <p className="mt-3 text-sm leading-7 text-[color:var(--muted-strong)]">
-                    Register as a complaint client to submit a complaint and track responses and committee decisions.
+                    {t('complaints.register.description')}
                 </p>
             </div>
 
             <form onSubmit={submit} className="space-y-5">
                 <div className="grid gap-4 md:grid-cols-2">
-                    <FormField label="Full name" required error={form.errors.name}>
+                    <FormField label={t('complaints.register.fields.name')} required error={form.errors.name}>
                         <input className="input-ui" value={form.data.name} onChange={(event) => form.setData('name', event.target.value)} />
                     </FormField>
-                    <FormField label="Email" required error={form.errors.email}>
+                    <FormField label={t('common.email')} required error={form.errors.email}>
                         <input type="email" className="input-ui" value={form.data.email} onChange={(event) => form.setData('email', event.target.value)} />
                     </FormField>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
-                    <FormField label="Phone" optional error={form.errors.phone}>
+                    <FormField label={t('complaints.register.fields.phone')} optional error={form.errors.phone}>
                         <input className="input-ui" value={form.data.phone} onChange={(event) => form.setData('phone', event.target.value)} />
                     </FormField>
-                    <FormField label="Branch" optional error={form.errors.branch_id}>
+                    <FormField label={t('complaints.register.fields.branch')} optional error={form.errors.branch_id}>
                         <select className="select-ui" value={form.data.branch_id} onChange={(event) => form.setData('branch_id', event.target.value)}>
-                            <option value="">Select branch</option>
+                            <option value="">{t('complaints.register.placeholders.select_branch')}</option>
                             {branches.map((branch) => (
                                 <option key={branch.id} value={branch.id}>
-                                    {branch.name_en}
+                                    {localizeName(branch, locale)}
                                 </option>
                             ))}
                         </select>
@@ -66,10 +69,10 @@ export default function ComplaintRegister({ branches }: Props) {
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
-                    <FormField label="Password" required error={form.errors.password}>
+                    <FormField label={t('auth.password')} required error={form.errors.password}>
                         <input type="password" className="input-ui" value={form.data.password} onChange={(event) => form.setData('password', event.target.value)} />
                     </FormField>
-                    <FormField label="Confirm password" required error={form.errors.password_confirmation}>
+                    <FormField label={t('complaints.register.fields.password_confirmation')} required error={form.errors.password_confirmation}>
                         <input
                             type="password"
                             className="input-ui"
@@ -81,9 +84,9 @@ export default function ComplaintRegister({ branches }: Props) {
 
                 <div className="flex items-center justify-between gap-3 border-t border-[color:var(--border)] pt-5">
                     <Link href={route('login')} className="text-sm font-medium text-[color:var(--primary)] underline">
-                        Already have an account?
+                        {t('complaints.register.actions.login')}
                     </Link>
-                    <PrimaryButton disabled={form.processing}>Create account</PrimaryButton>
+                    <PrimaryButton disabled={form.processing}>{t('complaints.register.actions.submit')}</PrimaryButton>
                 </div>
             </form>
         </GuestLayout>

@@ -42,7 +42,7 @@ class ComplaintCommitteeDecisionIssuedNotification extends Notification implemen
     {
         return [
             'type' => 'complaint.committee_decision',
-            'title' => 'Complaint committee decision issued',
+            'title' => __('complaints.notifications.committee_decision.title'),
             'complaint_id' => $this->complaint->getKey(),
             'complaint_number' => $this->complaint->complaint_number,
             'decision_id' => $this->decision->getKey(),
@@ -55,10 +55,20 @@ class ComplaintCommitteeDecisionIssuedNotification extends Notification implemen
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject("Committee decision issued: {$this->complaint->complaint_number}")
-            ->line("The complaint committee has issued a final decision for complaint {$this->complaint->complaint_number}.")
-            ->line("Subject: {$this->complaint->subject}")
-            ->line("Outcome: ".($this->decision->outcome?->value ?? ''))
-            ->action('Open complaint', route('complaints.show', $this->complaint));
+            ->subject(__('complaints.notifications.committee_decision.mail.subject', [
+                'complaint_number' => $this->complaint->complaint_number,
+            ]))
+            ->line(__('complaints.notifications.committee_decision.mail.line_1', [
+                'complaint_number' => $this->complaint->complaint_number,
+            ]))
+            ->line(__('complaints.notifications.common.subject_line', [
+                'subject' => $this->complaint->subject,
+            ]))
+            ->line(__('complaints.notifications.committee_decision.mail.outcome_line', [
+                'outcome' => $this->decision->outcome !== null
+                    ? __("complaints.committee_outcomes.{$this->decision->outcome->value}")
+                    : '-',
+            ]))
+            ->action(__('complaints.notifications.common.open'), route('complaints.show', $this->complaint));
     }
 }

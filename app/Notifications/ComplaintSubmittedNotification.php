@@ -39,7 +39,7 @@ class ComplaintSubmittedNotification extends Notification implements Deduplicate
     {
         return [
             'type' => 'complaint.submitted',
-            'title' => 'Complaint submitted',
+            'title' => __('complaints.notifications.submitted.title'),
             'complaint_id' => $this->complaint->getKey(),
             'complaint_number' => $this->complaint->complaint_number,
             'subject' => $this->complaint->subject,
@@ -50,9 +50,15 @@ class ComplaintSubmittedNotification extends Notification implements Deduplicate
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject("Complaint submitted: {$this->complaint->complaint_number}")
-            ->line("Your complaint {$this->complaint->complaint_number} has been submitted successfully.")
-            ->line("Subject: {$this->complaint->subject}")
-            ->action('Open complaint', route('complaints.show', $this->complaint));
+            ->subject(__('complaints.notifications.submitted.mail.subject', [
+                'complaint_number' => $this->complaint->complaint_number,
+            ]))
+            ->line(__('complaints.notifications.submitted.mail.line_1', [
+                'complaint_number' => $this->complaint->complaint_number,
+            ]))
+            ->line(__('complaints.notifications.common.subject_line', [
+                'subject' => $this->complaint->subject,
+            ]))
+            ->action(__('complaints.notifications.common.open'), route('complaints.show', $this->complaint));
     }
 }

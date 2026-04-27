@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Actions;
 
 use App\Enums\ComplaintStatus;
+use App\Enums\ComplaintComplainantType;
 use App\Models\Branch;
 use App\Models\Complaint;
 use App\Models\Department;
 use App\Models\User;
-use Illuminate\Support\Collection;
 
 class BuildComplaintReportsDataAction
 {
@@ -98,12 +98,26 @@ class BuildComplaintReportsDataAction
                         ? ($complaint->department?->name_am ?: $complaint->department?->name_en)
                         : ($complaint->department?->name_en ?: $complaint->department?->name_am),
                     'complainant_type' => $complaint->complainant_type?->value,
+                    'complainant_type_label' => $complaint->complainant_type !== null
+                        ? __("complaints.complainant_types.{$complaint->complainant_type->value}")
+                        : __('common.not_available'),
                     'status' => $complaint->status?->value,
+                    'status_label' => $complaint->status !== null
+                        ? __("status.{$complaint->status->value}")
+                        : __('common.not_available'),
                     'submitted_at' => $complaint->submitted_at?->toDateString(),
                     'deadline' => $complaint->department_response_deadline_at?->toDateString(),
                 ])
                 ->all(),
             'filterOptions' => [
+                'statuses' => collect(ComplaintStatus::cases())->map(fn (ComplaintStatus $status) => [
+                    'value' => $status->value,
+                    'label' => __("status.{$status->value}"),
+                ])->values(),
+                'complainantTypes' => collect(ComplaintComplainantType::cases())->map(fn (ComplaintComplainantType $type) => [
+                    'value' => $type->value,
+                    'label' => __("complaints.complainant_types.{$type->value}"),
+                ])->values(),
                 'branches' => Branch::query()->active()->orderBy('name_en')->get(['id', 'name_en', 'name_am'])->map(fn (Branch $branch) => [
                     'value' => $branch->id,
                     'label' => app()->getLocale() === 'am' ? ($branch->name_am ?: $branch->name_en) : ($branch->name_en ?: $branch->name_am),
