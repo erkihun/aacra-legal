@@ -3,6 +3,7 @@ export interface User {
     name: string;
     email: string;
     phone?: string | null;
+    job_title?: string | null;
     locale?: string;
     avatar_url?: string | null;
     signature_url?: string | null;

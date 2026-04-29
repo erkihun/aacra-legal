@@ -44,6 +44,7 @@ class HandleInertiaRequests extends Middleware
                     'name' => $user->name,
                     'email' => $user->email,
                     'phone' => $user->phone,
+                    'job_title' => $user->job_title,
                     'locale' => $user->locale?->value,
                     'avatar_url' => $user->avatarUrl(),
                     'signature_url' => $user->signatureUrl(),

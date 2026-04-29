@@ -19,6 +19,8 @@ class BrandingAssetController extends Controller
             || ! (
                 str_starts_with($normalizedPath, 'branding/')
                 || str_starts_with($normalizedPath, 'public-posts/')
+                || str_starts_with($normalizedPath, 'letter-templates/')
+                || str_starts_with($normalizedPath, 'letters/')
                 || str_starts_with($normalizedPath, 'users/')
             )
         ) {

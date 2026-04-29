@@ -20,6 +20,8 @@ use App\Models\Court;
 use App\Models\Department;
 use App\Models\LegalCase;
 use App\Models\LegalCaseType;
+use App\Models\Letter;
+use App\Models\LetterTemplate;
 use App\Models\PublicPost;
 use App\Models\Branch;
 use App\Models\SystemSetting;
@@ -76,6 +78,8 @@ class AppServiceProvider extends ServiceProvider
             'court' => Court::class,
             'case_type' => CaseType::class,
             'legal_case_type' => LegalCaseType::class,
+            'letter' => Letter::class,
+            'letter_template' => LetterTemplate::class,
             'advisory_request' => AdvisoryRequest::class,
             'advisory_response' => AdvisoryResponse::class,
             'complaint' => Complaint::class,

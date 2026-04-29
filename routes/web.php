@@ -8,6 +8,8 @@ use App\Http\Controllers\Admin\ComplaintCategoryController as AdminComplaintCate
 use App\Http\Controllers\Admin\CourtController as AdminCourtController;
 use App\Http\Controllers\Admin\DepartmentController as AdminDepartmentController;
 use App\Http\Controllers\Admin\LegalCaseTypeController as AdminLegalCaseTypeController;
+use App\Http\Controllers\Admin\LetterController as AdminLetterController;
+use App\Http\Controllers\Admin\LetterTemplateController as AdminLetterTemplateController;
 use App\Http\Controllers\Admin\PublicPostController as AdminPublicPostController;
 use App\Http\Controllers\Admin\RoleManagementController;
 use App\Http\Controllers\Admin\SystemSettingsController;
@@ -72,6 +74,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/cases/create', [LegalCaseController::class, 'create'])->name('cases.create');
     Route::get('/cases/{legalCase}/edit', [LegalCaseController::class, 'edit'])->name('cases.edit');
     Route::get('/cases/{legalCase}', [LegalCaseController::class, 'show'])->name('cases.show');
+    Route::get('/letters', [AdminLetterController::class, 'index'])->name('letters.index');
+    Route::get('/letters/create', [AdminLetterController::class, 'create'])->name('letters.create');
+    Route::get('/letters/{letter}/edit', [AdminLetterController::class, 'edit'])->whereUuid('letter')->name('letters.edit');
+    Route::get('/letters/{letter}/preview', [AdminLetterController::class, 'preview'])->whereUuid('letter')->name('letters.preview');
+    Route::get('/letters/{letter}/print', [AdminLetterController::class, 'print'])->whereUuid('letter')->name('letters.print');
+    Route::get('/letters/{letter}', [AdminLetterController::class, 'show'])->whereUuid('letter')->name('letters.show');
 
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
     Route::get('/reports/export/{reportType}', [ReportController::class, 'export'])->name('reports.export');
@@ -98,6 +106,12 @@ Route::middleware('auth')->group(function () {
     Route::resource('courts', AdminCourtController::class)->except([]);
     Route::resource('legal-case-types', AdminLegalCaseTypeController::class)
         ->parameters(['legal-case-types' => 'caseType'])
+        ->except([]);
+    Route::get('/letter-templates/{letterTemplate}/preview', [AdminLetterTemplateController::class, 'preview'])->name('letter-templates.preview');
+    Route::get('/letter-templates/{letterTemplate}/print', [AdminLetterTemplateController::class, 'print'])->name('letter-templates.print');
+    Route::post('/letter-templates/{letterTemplate}/duplicate', [AdminLetterTemplateController::class, 'duplicate'])->name('letter-templates.duplicate');
+    Route::resource('letter-templates', AdminLetterTemplateController::class)
+        ->parameters(['letter-templates' => 'letterTemplate'])
         ->except([]);
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -126,6 +140,9 @@ Route::middleware('auth')->group(function () {
         Route::post('/complaints/{complaint}/decision', [ComplaintController::class, 'recordCommitteeDecision'])->whereUuid('complaint')->name('complaints.decide');
         Route::post('/complaints/{complaint}/attachments', [ComplaintController::class, 'addAttachment'])->whereUuid('complaint')->name('complaints.attachments.store');
         Route::put('/complaints/settings', [ComplaintController::class, 'updateSettings'])->name('complaints.settings.update');
+        Route::post('/letters', [AdminLetterController::class, 'store'])->name('letters.store');
+        Route::patch('/letters/{letter}', [AdminLetterController::class, 'update'])->whereUuid('letter')->name('letters.update');
+        Route::delete('/letters/{letter}', [AdminLetterController::class, 'destroy'])->whereUuid('letter')->name('letters.destroy');
 
         Route::post('/cases', [LegalCaseController::class, 'store'])->name('cases.store');
         Route::patch('/cases/{legalCase}', [LegalCaseController::class, 'update'])->name('cases.update');

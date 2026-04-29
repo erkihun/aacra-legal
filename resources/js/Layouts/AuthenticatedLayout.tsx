@@ -307,6 +307,43 @@ export default function AuthenticatedLayout({
                         icon: navigationIcon('M7 6.5h10A1.5 1.5 0 0 1 18.5 8v8A1.5 1.5 0 0 1 17 17.5H7A1.5 1.5 0 0 1 5.5 16V8A1.5 1.5 0 0 1 7 6.5Zm2 3h6m-6 3h6'),
                     },
                     {
+                        key: 'letter',
+                        label: t('navigation.letter'),
+                        icon: navigationIcon('M7 5.5h8l3.5 3.5v9A1.5 1.5 0 0 1 17 19.5H7A1.5 1.5 0 0 1 5.5 18V7A1.5 1.5 0 0 1 7 5.5Zm7 0V9h3.5'),
+                        children: [
+                            {
+                                key: 'letters',
+                                label: t('navigation.letters'),
+                                routeName: 'letters.index',
+                                routePatterns: ['letters.*'],
+                                permissions: ['letters.view', 'letters.create', 'letters.update', 'letters.delete', 'letters.preview', 'letters.print'],
+                                icon: navigationIcon('M7 5.5h8l3.5 3.5v9A1.5 1.5 0 0 1 17 19.5H7A1.5 1.5 0 0 1 5.5 18V7A1.5 1.5 0 0 1 7 5.5Zm7 0V9h3.5', 'h-4 w-4'),
+                            },
+                            {
+                                key: 'letter-templates',
+                                label: t('navigation.letter_templates'),
+                                routeName: 'letter-templates.index',
+                                routePatterns: [
+                                    'letter-templates.index',
+                                    'letter-templates.create',
+                                    'letter-templates.show',
+                                    'letter-templates.edit',
+                                    'letter-templates.preview',
+                                    'letter-templates.print',
+                                ],
+                                permissions: [
+                                    'letter_templates.view',
+                                    'letter_templates.create',
+                                    'letter_templates.update',
+                                    'letter_templates.delete',
+                                    'letter_templates.preview',
+                                    'letter_templates.print',
+                                ],
+                                icon: navigationIcon('M6.5 7.5h11m-11 4h11m-11 4h7', 'h-4 w-4'),
+                            },
+                        ],
+                    },
+                    {
                         key: 'reports',
                         label: t('navigation.reports'),
                         routeName: 'reports.index',
