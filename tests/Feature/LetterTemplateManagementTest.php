@@ -96,11 +96,51 @@ it('allows an authorized user to update template numbering settings', function (
         ->and($template->is_active)->toBeFalse();
 });
 
+it('reloads saved footer margin values on the template edit page', function (): void {
+    $user = createLetterTemplateUser(['letter_templates.view', 'letter_templates.update']);
+    $template = createLetterTemplate([
+        'layout_config' => [
+            'margin_top_mm' => 20,
+            'margin_right_mm' => 18,
+            'margin_bottom_mm' => 20,
+            'margin_left_mm' => 18,
+            'header_top_margin_mm' => 4,
+            'header_bottom_spacing_mm' => 6,
+            'footer_top_spacing_mm' => 9,
+            'footer_bottom_margin_mm' => 7,
+            'content_top_margin_mm' => 18,
+            'content_bottom_margin_mm' => 16,
+        ],
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('letter-templates.edit', $template))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Admin/LetterTemplates/Form')
+            ->where('templateItem.id', $template->id)
+            ->where('templateItem.layout_config.footer_top_spacing_mm', 9)
+            ->where('templateItem.layout_config.footer_bottom_margin_mm', 7)
+        );
+});
+
 it('renders the template preview and print pages for authorized users', function (): void {
     $user = createLetterTemplateUser(['letter_templates.view', 'letter_templates.preview', 'letter_templates.print']);
     $template = createLetterTemplate([
         'header_image_path' => 'letter-templates/preview/header.png',
         'footer_image_path' => 'letter-templates/preview/footer.png',
+        'layout_config' => [
+            'margin_top_mm' => 20,
+            'margin_right_mm' => 18,
+            'margin_bottom_mm' => 20,
+            'margin_left_mm' => 18,
+            'header_top_margin_mm' => 3,
+            'header_bottom_spacing_mm' => 5,
+            'footer_top_spacing_mm' => 8,
+            'footer_bottom_margin_mm' => 6,
+            'content_top_margin_mm' => 18,
+            'content_bottom_margin_mm' => 14,
+        ],
     ]);
 
     $this->actingAs($user)
@@ -111,6 +151,8 @@ it('renders the template preview and print pages for authorized users', function
             ->where('templateItem.id', $template->id)
             ->where('templateItem.header_image_url', route('branding-assets.show', ['path' => 'letter-templates/preview/header.png']))
             ->where('templateItem.footer_image_url', route('branding-assets.show', ['path' => 'letter-templates/preview/footer.png']))
+            ->where('templateItem.layout_config.footer_top_spacing_mm', 8)
+            ->where('templateItem.layout_config.footer_bottom_margin_mm', 6)
         );
 
     $this->actingAs($user)
@@ -119,6 +161,8 @@ it('renders the template preview and print pages for authorized users', function
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Admin/LetterTemplates/Print')
             ->where('templateItem.id', $template->id)
+            ->where('templateItem.layout_config.footer_top_spacing_mm', 8)
+            ->where('templateItem.layout_config.footer_bottom_margin_mm', 6)
         );
 });
 
@@ -216,6 +260,11 @@ it('keeps the shared letter renderer contracts for repeated pages and first-last
         ->toContain('breakAfter')
         ->toContain('index === 0')
         ->toContain('index === pages.length - 1')
+        ->toContain('height: metrics.pageMinHeightStyle')
+        ->toContain('headerSlotHeightMm')
+        ->toContain('footerSlotHeightMm')
+        ->toContain('gridTemplateRows: `${metrics.headerTopMarginMm}mm ${metrics.headerHeightMm}mm ${metrics.headerBottomSpacingMm}mm`')
+        ->toContain('gridTemplateRows: `${metrics.footerTopSpacingMm}mm ${metrics.footerHeightMm}mm ${metrics.footerBottomMarginMm}mm`')
         ->toContain('header_top_margin_mm')
         ->toContain('footer_bottom_margin_mm')
         ->toContain('content_top_margin_mm')

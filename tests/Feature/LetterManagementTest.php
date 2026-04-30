@@ -282,8 +282,34 @@ it('renders old letters safely without signer snapshots', function (): void {
 
 it('renders the letter preview and print pages for authorized users', function (): void {
     $user = createLetterUser(['letters.view', 'letters.preview', 'letters.print']);
-    $template = createLetterTemplateForLetters();
-    $letter = createLetterForTesting($template);
+    $template = createLetterTemplateForLetters([
+        'layout_config' => [
+            'margin_top_mm' => 20,
+            'margin_right_mm' => 18,
+            'margin_bottom_mm' => 20,
+            'margin_left_mm' => 18,
+            'header_top_margin_mm' => 2,
+            'header_bottom_spacing_mm' => 5,
+            'footer_top_spacing_mm' => 9,
+            'footer_bottom_margin_mm' => 7,
+            'content_top_margin_mm' => 18,
+            'content_bottom_margin_mm' => 14,
+        ],
+    ]);
+    $letter = createLetterForTesting($template, [
+        'layout_config' => [
+            'margin_top_mm' => 20,
+            'margin_right_mm' => 18,
+            'margin_bottom_mm' => 20,
+            'margin_left_mm' => 18,
+            'header_top_margin_mm' => 2,
+            'header_bottom_spacing_mm' => 5,
+            'footer_top_spacing_mm' => 9,
+            'footer_bottom_margin_mm' => 7,
+            'content_top_margin_mm' => 18,
+            'content_bottom_margin_mm' => 14,
+        ],
+    ]);
 
     $this->actingAs($user)
         ->get(route('letters.preview', $letter))
@@ -293,6 +319,8 @@ it('renders the letter preview and print pages for authorized users', function (
             ->where('letterItem.id', $letter->id)
             ->where('letterItem.header_image_url', route('branding-assets.show', ['path' => $template->header_image_path]))
             ->where('letterItem.footer_image_url', route('branding-assets.show', ['path' => $template->footer_image_path]))
+            ->where('letterItem.layout_config.footer_top_spacing_mm', 9)
+            ->where('letterItem.layout_config.footer_bottom_margin_mm', 7)
         );
 
     $this->actingAs($user)
@@ -301,6 +329,8 @@ it('renders the letter preview and print pages for authorized users', function (
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Admin/Letters/Print')
             ->where('letterItem.id', $letter->id)
+            ->where('letterItem.layout_config.footer_top_spacing_mm', 9)
+            ->where('letterItem.layout_config.footer_bottom_margin_mm', 7)
         );
 });
 
@@ -328,6 +358,9 @@ it('keeps the shared letter renderer contracts for centered subject, right signa
         ->toContain('index === 0')
         ->toContain('index === pages.length - 1')
         ->toContain('pageBreakAfter')
+        ->toContain('height: metrics.pageMinHeightStyle')
+        ->toContain('footerSlotHeightMm')
+        ->toContain('gridTemplateRows: `${metrics.footerTopSpacingMm}mm ${metrics.footerHeightMm}mm ${metrics.footerBottomMarginMm}mm`')
         ->toContain('border-y border-slate-300 py-3 text-center')
         ->toContain('items-end space-y-4 pt-6 text-right')
         ->toContain('list-disc space-y-2 pl-6');

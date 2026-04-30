@@ -182,6 +182,8 @@ type LetterLayoutMetrics = {
     footerBottomMarginMm: number;
     headerHeightMm: number;
     footerHeightMm: number;
+    headerSlotHeightMm: number;
+    footerSlotHeightMm: number;
     pageWidthStyle: string;
     pageMinHeightStyle: string;
     pageContentWidthPx: number;
@@ -438,15 +440,13 @@ function buildLayoutMetrics(renderable: LetterRenderable): LetterLayoutMetrics {
     const footerBottomMarginMm = hasFooter ? normalized.footerBottomMarginMm : 0;
     const headerHeightMm = renderable.header_image_url ? 30 : 0;
     const footerHeightMm = renderable.footer_image_url ? 22 : 0;
+    const headerSlotHeightMm = headerTopMarginMm + headerHeightMm + headerBottomSpacingMm;
+    const footerSlotHeightMm = footerTopSpacingMm + footerHeightMm + footerBottomMarginMm;
     const pageContentWidthPx = mmToPx(sheetWidthMm - normalized.leftMarginMm - normalized.rightMarginMm);
     const pageContentHeightPx = mmToPx(
         sheetHeightMm
-            - headerTopMarginMm
-            - headerHeightMm
-            - headerBottomSpacingMm
-            - footerTopSpacingMm
-            - footerHeightMm
-            - footerBottomMarginMm
+            - headerSlotHeightMm
+            - footerSlotHeightMm
             - normalized.contentTopMarginMm
             - normalized.contentBottomMarginMm,
     );
@@ -464,6 +464,8 @@ function buildLayoutMetrics(renderable: LetterRenderable): LetterLayoutMetrics {
         footerBottomMarginMm,
         headerHeightMm,
         footerHeightMm,
+        headerSlotHeightMm,
+        footerSlotHeightMm,
         pageWidthStyle: `${sheetWidthMm}mm`,
         pageMinHeightStyle: `${sheetHeightMm}mm`,
         pageContentWidthPx,
@@ -882,6 +884,7 @@ export function LetterSheet({
                             className="mx-auto bg-white text-slate-900 shadow-sm ring-1 ring-slate-200 print:shadow-none print:ring-0"
                             style={{
                                 width: metrics.pageWidthStyle,
+                                height: metrics.pageMinHeightStyle,
                                 minHeight: metrics.pageMinHeightStyle,
                                 pageBreakAfter: index === pages.length - 1 ? 'auto' : 'always',
                                 breakAfter: index === pages.length - 1 ? 'auto' : 'page',
@@ -890,16 +893,28 @@ export function LetterSheet({
                             <div
                                 className="grid h-full"
                                 style={{
+                                    height: metrics.pageMinHeightStyle,
                                     minHeight: metrics.pageMinHeightStyle,
-                                    gridTemplateRows: `${metrics.headerTopMarginMm + metrics.headerHeightMm + metrics.headerBottomSpacingMm}mm minmax(0, 1fr) ${metrics.footerTopSpacingMm + metrics.footerHeightMm + metrics.footerBottomMarginMm}mm`,
+                                    gridTemplateRows: `${metrics.headerSlotHeightMm}mm minmax(0, 1fr) ${metrics.footerSlotHeightMm}mm`,
                                     paddingLeft: `${metrics.leftMarginMm}mm`,
                                     paddingRight: `${metrics.rightMarginMm}mm`,
                                 }}
                             >
-                                <div className="flex items-start border-b border-slate-200" data-letter-slot="header" style={{ paddingTop: `${metrics.headerTopMarginMm}mm`, paddingBottom: `${metrics.headerBottomSpacingMm}mm` }}>
-                                    {renderable.header_image_url ? (
-                                        <img src={renderable.header_image_url} alt="" className="block h-full max-h-full w-full object-contain object-top" />
-                                    ) : null}
+                                <div
+                                    className="grid border-b border-slate-200"
+                                    data-letter-slot="header"
+                                    style={{
+                                        minHeight: `${metrics.headerSlotHeightMm}mm`,
+                                        gridTemplateRows: `${metrics.headerTopMarginMm}mm ${metrics.headerHeightMm}mm ${metrics.headerBottomSpacingMm}mm`,
+                                    }}
+                                >
+                                    <div aria-hidden="true" />
+                                    <div className="flex items-start overflow-hidden">
+                                        {renderable.header_image_url ? (
+                                            <img src={renderable.header_image_url} alt="" className="block max-h-full w-full object-contain object-top" />
+                                        ) : null}
+                                    </div>
+                                    <div aria-hidden="true" />
                                 </div>
 
                                 <div
@@ -931,10 +946,21 @@ export function LetterSheet({
                                     )) : null}
                                 </div>
 
-                                <div className="flex items-end border-t border-slate-200" data-letter-slot="footer" style={{ paddingTop: `${metrics.footerTopSpacingMm}mm`, paddingBottom: `${metrics.footerBottomMarginMm}mm` }}>
-                                    {renderable.footer_image_url ? (
-                                        <img src={renderable.footer_image_url} alt="" className="block h-full max-h-full w-full object-contain object-bottom" />
-                                    ) : null}
+                                <div
+                                    className="grid border-t border-slate-200"
+                                    data-letter-slot="footer"
+                                    style={{
+                                        minHeight: `${metrics.footerSlotHeightMm}mm`,
+                                        gridTemplateRows: `${metrics.footerTopSpacingMm}mm ${metrics.footerHeightMm}mm ${metrics.footerBottomMarginMm}mm`,
+                                    }}
+                                >
+                                    <div aria-hidden="true" />
+                                    <div className="flex items-end overflow-hidden">
+                                        {renderable.footer_image_url ? (
+                                            <img src={renderable.footer_image_url} alt="" className="block max-h-full w-full object-contain object-bottom" />
+                                        ) : null}
+                                    </div>
+                                    <div aria-hidden="true" />
                                 </div>
                             </div>
                         </div>
