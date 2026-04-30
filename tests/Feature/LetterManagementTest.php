@@ -69,6 +69,8 @@ it('allows an authorized user to create a letter from a selected template', func
             'header_top_margin_mm' => 3,
             'header_bottom_spacing_mm' => 7,
             'footer_top_spacing_mm' => 6,
+            'footer_left_margin_mm' => 9,
+            'footer_right_margin_mm' => 11,
             'footer_bottom_margin_mm' => 4,
             'content_top_margin_mm' => 17,
             'content_bottom_margin_mm' => 14,
@@ -121,6 +123,8 @@ it('allows an authorized user to create a letter from a selected template', func
         ->and($letter->layout_config['header_top_margin_mm'])->toBe(3)
         ->and($letter->layout_config['header_bottom_spacing_mm'])->toBe(7)
         ->and($letter->layout_config['footer_top_spacing_mm'])->toBe(6)
+        ->and($letter->layout_config['footer_left_margin_mm'])->toBe(9)
+        ->and($letter->layout_config['footer_right_margin_mm'])->toBe(11)
         ->and($letter->layout_config['footer_bottom_margin_mm'])->toBe(4)
         ->and($letter->layout_config['content_top_margin_mm'])->toBe(17)
         ->and($letter->layout_config['content_bottom_margin_mm'])->toBe(14);
@@ -291,6 +295,8 @@ it('renders the letter preview and print pages for authorized users', function (
             'header_top_margin_mm' => 2,
             'header_bottom_spacing_mm' => 5,
             'footer_top_spacing_mm' => 9,
+            'footer_left_margin_mm' => 10,
+            'footer_right_margin_mm' => 14,
             'footer_bottom_margin_mm' => 7,
             'content_top_margin_mm' => 18,
             'content_bottom_margin_mm' => 14,
@@ -305,6 +311,8 @@ it('renders the letter preview and print pages for authorized users', function (
             'header_top_margin_mm' => 2,
             'header_bottom_spacing_mm' => 5,
             'footer_top_spacing_mm' => 9,
+            'footer_left_margin_mm' => 10,
+            'footer_right_margin_mm' => 14,
             'footer_bottom_margin_mm' => 7,
             'content_top_margin_mm' => 18,
             'content_bottom_margin_mm' => 14,
@@ -320,6 +328,8 @@ it('renders the letter preview and print pages for authorized users', function (
             ->where('letterItem.header_image_url', route('branding-assets.show', ['path' => $template->header_image_path]))
             ->where('letterItem.footer_image_url', route('branding-assets.show', ['path' => $template->footer_image_path]))
             ->where('letterItem.layout_config.footer_top_spacing_mm', 9)
+            ->where('letterItem.layout_config.footer_left_margin_mm', 10)
+            ->where('letterItem.layout_config.footer_right_margin_mm', 14)
             ->where('letterItem.layout_config.footer_bottom_margin_mm', 7)
         );
 
@@ -330,6 +340,8 @@ it('renders the letter preview and print pages for authorized users', function (
             ->component('Admin/Letters/Print')
             ->where('letterItem.id', $letter->id)
             ->where('letterItem.layout_config.footer_top_spacing_mm', 9)
+            ->where('letterItem.layout_config.footer_left_margin_mm', 10)
+            ->where('letterItem.layout_config.footer_right_margin_mm', 14)
             ->where('letterItem.layout_config.footer_bottom_margin_mm', 7)
         );
 });
@@ -360,7 +372,11 @@ it('keeps the shared letter renderer contracts for centered subject, right signa
         ->toContain('pageBreakAfter')
         ->toContain('height: metrics.pageMinHeightStyle')
         ->toContain('footerSlotHeightMm')
+        ->toContain('footerLeftMarginMm')
+        ->toContain('footerRightMarginMm')
         ->toContain('gridTemplateRows: `${metrics.footerTopSpacingMm}mm ${metrics.footerHeightMm}mm ${metrics.footerBottomMarginMm}mm`')
+        ->toContain('paddingLeft: `${metrics.footerLeftMarginMm}mm`')
+        ->toContain('paddingRight: `${metrics.footerRightMarginMm}mm`')
         ->toContain('border-y border-slate-300 py-3 text-center')
         ->toContain('items-end space-y-4 pt-6 text-right')
         ->toContain('list-disc space-y-2 pl-6');
@@ -496,6 +512,8 @@ function createLetterTemplateForLetters(array $overrides = []): LetterTemplate
             'header_top_margin_mm' => 0,
             'header_bottom_spacing_mm' => 4,
             'footer_top_spacing_mm' => 4,
+            'footer_left_margin_mm' => 18,
+            'footer_right_margin_mm' => 18,
             'footer_bottom_margin_mm' => 0,
             'content_top_margin_mm' => 20,
             'content_bottom_margin_mm' => 20,
@@ -550,6 +568,8 @@ function createLetterForTesting(LetterTemplate $template, array $overrides = [])
             'header_top_margin_mm' => 0,
             'header_bottom_spacing_mm' => 4,
             'footer_top_spacing_mm' => 4,
+            'footer_left_margin_mm' => 18,
+            'footer_right_margin_mm' => 18,
             'footer_bottom_margin_mm' => 0,
             'content_top_margin_mm' => 20,
             'content_bottom_margin_mm' => 20,

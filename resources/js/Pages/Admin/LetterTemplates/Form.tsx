@@ -72,6 +72,8 @@ export default function LetterTemplateForm({ templateItem, canDelete, placeholde
         header_top_margin_mm: String(templateItem?.layout_config?.header_top_margin_mm ?? 0),
         header_bottom_spacing_mm: String(templateItem?.layout_config?.header_bottom_spacing_mm ?? 4),
         footer_top_spacing_mm: String(templateItem?.layout_config?.footer_top_spacing_mm ?? 4),
+        footer_left_margin_mm: String(templateItem?.layout_config?.footer_left_margin_mm ?? templateItem?.layout_config?.margin_left_mm ?? 18),
+        footer_right_margin_mm: String(templateItem?.layout_config?.footer_right_margin_mm ?? templateItem?.layout_config?.margin_right_mm ?? 18),
         footer_bottom_margin_mm: String(templateItem?.layout_config?.footer_bottom_margin_mm ?? 0),
         content_top_margin_mm: String(templateItem?.layout_config?.content_top_margin_mm ?? templateItem?.layout_config?.margin_top_mm ?? 20),
         content_bottom_margin_mm: String(templateItem?.layout_config?.content_bottom_margin_mm ?? templateItem?.layout_config?.margin_bottom_mm ?? 20),
@@ -125,6 +127,8 @@ export default function LetterTemplateForm({ templateItem, canDelete, placeholde
             header_top_margin_mm: numericOrNull(form.data.header_top_margin_mm),
             header_bottom_spacing_mm: numericOrNull(form.data.header_bottom_spacing_mm),
             footer_top_spacing_mm: numericOrNull(form.data.footer_top_spacing_mm),
+            footer_left_margin_mm: numericOrNull(form.data.footer_left_margin_mm),
+            footer_right_margin_mm: numericOrNull(form.data.footer_right_margin_mm),
             footer_bottom_margin_mm: numericOrNull(form.data.footer_bottom_margin_mm),
             content_top_margin_mm: numericOrNull(form.data.content_top_margin_mm),
             content_bottom_margin_mm: numericOrNull(form.data.content_bottom_margin_mm),
@@ -135,7 +139,7 @@ export default function LetterTemplateForm({ templateItem, canDelete, placeholde
         is_active: form.data.is_active,
         is_default: form.data.is_default,
         notes: form.data.notes,
-    }), [footerPreviewUrl, form.data.body_content, form.data.cc_content, form.data.closing_content, form.data.code, form.data.content_bottom_margin_mm, form.data.content_top_margin_mm, form.data.document_type, form.data.enclosure_content, form.data.footer_bottom_margin_mm, form.data.footer_top_spacing_mm, form.data.header_bottom_spacing_mm, form.data.header_top_margin_mm, form.data.is_active, form.data.is_default, form.data.language, form.data.margin_bottom_mm, form.data.margin_left_mm, form.data.margin_right_mm, form.data.margin_top_mm, form.data.name, form.data.numbering_include_year, form.data.numbering_pad_length, form.data.numbering_separator, form.data.orientation, form.data.recipient_block_template, form.data.reference_label, form.data.reference_prefix, form.data.reference_start_number, form.data.salutation_template, form.data.signature_block_content, form.data.subject_template, form.data.notes, headerPreviewUrl, previewReferenceNumber, templateItem?.current_reference_number]);
+    }), [footerPreviewUrl, form.data.body_content, form.data.cc_content, form.data.closing_content, form.data.code, form.data.content_bottom_margin_mm, form.data.content_top_margin_mm, form.data.document_type, form.data.enclosure_content, form.data.footer_bottom_margin_mm, form.data.footer_left_margin_mm, form.data.footer_right_margin_mm, form.data.footer_top_spacing_mm, form.data.header_bottom_spacing_mm, form.data.header_top_margin_mm, form.data.is_active, form.data.is_default, form.data.language, form.data.margin_bottom_mm, form.data.margin_left_mm, form.data.margin_right_mm, form.data.margin_top_mm, form.data.name, form.data.numbering_include_year, form.data.numbering_pad_length, form.data.numbering_separator, form.data.orientation, form.data.recipient_block_template, form.data.reference_label, form.data.reference_prefix, form.data.reference_start_number, form.data.salutation_template, form.data.signature_block_content, form.data.subject_template, form.data.notes, headerPreviewUrl, previewReferenceNumber, templateItem?.current_reference_number]);
 
     return (
         <AuthenticatedLayout
@@ -246,6 +250,12 @@ export default function LetterTemplateForm({ templateItem, canDelete, placeholde
                             </FormField>
                             <FormField label={t('letter_templates.fields.footer_top_spacing')} optional error={form.errors.footer_top_spacing_mm} hint={t('letter_templates.helpers.footer_top_spacing')}>
                                 <input value={form.data.footer_top_spacing_mm} onChange={(event) => form.setData('footer_top_spacing_mm', event.target.value)} className="input-ui" type="number" min="0" max="25" />
+                            </FormField>
+                            <FormField label={t('letter_templates.fields.footer_left_margin')} optional error={form.errors.footer_left_margin_mm} hint={t('letter_templates.helpers.footer_left_margin')}>
+                                <input value={form.data.footer_left_margin_mm} onChange={(event) => form.setData('footer_left_margin_mm', event.target.value)} className="input-ui" type="number" min="0" max="35" />
+                            </FormField>
+                            <FormField label={t('letter_templates.fields.footer_right_margin')} optional error={form.errors.footer_right_margin_mm} hint={t('letter_templates.helpers.footer_right_margin')}>
+                                <input value={form.data.footer_right_margin_mm} onChange={(event) => form.setData('footer_right_margin_mm', event.target.value)} className="input-ui" type="number" min="0" max="35" />
                             </FormField>
                             <FormField label={t('letter_templates.fields.footer_bottom_margin')} optional error={form.errors.footer_bottom_margin_mm} hint={t('letter_templates.helpers.footer_bottom_margin')}>
                                 <input value={form.data.footer_bottom_margin_mm} onChange={(event) => form.setData('footer_bottom_margin_mm', event.target.value)} className="input-ui" type="number" min="0" max="25" />

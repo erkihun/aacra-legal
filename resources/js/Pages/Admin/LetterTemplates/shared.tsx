@@ -9,6 +9,8 @@ export type LayoutConfig = {
     header_top_margin_mm?: number | null;
     header_bottom_spacing_mm?: number | null;
     footer_top_spacing_mm?: number | null;
+    footer_left_margin_mm?: number | null;
+    footer_right_margin_mm?: number | null;
     footer_bottom_margin_mm?: number | null;
     content_top_margin_mm?: number | null;
     content_bottom_margin_mm?: number | null;
@@ -179,6 +181,8 @@ type LetterLayoutMetrics = {
     headerTopMarginMm: number;
     headerBottomSpacingMm: number;
     footerTopSpacingMm: number;
+    footerLeftMarginMm: number;
+    footerRightMarginMm: number;
     footerBottomMarginMm: number;
     headerHeightMm: number;
     footerHeightMm: number;
@@ -424,6 +428,8 @@ function normalizeLayoutConfig(config?: LayoutConfig | null) {
         headerTopMarginMm: config?.header_top_margin_mm ?? 0,
         headerBottomSpacingMm: config?.header_bottom_spacing_mm ?? 4,
         footerTopSpacingMm: config?.footer_top_spacing_mm ?? 4,
+        footerLeftMarginMm: config?.footer_left_margin_mm ?? config?.margin_left_mm ?? 18,
+        footerRightMarginMm: config?.footer_right_margin_mm ?? config?.margin_right_mm ?? 18,
         footerBottomMarginMm: config?.footer_bottom_margin_mm ?? 0,
     };
 }
@@ -437,6 +443,8 @@ function buildLayoutMetrics(renderable: LetterRenderable): LetterLayoutMetrics {
     const headerTopMarginMm = hasHeader ? normalized.headerTopMarginMm : 0;
     const headerBottomSpacingMm = hasHeader ? normalized.headerBottomSpacingMm : 0;
     const footerTopSpacingMm = hasFooter ? normalized.footerTopSpacingMm : 0;
+    const footerLeftMarginMm = hasFooter ? normalized.footerLeftMarginMm : normalized.leftMarginMm;
+    const footerRightMarginMm = hasFooter ? normalized.footerRightMarginMm : normalized.rightMarginMm;
     const footerBottomMarginMm = hasFooter ? normalized.footerBottomMarginMm : 0;
     const headerHeightMm = renderable.header_image_url ? 30 : 0;
     const footerHeightMm = renderable.footer_image_url ? 22 : 0;
@@ -461,6 +469,8 @@ function buildLayoutMetrics(renderable: LetterRenderable): LetterLayoutMetrics {
         headerTopMarginMm,
         headerBottomSpacingMm,
         footerTopSpacingMm,
+        footerLeftMarginMm,
+        footerRightMarginMm,
         footerBottomMarginMm,
         headerHeightMm,
         footerHeightMm,
@@ -952,10 +962,18 @@ export function LetterSheet({
                                     style={{
                                         minHeight: `${metrics.footerSlotHeightMm}mm`,
                                         gridTemplateRows: `${metrics.footerTopSpacingMm}mm ${metrics.footerHeightMm}mm ${metrics.footerBottomMarginMm}mm`,
+                                        marginLeft: `-${metrics.leftMarginMm}mm`,
+                                        marginRight: `-${metrics.rightMarginMm}mm`,
                                     }}
                                 >
                                     <div aria-hidden="true" />
-                                    <div className="flex items-end overflow-hidden">
+                                    <div
+                                        className="flex items-end overflow-hidden"
+                                        style={{
+                                            paddingLeft: `${metrics.footerLeftMarginMm}mm`,
+                                            paddingRight: `${metrics.footerRightMarginMm}mm`,
+                                        }}
+                                    >
                                         {renderable.footer_image_url ? (
                                             <img src={renderable.footer_image_url} alt="" className="block max-h-full w-full object-contain object-bottom" />
                                         ) : null}
