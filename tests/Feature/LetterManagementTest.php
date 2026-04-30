@@ -61,6 +61,18 @@ it('allows an authorized user to create a letter from a selected template', func
         'signature_block_content' => 'Director of Legal Affairs',
         'header_image_path' => 'letter-templates/template-1/header.png',
         'footer_image_path' => 'letter-templates/template-1/footer.png',
+        'layout_config' => [
+            'margin_top_mm' => 20,
+            'margin_right_mm' => 18,
+            'margin_bottom_mm' => 20,
+            'margin_left_mm' => 18,
+            'header_top_margin_mm' => 3,
+            'header_bottom_spacing_mm' => 7,
+            'footer_top_spacing_mm' => 6,
+            'footer_bottom_margin_mm' => 4,
+            'content_top_margin_mm' => 17,
+            'content_bottom_margin_mm' => 14,
+        ],
     ]);
 
     $preview = app(GenerateLetterReferenceNumberAction::class)->preview($template);
@@ -105,7 +117,13 @@ it('allows an authorized user to create a letter from a selected template', func
         ->and($letter->header_image_path_snapshot)->toStartWith("letters/{$letter->id}/header-")
         ->and($letter->footer_image_path_snapshot)->toStartWith("letters/{$letter->id}/footer-")
         ->and($letter->signature_image_path_snapshot)->toStartWith("letters/{$letter->id}/signature-")
-        ->and($letter->signer_full_name_snapshot)->toBe($user->name);
+        ->and($letter->signer_full_name_snapshot)->toBe($user->name)
+        ->and($letter->layout_config['header_top_margin_mm'])->toBe(3)
+        ->and($letter->layout_config['header_bottom_spacing_mm'])->toBe(7)
+        ->and($letter->layout_config['footer_top_spacing_mm'])->toBe(6)
+        ->and($letter->layout_config['footer_bottom_margin_mm'])->toBe(4)
+        ->and($letter->layout_config['content_top_margin_mm'])->toBe(17)
+        ->and($letter->layout_config['content_bottom_margin_mm'])->toBe(14);
 
     Storage::disk('public')->assertExists((string) $letter->header_image_path_snapshot);
     Storage::disk('public')->assertExists((string) $letter->footer_image_path_snapshot);
@@ -306,6 +324,10 @@ it('keeps the shared letter renderer contracts for centered subject, right signa
     expect($renderer)
         ->toContain('data-letter-slot="header"')
         ->toContain('data-letter-slot="footer"')
+        ->toContain('data-letter-page')
+        ->toContain('index === 0')
+        ->toContain('index === pages.length - 1')
+        ->toContain('pageBreakAfter')
         ->toContain('border-y border-slate-300 py-3 text-center')
         ->toContain('items-end space-y-4 pt-6 text-right')
         ->toContain('list-disc space-y-2 pl-6');
@@ -438,6 +460,12 @@ function createLetterTemplateForLetters(array $overrides = []): LetterTemplate
             'margin_right_mm' => 18,
             'margin_bottom_mm' => 20,
             'margin_left_mm' => 18,
+            'header_top_margin_mm' => 0,
+            'header_bottom_spacing_mm' => 4,
+            'footer_top_spacing_mm' => 4,
+            'footer_bottom_margin_mm' => 0,
+            'content_top_margin_mm' => 20,
+            'content_bottom_margin_mm' => 20,
         ],
         'is_active' => true,
         'is_default' => false,
@@ -486,6 +514,12 @@ function createLetterForTesting(LetterTemplate $template, array $overrides = [])
             'margin_right_mm' => 18,
             'margin_bottom_mm' => 20,
             'margin_left_mm' => 18,
+            'header_top_margin_mm' => 0,
+            'header_bottom_spacing_mm' => 4,
+            'footer_top_spacing_mm' => 4,
+            'footer_bottom_margin_mm' => 0,
+            'content_top_margin_mm' => 20,
+            'content_bottom_margin_mm' => 20,
         ],
     ], $overrides));
 

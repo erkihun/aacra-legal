@@ -46,6 +46,12 @@ class LetterRequest extends FormRequest
                 'margin_right_mm' => $this->nullableInt($this->input('margin_right_mm')),
                 'margin_bottom_mm' => $this->nullableInt($this->input('margin_bottom_mm')),
                 'margin_left_mm' => $this->nullableInt($this->input('margin_left_mm')),
+                'header_top_margin_mm' => $this->nullableInt($this->input('header_top_margin_mm')),
+                'header_bottom_spacing_mm' => $this->nullableInt($this->input('header_bottom_spacing_mm')),
+                'footer_top_spacing_mm' => $this->nullableInt($this->input('footer_top_spacing_mm')),
+                'footer_bottom_margin_mm' => $this->nullableInt($this->input('footer_bottom_margin_mm')),
+                'content_top_margin_mm' => $this->nullableInt($this->input('content_top_margin_mm')),
+                'content_bottom_margin_mm' => $this->nullableInt($this->input('content_bottom_margin_mm')),
             ], static fn ($value): bool => $value !== null),
         ]);
 
@@ -94,7 +100,13 @@ class LetterRequest extends FormRequest
             }
 
             if ($key === 'layout_config') {
-                $merged[$key] = $this->input('layout_config', $value);
+                $defaultLayout = is_array($value) ? $value : [];
+                $inputLayout = $this->input('layout_config');
+
+                $merged[$key] = [
+                    ...$defaultLayout,
+                    ...(is_array($inputLayout) ? $inputLayout : []),
+                ];
 
                 continue;
             }
@@ -110,6 +122,12 @@ class LetterRequest extends FormRequest
                 'margin_right_mm' => Arr::get($layoutConfig, 'margin_right_mm', $this->input('margin_right_mm')),
                 'margin_bottom_mm' => Arr::get($layoutConfig, 'margin_bottom_mm', $this->input('margin_bottom_mm')),
                 'margin_left_mm' => Arr::get($layoutConfig, 'margin_left_mm', $this->input('margin_left_mm')),
+                'header_top_margin_mm' => Arr::get($layoutConfig, 'header_top_margin_mm', $this->input('header_top_margin_mm')),
+                'header_bottom_spacing_mm' => Arr::get($layoutConfig, 'header_bottom_spacing_mm', $this->input('header_bottom_spacing_mm')),
+                'footer_top_spacing_mm' => Arr::get($layoutConfig, 'footer_top_spacing_mm', $this->input('footer_top_spacing_mm')),
+                'footer_bottom_margin_mm' => Arr::get($layoutConfig, 'footer_bottom_margin_mm', $this->input('footer_bottom_margin_mm')),
+                'content_top_margin_mm' => Arr::get($layoutConfig, 'content_top_margin_mm', $this->input('content_top_margin_mm')),
+                'content_bottom_margin_mm' => Arr::get($layoutConfig, 'content_bottom_margin_mm', $this->input('content_bottom_margin_mm')),
             ];
         }
 
@@ -172,6 +190,12 @@ class LetterRequest extends FormRequest
             'margin_right_mm' => ['nullable', 'integer', 'between:5,35'],
             'margin_bottom_mm' => ['nullable', 'integer', 'between:5,40'],
             'margin_left_mm' => ['nullable', 'integer', 'between:5,35'],
+            'header_top_margin_mm' => ['nullable', 'integer', 'between:0,25'],
+            'header_bottom_spacing_mm' => ['nullable', 'integer', 'between:0,25'],
+            'footer_top_spacing_mm' => ['nullable', 'integer', 'between:0,25'],
+            'footer_bottom_margin_mm' => ['nullable', 'integer', 'between:0,25'],
+            'content_top_margin_mm' => ['nullable', 'integer', 'between:0,30'],
+            'content_bottom_margin_mm' => ['nullable', 'integer', 'between:0,30'],
             'layout_config' => ['nullable', 'array'],
             'notes' => ['nullable', 'string'],
         ];
@@ -205,6 +229,12 @@ class LetterRequest extends FormRequest
             'margin_right_mm' => __('letters.fields.margin_right'),
             'margin_bottom_mm' => __('letters.fields.margin_bottom'),
             'margin_left_mm' => __('letters.fields.margin_left'),
+            'header_top_margin_mm' => __('letter_templates.fields.header_top_margin'),
+            'header_bottom_spacing_mm' => __('letter_templates.fields.header_bottom_spacing'),
+            'footer_top_spacing_mm' => __('letter_templates.fields.footer_top_spacing'),
+            'footer_bottom_margin_mm' => __('letter_templates.fields.footer_bottom_margin'),
+            'content_top_margin_mm' => __('letter_templates.fields.content_top_margin'),
+            'content_bottom_margin_mm' => __('letter_templates.fields.content_bottom_margin'),
             'notes' => __('common.notes'),
         ];
     }

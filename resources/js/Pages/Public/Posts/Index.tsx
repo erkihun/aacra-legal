@@ -44,10 +44,10 @@ export default function PostsIndex({ posts }: PostsIndexProps) {
                     <p className="text-xs font-semibold uppercase text-[color:var(--primary)]">
                         {t('public.posts.eyebrow')}
                     </p>
-                    <h1 className="mt-3 text-4xl font-semibold text-[color:var(--text)]">
+                    <h1 className="mt-3 text-3xl font-semibold text-[color:var(--text)] sm:text-4xl">
                         {t('public.posts.index_title')}
                     </h1>
-                    <p className="mt-4 max-w-3xl text-base leading-8 text-[color:var(--muted-strong)]">
+                    <p className="mt-4 max-w-3xl text-sm leading-7 text-[color:var(--muted-strong)] sm:text-base sm:leading-8">
                         {t('public.posts.description')}
                     </p>
                 </section>
@@ -55,7 +55,7 @@ export default function PostsIndex({ posts }: PostsIndexProps) {
                 {posts.data.length === 0 ? (
                     <EmptyState title={t('public.posts.title')} description={t('public.posts.empty')} />
                 ) : (
-                    <section className="grid gap-4 lg:grid-cols-3">
+                    <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                         {posts.data.map((post) => (
                             <Link
                                 key={post.id}
@@ -71,7 +71,7 @@ export default function PostsIndex({ posts }: PostsIndexProps) {
                                 ) : (
                                     <div className="h-48 rounded-2xl bg-[linear-gradient(140deg,var(--primary-soft),transparent)]" />
                                 )}
-                                <p className="mt-5 text-xs uppercase text-[color:var(--muted)]">
+                                <p className="mt-5 break-words text-xs uppercase text-[color:var(--muted)]">
                                     {formatDate(post.published_at)}
                                     {post.author ? ` · ${post.author}` : ''}
                                 </p>

@@ -36,7 +36,7 @@ export default function PostsShow({ post, relatedPosts }: PostsShowProps) {
             <div className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr),22rem]">
                 <article className="surface-card-strong overflow-hidden">
                     {post.cover_image_url ? (
-                        <img src={post.cover_image_url} alt={post.title} className="h-64 w-full object-cover sm:h-80" />
+                        <img src={post.cover_image_url} alt={post.title} className="h-56 w-full object-cover sm:h-72 lg:h-80" />
                     ) : null}
 
                     <div className="px-6 py-8 sm:px-8">
@@ -44,18 +44,18 @@ export default function PostsShow({ post, relatedPosts }: PostsShowProps) {
                             {t('public.posts.back_to_updates')}
                         </Link>
 
-                        <p className="mt-5 text-xs font-semibold uppercase text-[color:var(--muted)]">
+                        <p className="mt-5 break-words text-xs font-semibold uppercase text-[color:var(--muted)]">
                             {formatDate(post.published_at)}
                             {post.author ? ` · ${post.author}` : ''}
                         </p>
-                        <h1 className="mt-3 text-4xl font-semibold leading-tight text-[color:var(--text)]">
+                        <h1 className="mt-3 text-3xl font-semibold leading-tight text-[color:var(--text)] sm:text-4xl">
                             {post.title}
                         </h1>
-                        <p className="mt-5 text-lg leading-8 text-[color:var(--muted-strong)]">
+                        <p className="mt-5 text-base leading-7 text-[color:var(--muted-strong)] sm:text-lg sm:leading-8">
                             {post.summary}
                         </p>
 
-                        <div className="mt-8 whitespace-pre-wrap text-base leading-8 text-[color:var(--text)]">
+                        <div className="mt-8 whitespace-pre-wrap break-words text-sm leading-7 text-[color:var(--text)] sm:text-base sm:leading-8">
                             {post.body}
                         </div>
                     </div>
@@ -75,19 +75,19 @@ export default function PostsShow({ post, relatedPosts }: PostsShowProps) {
                         <div className="mt-5 grid gap-3">
                             {isAuthenticated ? (
                                 <>
-                                    <Link href={route('dashboard')} className="btn-base btn-primary focus-ring">
+                                    <Link href={route('dashboard')} className="btn-base btn-primary focus-ring w-full">
                                         {t('navigation.dashboard')}
                                     </Link>
-                                    <Link href={route('advisory.index')} className="btn-base btn-secondary focus-ring">
+                                    <Link href={route('advisory.index')} className="btn-base btn-secondary focus-ring w-full">
                                         {t('public.actions.track_requests')}
                                     </Link>
                                 </>
                             ) : (
                                 <>
-                                    <Link href={route('posts.index')} className="btn-base btn-primary focus-ring">
+                                    <Link href={route('posts.index')} className="btn-base btn-primary focus-ring w-full">
                                         {t('public.actions.read_updates')}
                                     </Link>
-                                    <Link href={`${route('home')}#contact`} className="btn-base btn-secondary focus-ring">
+                                    <Link href={`${route('home')}#contact`} className="btn-base btn-secondary focus-ring w-full">
                                         {t('public.nav.contact')}
                                     </Link>
                                 </>

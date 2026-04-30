@@ -4,7 +4,7 @@ import ThemeSwitcher from '@/Components/ThemeSwitcher';
 import { useI18n } from '@/lib/i18n';
 import { PageProps } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
-import { PropsWithChildren, ReactNode } from 'react';
+import { PropsWithChildren, ReactNode, useMemo, useState } from 'react';
 
 type PublicLayoutProps = PropsWithChildren<{
     title?: string;
@@ -21,11 +21,21 @@ export default function PublicLayout({
     const { props } = usePage<PageProps>();
     const { t } = useI18n();
     const { appMeta, auth, availableLocales } = props;
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const pageTitle = title ?? appMeta.application_name;
     const footerText = appMeta.footer_text || appMeta.organization.description || t('welcome.footer');
+    const publicNavigation = useMemo<Array<{ href: string; label: string }>>(
+        () => [
+            { href: route('home'), label: t('public.nav.home') },
+            { href: `${route('home')}#services`, label: t('public.nav.services') },
+            { href: route('posts.index'), label: t('public.nav.updates') },
+            { href: `${route('home')}#contact`, label: t('public.nav.contact') },
+        ],
+        [t],
+    );
     const navigation = (
         <>
-            <Link href={route('home')} className="flex min-w-0 items-center gap-3 lg:flex-1">
+            <Link href={route('home')} className="flex min-w-0 items-center gap-3 lg:flex-1" onClick={() => setIsMobileMenuOpen(false)}>
                 <span className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-[color:var(--primary-soft)] text-[color:var(--primary)]">
                     {appMeta.logo_url ? (
                         <img
@@ -50,31 +60,46 @@ export default function PublicLayout({
                 </div>
             </Link>
 
-            <div className="flex w-full flex-wrap items-center justify-end gap-2 lg:w-auto lg:flex-nowrap lg:gap-3 lg:shrink-0">
+            <div className="flex w-full items-center justify-end gap-2 sm:gap-3 lg:w-auto lg:flex-nowrap lg:gap-3 lg:shrink-0">
                 <nav className="hidden items-center gap-1 lg:flex lg:flex-nowrap">
-                    <PublicNavLink href={route('home')} label={t('public.nav.home')} />
-                    <PublicNavLink href={`${route('home')}#services`} label={t('public.nav.services')} />
-                    <PublicNavLink href={route('posts.index')} label={t('public.nav.updates')} />
-                    <PublicNavLink href={`${route('home')}#contact`} label={t('public.nav.contact')} />
+                    {publicNavigation.map((item) => (
+                        <PublicNavLink key={item.href} href={item.href} label={item.label} />
+                    ))}
                 </nav>
 
                 {availableLocales.length > 1 ? <LanguageSwitcher /> : null}
                 {appMeta.appearance.allow_user_theme_switching ? <ThemeSwitcher /> : null}
-                {headerAction}
-                {auth.user ? (
-                    <Link href={route(appMeta.default_dashboard_route)} className="btn-base btn-primary focus-ring">
-                        {t('public.actions.open_portal')}
-                    </Link>
-                ) : (
-                    <>
-                        <Link href={route('login')} className="btn-base btn-secondary focus-ring">
-                            {t('auth.login')}
-                        </Link>
-                        <Link href={route('register')} className="btn-base btn-primary focus-ring">
-                            {t('public.actions.create_account')}
-                        </Link>
-                    </>
-                )}
+                <div className="hidden items-center gap-2 lg:flex">
+                    {headerAction}
+                    <PublicAuthActions
+                        isAuthenticated={auth.user !== null}
+                        defaultDashboardRoute={appMeta.default_dashboard_route}
+                        openPortalLabel={t('public.actions.open_portal')}
+                        loginLabel={t('auth.login')}
+                        createAccountLabel={t('public.actions.create_account')}
+                    />
+                </div>
+
+                <button
+                    type="button"
+                    className="focus-ring inline-flex h-11 w-11 items-center justify-center rounded-full border border-[color:var(--border)] bg-[color:var(--surface-muted)] text-[color:var(--muted-strong)] transition hover:bg-[color:var(--surface-strong)] lg:hidden"
+                    aria-expanded={isMobileMenuOpen}
+                    aria-controls="public-mobile-menu"
+                    aria-label={isMobileMenuOpen ? t('common.close') : t('common.menu')}
+                    onClick={() => setIsMobileMenuOpen((current) => !current)}
+                >
+                    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current stroke-[1.8]">
+                        {isMobileMenuOpen ? (
+                            <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" strokeLinejoin="round" />
+                        ) : (
+                            <>
+                                <path d="M4 7h16" strokeLinecap="round" />
+                                <path d="M4 12h16" strokeLinecap="round" />
+                                <path d="M4 17h16" strokeLinecap="round" />
+                            </>
+                        )}
+                    </svg>
+                </button>
             </div>
         </>
     );
@@ -89,8 +114,41 @@ export default function PublicLayout({
                 <div className="absolute inset-x-0 top-0 -z-10 h-[32rem] bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.16),_transparent_25%),radial-gradient(circle_at_top_right,_rgba(14,165,233,0.12),_transparent_26%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.18),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(34,197,94,0.08),_transparent_24%)]" />
 
                 <div className="fixed inset-x-0 top-0 z-50 px-4 py-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
-                    <header className="surface-card-strong flex flex-wrap items-center justify-between gap-4 border border-[color:var(--border)]/80 bg-[color:color-mix(in srgb,var(--surface-elevated) 88%,transparent)] px-5 py-4 shadow-[0_18px_48px_-28px_rgba(15,23,42,0.45)] backdrop-blur-xl sm:px-6 lg:flex-nowrap lg:gap-6">
+                    <header className="surface-card-strong flex flex-wrap items-center justify-between gap-4 border border-[color:var(--border)]/80 bg-[color:color-mix(in srgb,var(--surface-elevated) 88%,transparent)] px-4 py-4 shadow-[0_18px_48px_-28px_rgba(15,23,42,0.45)] backdrop-blur-xl sm:px-5 sm:py-5 lg:flex-nowrap lg:gap-6 lg:px-6">
                         {navigation}
+
+                        {isMobileMenuOpen ? (
+                            <div
+                                id="public-mobile-menu"
+                                className="surface-muted w-full space-y-4 border border-[color:var(--border)]/80 p-4 lg:hidden"
+                            >
+                                <nav className="grid gap-2">
+                                    {publicNavigation.map((item) => (
+                                        <PublicNavLink
+                                            key={`mobile-${item.href}`}
+                                            href={item.href}
+                                            label={item.label}
+                                            mobile
+                                            onClick={() => setIsMobileMenuOpen(false)}
+                                        />
+                                    ))}
+                                </nav>
+
+                                <div className="grid gap-2 sm:grid-cols-2">
+                                    <PublicAuthActions
+                                        isAuthenticated={auth.user !== null}
+                                        defaultDashboardRoute={appMeta.default_dashboard_route}
+                                        openPortalLabel={t('public.actions.open_portal')}
+                                        loginLabel={t('auth.login')}
+                                        createAccountLabel={t('public.actions.create_account')}
+                                        onNavigate={() => setIsMobileMenuOpen(false)}
+                                        stacked
+                                    />
+                                </div>
+
+                                {headerAction ? <div className="pt-1">{headerAction}</div> : null}
+                            </div>
+                        ) : null}
                     </header>
                 </div>
 
@@ -107,7 +165,7 @@ export default function PublicLayout({
                     <div className="flex-1 py-6 sm:py-8">{children}</div>
 
                     <footer className="mt-auto border-t border-[color:var(--border)] px-1 py-6 text-sm text-[color:var(--muted)]">
-                        <div className="grid gap-6 lg:grid-cols-[1.1fr,0.9fr,0.8fr]">
+                        <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-[1.1fr,0.9fr,0.8fr]">
                             <div>
                                 <p className="text-sm font-semibold text-[color:var(--text)]">{appMeta.application_name}</p>
                                 <p className="mt-2 text-sm font-medium text-[color:var(--muted-strong)]">
@@ -131,7 +189,7 @@ export default function PublicLayout({
                             </div>
                             <div>
                                 <p className="text-sm font-semibold text-[color:var(--text)]">{t('public.contact.title')}</p>
-                                <div className="mt-3 space-y-2">
+                                <div className="mt-3 space-y-2 break-words">
                                     {appMeta.organization.address ? <p>{appMeta.organization.address}</p> : null}
                                     {appMeta.support.email ? <p>{appMeta.support.email}</p> : null}
                                     {appMeta.support.phone ? <p>{appMeta.support.phone}</p> : null}
@@ -146,13 +204,68 @@ export default function PublicLayout({
     );
 }
 
-function PublicNavLink({ href, label }: { href: string; label: string }) {
+function PublicNavLink({
+    href,
+    label,
+    mobile = false,
+    onClick,
+}: {
+    href: string;
+    label: string;
+    mobile?: boolean;
+    onClick?: () => void;
+}) {
     return (
         <Link
             href={href}
-            className="focus-ring shrink-0 whitespace-nowrap rounded-full px-3 py-2 text-sm font-medium text-[color:var(--muted-strong)] transition hover:bg-[color:var(--surface-muted)] hover:text-[color:var(--text)]"
+            onClick={onClick}
+            className={
+                mobile
+                    ? 'focus-ring rounded-2xl px-4 py-3 text-sm font-medium text-[color:var(--muted-strong)] transition hover:bg-[color:var(--surface-strong)] hover:text-[color:var(--text)]'
+                    : 'focus-ring shrink-0 whitespace-nowrap rounded-full px-3 py-2 text-sm font-medium text-[color:var(--muted-strong)] transition hover:bg-[color:var(--surface-muted)] hover:text-[color:var(--text)]'
+            }
         >
             {label}
         </Link>
+    );
+}
+
+function PublicAuthActions({
+    isAuthenticated,
+    defaultDashboardRoute,
+    openPortalLabel,
+    loginLabel,
+    createAccountLabel,
+    onNavigate,
+    stacked = false,
+}: {
+    isAuthenticated: boolean;
+    defaultDashboardRoute: string;
+    openPortalLabel: string;
+    loginLabel: string;
+    createAccountLabel: string;
+    onNavigate?: () => void;
+    stacked?: boolean;
+}) {
+    const primaryClass = stacked ? 'btn-base btn-primary focus-ring w-full' : 'btn-base btn-primary focus-ring';
+    const secondaryClass = stacked ? 'btn-base btn-secondary focus-ring w-full' : 'btn-base btn-secondary focus-ring';
+
+    if (isAuthenticated) {
+        return (
+            <Link href={route(defaultDashboardRoute)} className={primaryClass} onClick={onNavigate}>
+                {openPortalLabel}
+            </Link>
+        );
+    }
+
+    return (
+        <>
+            <Link href={route('login')} className={secondaryClass} onClick={onNavigate}>
+                {loginLabel}
+            </Link>
+            <Link href={route('register')} className={primaryClass} onClick={onNavigate}>
+                {createAccountLabel}
+            </Link>
+        </>
     );
 }

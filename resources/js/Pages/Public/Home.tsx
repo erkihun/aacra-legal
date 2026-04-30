@@ -118,7 +118,7 @@ export default function Home({ content, slides, featuredPosts, stats }: HomeProp
         <PublicLayout title={t('public.home.title')} description={content.hero_description}>
             <Head title={t('public.home.title')} />
 
-            <div className="space-y-10 lg:space-y-14">
+            <div className="space-y-8 lg:space-y-12">
                 <HeroSlider
                     slides={sanitizedSlides}
                     eyebrow={content.hero_eyebrow}
@@ -137,17 +137,17 @@ export default function Home({ content, slides, featuredPosts, stats }: HomeProp
                     ]}
                 />
 
-                <section id="about" className="grid gap-6 xl:grid-cols-[1.1fr,0.9fr]">
+                <section id="about" className="grid gap-5 xl:grid-cols-[1.1fr,0.9fr]">
                     <div className="surface-card px-6 py-7 sm:px-8 sm:py-8 lg:px-10">
                         <SectionEyebrow>{t('public.about.eyebrow')}</SectionEyebrow>
-                        <h2 className="mt-4 max-w-2xl text-3xl font-semibold tracking-tight text-[color:var(--text)]">
+                        <h2 className="mt-4 max-w-2xl text-2xl font-semibold tracking-tight text-[color:var(--text)] sm:text-3xl">
                             {appMeta.legal_department_name || content.about_title}
                         </h2>
-                        <p className="mt-5 max-w-2xl text-base leading-8 text-[color:var(--muted-strong)]">
+                        <p className="mt-4 max-w-2xl text-sm leading-7 text-[color:var(--muted-strong)] sm:mt-5 sm:text-base sm:leading-8">
                             {appMeta.tagline || appMeta.organization_description || content.about_description}
                         </p>
 
-                        <div className="mt-8 grid gap-4 sm:grid-cols-3">
+                        <div className="mt-6 grid gap-4 sm:mt-8 sm:grid-cols-3">
                             <StatPanel label={t('public.metrics.departments')} value={String(stats.departments)} />
                             <StatPanel label={t('public.metrics.workflows')} value={String(stats.workflows)} />
                             <StatPanel label={t('public.metrics.locales')} value={`${stats.locales}`} />
@@ -174,19 +174,19 @@ export default function Home({ content, slides, featuredPosts, stats }: HomeProp
                     <div className="flex flex-wrap items-end justify-between gap-5">
                         <div className="max-w-3xl">
                             <SectionEyebrow>{t('public.services.eyebrow')}</SectionEyebrow>
-                            <h2 className="mt-4 text-3xl font-semibold tracking-tight text-[color:var(--text)]">
+                            <h2 className="mt-4 text-2xl font-semibold tracking-tight text-[color:var(--text)] sm:text-3xl">
                                 {content.services_title}
                             </h2>
-                            <p className="mt-4 text-base leading-8 text-[color:var(--muted-strong)]">
+                            <p className="mt-4 text-sm leading-7 text-[color:var(--muted-strong)] sm:text-base sm:leading-8">
                                 {content.services_description}
                             </p>
                         </div>
-                        <Link href={isAuthenticated ? primaryCtaHref : `${route('home')}#contact`} className="btn-base btn-primary focus-ring">
+                        <Link href={isAuthenticated ? primaryCtaHref : `${route('home')}#contact`} className="btn-base btn-primary focus-ring w-full sm:w-auto">
                             {isAuthenticated ? primaryCtaLabel : t('public.nav.contact')}
                         </Link>
                     </div>
 
-                    <div className="mt-8 grid gap-4 xl:grid-cols-3">
+                    <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                         <ServiceCard
                             accent="from-emerald-400/30 to-teal-500/10"
                             index="01"
@@ -211,7 +211,7 @@ export default function Home({ content, slides, featuredPosts, stats }: HomeProp
                 <section className="grid gap-6 xl:grid-cols-[0.95fr,1.05fr]">
                     <div className="surface-card px-6 py-7 sm:px-8 lg:px-10">
                         <SectionEyebrow>{t('public.process.eyebrow')}</SectionEyebrow>
-                        <h2 className="mt-4 text-3xl font-semibold tracking-tight text-[color:var(--text)]">
+                        <h2 className="mt-4 text-2xl font-semibold tracking-tight text-[color:var(--text)] sm:text-3xl">
                             {content.process_title}
                         </h2>
                         <p className="mt-4 text-sm leading-7 text-[color:var(--muted-strong)]">
@@ -229,28 +229,28 @@ export default function Home({ content, slides, featuredPosts, stats }: HomeProp
                         <div className="grid h-full gap-0 lg:grid-cols-[0.9fr,1.1fr]">
                             <div className="bg-[linear-gradient(145deg,rgba(15,118,110,0.22),rgba(14,165,233,0.12))] px-6 py-7 sm:px-8 lg:px-10">
                                 <SectionEyebrow>{t('public.portal.eyebrow')}</SectionEyebrow>
-                                <h2 className="mt-4 text-2xl font-semibold tracking-tight text-[color:var(--text)]">
+                                <h2 className="mt-4 text-xl font-semibold tracking-tight text-[color:var(--text)] sm:text-2xl">
                                     {t('public.portal.quick_access_title')}
                                 </h2>
                                 <p className="mt-4 text-sm leading-7 text-[color:var(--muted-strong)]">
                                     {t('public.portal.description')}
                                 </p>
-                                <div className="mt-6 flex flex-wrap gap-3">
+                                <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                                     {isAuthenticated ? (
                                         <>
-                                            <Link href={primaryCtaHref} className="btn-base btn-primary focus-ring">
+                                            <Link href={primaryCtaHref} className="btn-base btn-primary focus-ring w-full sm:w-auto">
                                                 {primaryCtaLabel}
                                             </Link>
-                                            <Link href={secondaryCtaHref} className="btn-base btn-secondary focus-ring">
+                                            <Link href={secondaryCtaHref} className="btn-base btn-secondary focus-ring w-full sm:w-auto">
                                                 {secondaryCtaLabel}
                                             </Link>
                                         </>
                                     ) : (
                                         <>
-                                            <Link href={route('posts.index')} className="btn-base btn-primary focus-ring">
+                                            <Link href={route('posts.index')} className="btn-base btn-primary focus-ring w-full sm:w-auto">
                                                 {t('public.actions.read_updates')}
                                             </Link>
-                                            <Link href={`${route('home')}#services`} className="btn-base btn-secondary focus-ring">
+                                            <Link href={`${route('home')}#services`} className="btn-base btn-secondary focus-ring w-full sm:w-auto">
                                                 {t('public.nav.services')}
                                             </Link>
                                         </>
@@ -271,19 +271,19 @@ export default function Home({ content, slides, featuredPosts, stats }: HomeProp
                     <div className="flex flex-wrap items-end justify-between gap-5">
                         <div className="max-w-3xl">
                             <SectionEyebrow>{t('public.posts.eyebrow')}</SectionEyebrow>
-                            <h2 className="mt-4 text-3xl font-semibold tracking-tight text-[color:var(--text)]">
+                            <h2 className="mt-4 text-2xl font-semibold tracking-tight text-[color:var(--text)] sm:text-3xl">
                                 {content.posts_title}
                             </h2>
-                            <p className="mt-4 text-base leading-8 text-[color:var(--muted-strong)]">
+                            <p className="mt-4 text-sm leading-7 text-[color:var(--muted-strong)] sm:text-base sm:leading-8">
                                 {content.posts_description}
                             </p>
                         </div>
-                        <Link href={route('posts.index')} className="btn-base btn-secondary focus-ring">
+                        <Link href={route('posts.index')} className="btn-base btn-secondary focus-ring w-full sm:w-auto">
                             {t('public.posts.view_all')}
                         </Link>
                     </div>
 
-                    <div className="mt-8 grid gap-4 xl:grid-cols-3">
+                    <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                         {featuredPosts.length === 0 ? (
                             <div className="xl:col-span-3">
                                 <EmptyState title={t('public.posts.title')} description={t('public.posts.empty')} />
@@ -326,28 +326,28 @@ export default function Home({ content, slides, featuredPosts, stats }: HomeProp
                 <section className="grid gap-6 xl:grid-cols-[1.05fr,0.95fr]">
                     <div className="rounded-[2rem] border border-[color:var(--border)] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--primary-soft)_70%,transparent),color-mix(in_srgb,var(--surface-strong)_92%,transparent))] px-6 py-8 shadow-[var(--shadow-soft)] sm:px-8 lg:px-10">
                         <SectionEyebrow>{t('public.cta.eyebrow')}</SectionEyebrow>
-                        <h2 className="mt-4 max-w-2xl text-3xl font-semibold tracking-tight text-[color:var(--text)]">
+                        <h2 className="mt-4 max-w-2xl text-2xl font-semibold tracking-tight text-[color:var(--text)] sm:text-3xl">
                             {content.cta_title}
                         </h2>
-                        <p className="mt-4 max-w-2xl text-base leading-8 text-[color:var(--muted-strong)]">
+                        <p className="mt-4 max-w-2xl text-sm leading-7 text-[color:var(--muted-strong)] sm:text-base sm:leading-8">
                             {content.cta_description}
                         </p>
-                        <div className="mt-7 flex flex-wrap gap-3">
+                        <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                             {isAuthenticated ? (
                                 <>
-                                    <Link href={primaryCtaHref} className="btn-base btn-primary focus-ring">
+                                    <Link href={primaryCtaHref} className="btn-base btn-primary focus-ring w-full sm:w-auto">
                                         {content.cta_primary_label || primaryCtaLabel}
                                     </Link>
-                                    <Link href={secondaryCtaHref} className="btn-base btn-secondary focus-ring">
+                                    <Link href={secondaryCtaHref} className="btn-base btn-secondary focus-ring w-full sm:w-auto">
                                         {content.cta_secondary_label || secondaryCtaLabel}
                                     </Link>
                                 </>
                             ) : (
                                 <>
-                                    <Link href={route('posts.index')} className="btn-base btn-primary focus-ring">
+                                    <Link href={route('posts.index')} className="btn-base btn-primary focus-ring w-full sm:w-auto">
                                         {content.cta_primary_label || t('public.actions.read_updates')}
                                     </Link>
-                                    <Link href={`${route('home')}#contact`} className="btn-base btn-secondary focus-ring">
+                                    <Link href={`${route('home')}#contact`} className="btn-base btn-secondary focus-ring w-full sm:w-auto">
                                         {content.cta_secondary_label || t('public.nav.contact')}
                                     </Link>
                                 </>
@@ -357,7 +357,7 @@ export default function Home({ content, slides, featuredPosts, stats }: HomeProp
 
                     <div id="contact" className="surface-card px-6 py-8 sm:px-8 lg:px-10">
                         <SectionEyebrow>{t('public.contact.eyebrow')}</SectionEyebrow>
-                        <h2 className="mt-4 text-3xl font-semibold tracking-tight text-[color:var(--text)]">
+                        <h2 className="mt-4 text-2xl font-semibold tracking-tight text-[color:var(--text)] sm:text-3xl">
                             {content.contact_title}
                         </h2>
                         <p className="mt-4 text-sm leading-7 text-[color:var(--muted-strong)]">
@@ -405,7 +405,7 @@ function StatPanel({ label, value }: { label: string; value: string }) {
 
 function InsightPanel({ title, description }: { title: string; description: string }) {
     return (
-        <div className="surface-card px-6 py-6 sm:px-7">
+        <div className="surface-card h-full px-6 py-6 sm:px-7">
             <h3 className="text-lg font-semibold text-[color:var(--text)]">{title}</h3>
             <p className="mt-3 text-sm leading-7 text-[color:var(--muted-strong)]">{description}</p>
         </div>
@@ -472,7 +472,7 @@ function ContactTile({ label, value }: { label: string; value: string }) {
     return (
         <div className="rounded-[1.5rem] border border-[color:var(--border)] bg-[color:var(--surface-muted)] px-4 py-4">
             <p className="text-xs uppercase text-[color:var(--muted)]">{label}</p>
-            <p className="mt-2 text-base font-semibold text-[color:var(--text)]">{value}</p>
+            <p className="mt-2 break-words text-base font-semibold text-[color:var(--text)]">{value}</p>
         </div>
     );
 }

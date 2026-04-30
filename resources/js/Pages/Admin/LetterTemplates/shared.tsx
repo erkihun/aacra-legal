@@ -1,11 +1,17 @@
 import { sanitizeRichTextHtml } from '@/lib/sanitize-rich-text';
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useMemo, useState } from 'react';
 
 export type LayoutConfig = {
     margin_top_mm?: number | null;
     margin_right_mm?: number | null;
     margin_bottom_mm?: number | null;
     margin_left_mm?: number | null;
+    header_top_margin_mm?: number | null;
+    header_bottom_spacing_mm?: number | null;
+    footer_top_spacing_mm?: number | null;
+    footer_bottom_margin_mm?: number | null;
+    content_top_margin_mm?: number | null;
+    content_bottom_margin_mm?: number | null;
 };
 
 export type NumberingConfig = {
@@ -141,6 +147,48 @@ export type LetterRenderable = {
     footer_image_url?: string | null;
 };
 
+type LetterLabels = {
+    subject: string;
+    cc: string;
+    enclosure: string;
+    reference: string;
+    date: string;
+};
+
+type PageBlock =
+    | { key: string; kind: 'recipient'; value: string }
+    | { key: string; kind: 'subject'; value: string; label: string }
+    | { key: string; kind: 'salutation'; value: string }
+    | { key: string; kind: 'body'; value: string }
+    | { key: string; kind: 'closing'; value: string }
+    | { key: string; kind: 'signature'; value?: string | null; signerName?: string | null; signerTitle?: string | null; signatureImageUrl?: string | null }
+    | { key: string; kind: 'cc'; value: string; title: string }
+    | { key: string; kind: 'enclosure'; value: string; title: string };
+
+type LetterPage = {
+    blocks: PageBlock[];
+};
+
+type LetterLayoutMetrics = {
+    sheetWidthMm: number;
+    sheetHeightMm: number;
+    leftMarginMm: number;
+    rightMarginMm: number;
+    contentTopMarginMm: number;
+    contentBottomMarginMm: number;
+    headerTopMarginMm: number;
+    headerBottomSpacingMm: number;
+    footerTopSpacingMm: number;
+    footerBottomMarginMm: number;
+    headerHeightMm: number;
+    footerHeightMm: number;
+    pageWidthStyle: string;
+    pageMinHeightStyle: string;
+    pageContentWidthPx: number;
+    pageContentHeightPx: number;
+    blockGapPx: number;
+};
+
 export const defaultPreviewData: PreviewData = {
     date: '2026-04-28',
     reference_number: 'LDMS/2026/0001',
@@ -252,6 +300,70 @@ function contentIsHtml(value: string) {
     return /<\/?[a-z][\s\S]*>/i.test(value);
 }
 
+function escapeHtml(value: string) {
+    return value
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+}
+
+function splitPlainTextParagraphs(value: string) {
+    return value
+        .replace(/\r\n/g, '\n')
+        .split(/\n{2,}/)
+        .map((item) => item.trim())
+        .filter((item) => item !== '');
+}
+
+function splitRichTextBlocks(value: string) {
+    const trimmed = value.trim();
+
+    if (trimmed === '') {
+        return [];
+    }
+
+    if (! contentIsHtml(trimmed) || typeof window === 'undefined') {
+        return [trimmed];
+    }
+
+    const parser = new window.DOMParser();
+    const parsed = parser.parseFromString(`<div>${trimmed}</div>`, 'text/html');
+    const wrapper = parsed.body.firstElementChild;
+
+    if (! wrapper) {
+        return [trimmed];
+    }
+
+    const blocks = Array.from(wrapper.childNodes)
+        .map((node) => {
+            if (node.nodeType === Node.TEXT_NODE) {
+                const text = node.textContent?.trim() ?? '';
+
+                return text === '' ? null : `<p>${escapeHtml(text)}</p>`;
+            }
+
+            if (node.nodeType === Node.ELEMENT_NODE) {
+                return (node as HTMLElement).outerHTML.trim();
+            }
+
+            return null;
+        })
+        .filter((item): item is string => Boolean(item && item.trim() !== ''));
+
+    return blocks.length > 0 ? blocks : [trimmed];
+}
+
+function parseBulletListItems(value: string) {
+    return value
+        .replace(/\r\n/g, '\n')
+        .replace(/^(cc|copy to)\s*:\s*/i, '')
+        .split(/\n+|;\s*/)
+        .map((item) => item.replace(/^[\u2022*-]\s*/, '').trim())
+        .filter((item) => item !== '');
+}
+
 function ContentBlock({ value, className }: { value: string; className?: string }) {
     if (value.trim() === '') {
         return null;
@@ -262,15 +374,6 @@ function ContentBlock({ value, className }: { value: string; className?: string 
     }
 
     return <div className={className ?? 'whitespace-pre-line'}>{value}</div>;
-}
-
-function parseBulletListItems(value: string) {
-    return value
-        .replace(/\r\n/g, '\n')
-        .replace(/^(cc|copy to)\s*:\s*/i, '')
-        .split(/\n+|;\s*/)
-        .map((item) => item.replace(/^[\u2022*-]\s*/, '').trim())
-        .filter((item) => item !== '');
 }
 
 function BulletListBlock({ value }: { value: string }) {
@@ -298,7 +401,7 @@ function BulletListBlock({ value }: { value: string }) {
 }
 
 function Section({ title, children }: { title?: string; children?: ReactNode }) {
-    if (!children) {
+    if (! children) {
         return null;
     }
 
@@ -310,129 +413,533 @@ function Section({ title, children }: { title?: string; children?: ReactNode }) 
     );
 }
 
+function normalizeLayoutConfig(config?: LayoutConfig | null) {
+    return {
+        leftMarginMm: config?.margin_left_mm ?? 18,
+        rightMarginMm: config?.margin_right_mm ?? 18,
+        contentTopMarginMm: config?.content_top_margin_mm ?? config?.margin_top_mm ?? 20,
+        contentBottomMarginMm: config?.content_bottom_margin_mm ?? config?.margin_bottom_mm ?? 20,
+        headerTopMarginMm: config?.header_top_margin_mm ?? 0,
+        headerBottomSpacingMm: config?.header_bottom_spacing_mm ?? 4,
+        footerTopSpacingMm: config?.footer_top_spacing_mm ?? 4,
+        footerBottomMarginMm: config?.footer_bottom_margin_mm ?? 0,
+    };
+}
+
+function buildLayoutMetrics(renderable: LetterRenderable): LetterLayoutMetrics {
+    const sheetWidthMm = renderable.orientation === 'landscape' ? 297 : 210;
+    const sheetHeightMm = renderable.orientation === 'landscape' ? 210 : 297;
+    const normalized = normalizeLayoutConfig(renderable.layout_config);
+    const hasHeader = Boolean(renderable.header_image_url);
+    const hasFooter = Boolean(renderable.footer_image_url);
+    const headerTopMarginMm = hasHeader ? normalized.headerTopMarginMm : 0;
+    const headerBottomSpacingMm = hasHeader ? normalized.headerBottomSpacingMm : 0;
+    const footerTopSpacingMm = hasFooter ? normalized.footerTopSpacingMm : 0;
+    const footerBottomMarginMm = hasFooter ? normalized.footerBottomMarginMm : 0;
+    const headerHeightMm = renderable.header_image_url ? 30 : 0;
+    const footerHeightMm = renderable.footer_image_url ? 22 : 0;
+    const pageContentWidthPx = mmToPx(sheetWidthMm - normalized.leftMarginMm - normalized.rightMarginMm);
+    const pageContentHeightPx = mmToPx(
+        sheetHeightMm
+            - headerTopMarginMm
+            - headerHeightMm
+            - headerBottomSpacingMm
+            - footerTopSpacingMm
+            - footerHeightMm
+            - footerBottomMarginMm
+            - normalized.contentTopMarginMm
+            - normalized.contentBottomMarginMm,
+    );
+
+    return {
+        sheetWidthMm,
+        sheetHeightMm,
+        leftMarginMm: normalized.leftMarginMm,
+        rightMarginMm: normalized.rightMarginMm,
+        contentTopMarginMm: normalized.contentTopMarginMm,
+        contentBottomMarginMm: normalized.contentBottomMarginMm,
+        headerTopMarginMm,
+        headerBottomSpacingMm,
+        footerTopSpacingMm,
+        footerBottomMarginMm,
+        headerHeightMm,
+        footerHeightMm,
+        pageWidthStyle: `${sheetWidthMm}mm`,
+        pageMinHeightStyle: `${sheetHeightMm}mm`,
+        pageContentWidthPx,
+        pageContentHeightPx,
+        blockGapPx: 24,
+    };
+}
+
+function mmToPx(value: number) {
+    return (value * 96) / 25.4;
+}
+
+function buildRegularBlocks(renderable: LetterRenderable, labels: LetterLabels): PageBlock[] {
+    const blocks: PageBlock[] = [];
+
+    if (renderable.recipient_block?.trim()) {
+        blocks.push({
+            key: 'recipient-block',
+            kind: 'recipient',
+            value: renderable.recipient_block,
+        });
+    }
+
+    if (renderable.subject?.trim()) {
+        blocks.push({
+            key: 'subject-block',
+            kind: 'subject',
+            value: renderable.subject,
+            label: labels.subject,
+        });
+    }
+
+    if (renderable.salutation?.trim()) {
+        blocks.push({
+            key: 'salutation-block',
+            kind: 'salutation',
+            value: renderable.salutation,
+        });
+    }
+
+    const bodySegments = renderable.body_content
+        ? (contentIsHtml(renderable.body_content) ? splitRichTextBlocks(renderable.body_content) : splitPlainTextParagraphs(renderable.body_content))
+        : [];
+
+    bodySegments.forEach((segment, index) => {
+        blocks.push({
+            key: `body-block-${index}`,
+            kind: 'body',
+            value: segment,
+        });
+    });
+
+    if (renderable.closing_content?.trim()) {
+        blocks.push({
+            key: 'closing-block',
+            kind: 'closing',
+            value: renderable.closing_content,
+        });
+    }
+
+    return blocks;
+}
+
+function buildLastPageBlocks(renderable: LetterRenderable, labels: LetterLabels): PageBlock[] {
+    const blocks: PageBlock[] = [];
+
+    if (
+        renderable.signature_image_url
+        || renderable.signer_full_name?.trim()
+        || renderable.signer_title?.trim()
+        || renderable.signature_block_content?.trim()
+    ) {
+        blocks.push({
+            key: 'signature-block',
+            kind: 'signature',
+            value: renderable.signature_block_content,
+            signerName: renderable.signer_full_name,
+            signerTitle: renderable.signer_title,
+            signatureImageUrl: renderable.signature_image_url,
+        });
+    }
+
+    if (renderable.cc_content?.trim()) {
+        blocks.push({
+            key: 'cc-block',
+            kind: 'cc',
+            value: renderable.cc_content,
+            title: labels.cc,
+        });
+    }
+
+    if (renderable.enclosure_content?.trim()) {
+        blocks.push({
+            key: 'enclosure-block',
+            kind: 'enclosure',
+            value: renderable.enclosure_content,
+            title: labels.enclosure,
+        });
+    }
+
+    return blocks;
+}
+
+function measureReferenceHeight(labels: LetterLabels, renderable: LetterRenderable, widthPx: number) {
+    if ((! renderable.reference_number || renderable.reference_number.trim() === '') && (! renderable.date || renderable.date.trim() === '')) {
+        return 0;
+    }
+
+    return measureHtmlHeight(
+        `
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;font-size:14px;line-height:1.5;">
+            <div>
+                <p style="margin:0;font-weight:600;color:#334155;">${escapeHtml(renderable.reference_label?.trim() || labels.reference)}</p>
+                <p style="margin:4px 0 0;color:#0f172a;">${escapeHtml(renderable.reference_number || '-')}</p>
+            </div>
+            <div style="text-align:right;">
+                <p style="margin:0;font-weight:600;color:#334155;">${escapeHtml(labels.date)}</p>
+                <p style="margin:4px 0 0;color:#0f172a;">${escapeHtml(renderable.date || '-')}</p>
+            </div>
+        </div>
+        `,
+        widthPx,
+    );
+}
+
+function measureHtmlHeight(html: string, widthPx: number) {
+    if (typeof window === 'undefined') {
+        return 0;
+    }
+
+    const host = window.document.createElement('div');
+    host.style.position = 'absolute';
+    host.style.left = '-10000px';
+    host.style.top = '0';
+    host.style.width = `${widthPx}px`;
+    host.style.visibility = 'hidden';
+    host.style.pointerEvents = 'none';
+    host.style.background = '#ffffff';
+    host.innerHTML = html;
+    window.document.body.appendChild(host);
+    const height = host.getBoundingClientRect().height;
+    host.remove();
+
+    return Math.ceil(height);
+}
+
+function measureBlockHeight(block: PageBlock, widthPx: number) {
+    switch (block.kind) {
+        case 'recipient':
+        case 'salutation':
+        case 'closing':
+            return measureHtmlHeight(
+                `<section><div style="white-space:pre-line;font-size:14px;line-height:28px;color:#0f172a;">${escapeHtml(block.value)}</div></section>`,
+                widthPx,
+            );
+        case 'subject':
+            return measureHtmlHeight(
+                `
+                <section>
+                    <div style="border-top:1px solid #cbd5e1;border-bottom:1px solid #cbd5e1;padding:12px 0;text-align:center;">
+                        <p style="margin:0;font-size:14px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:#64748b;">${escapeHtml(block.label)}</p>
+                        <p style="margin:8px 0 0;font-size:16px;font-weight:600;color:#020617;">${escapeHtml(block.value)}</p>
+                    </div>
+                </section>
+                `,
+                widthPx,
+            );
+        case 'body':
+            return measureHtmlHeight(
+                `<section><div style="font-size:14px;line-height:28px;color:#0f172a;">${contentIsHtml(block.value) ? sanitizeRichTextHtml(block.value) : escapeHtml(block.value)}</div></section>`,
+                widthPx,
+            );
+        case 'signature':
+            return measureHtmlHeight(
+                `
+                <section>
+                    <div style="margin-left:auto;display:flex;max-width:240px;flex-direction:column;align-items:flex-end;gap:16px;padding-top:24px;text-align:right;">
+                        ${block.signatureImageUrl ? '<div style="height:88px;width:140px;"></div>' : ''}
+                        ${(block.signerName?.trim() || block.signerTitle?.trim()) ? `
+                            <div style="text-align:right;">
+                                ${block.signerName?.trim() ? `<p style="margin:0;font-size:14px;font-weight:600;color:#020617;">${escapeHtml(block.signerName)}</p>` : ''}
+                                ${block.signerTitle?.trim() ? `<p style="margin:4px 0 0;font-size:14px;color:#334155;">${escapeHtml(block.signerTitle)}</p>` : ''}
+                            </div>
+                        ` : ''}
+                        ${block.value?.trim() ? `<div style="white-space:pre-line;font-size:14px;line-height:28px;color:#0f172a;">${escapeHtml(block.value)}</div>` : ''}
+                    </div>
+                </section>
+                `,
+                widthPx,
+            );
+        case 'cc': {
+            const items = parseBulletListItems(block.value);
+
+            return measureHtmlHeight(
+                `
+                <section>
+                    <h3 style="margin:0 0 8px;font-size:11px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:#64748b;">${escapeHtml(block.title)}</h3>
+                    <ul style="margin:0;padding-left:24px;font-size:14px;line-height:28px;color:#0f172a;">
+                        ${items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}
+                    </ul>
+                </section>
+                `,
+                widthPx,
+            );
+        }
+        case 'enclosure':
+            return measureHtmlHeight(
+                `
+                <section>
+                    <h3 style="margin:0 0 8px;font-size:11px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:#64748b;">${escapeHtml(block.title)}</h3>
+                    <div style="white-space:pre-line;font-size:14px;line-height:28px;color:#0f172a;">${contentIsHtml(block.value) ? sanitizeRichTextHtml(block.value) : escapeHtml(block.value)}</div>
+                </section>
+                `,
+                widthPx,
+            );
+    }
+}
+
+function blockHeights(blocks: PageBlock[], widthPx: number, gapPx: number) {
+    return blocks.map((block, index) => ({
+        block,
+        height: measureBlockHeight(block, widthPx) + (index > 0 ? gapPx : 0),
+    }));
+}
+
+function buildGreedyPages(blocks: PageBlock[], capacityPx: number, firstPageCapacityPx: number, widthPx: number, gapPx: number) {
+    const pages: LetterPage[] = [{ blocks: [] }];
+    const heights = blockHeights(blocks, widthPx, gapPx);
+    let used = 0;
+    let currentCapacity = firstPageCapacityPx;
+
+    heights.forEach(({ block, height }) => {
+        if (pages[pages.length - 1].blocks.length > 0 && used + height > currentCapacity) {
+            pages.push({ blocks: [] });
+            used = 0;
+            currentCapacity = capacityPx;
+        }
+
+        pages[pages.length - 1].blocks.push(block);
+        used += height;
+    });
+
+    return pages;
+}
+
+function computeUsedHeight(blocks: PageBlock[], widthPx: number, gapPx: number) {
+    const measured = blockHeights(blocks, widthPx, gapPx);
+
+    return measured.reduce((sum, item) => sum + item.height, 0);
+}
+
+function paginateRenderable(renderable: LetterRenderable, labels: LetterLabels) {
+    const metrics = buildLayoutMetrics(renderable);
+    const regularBlocks = buildRegularBlocks(renderable, labels);
+    const lastPageBlocks = buildLastPageBlocks(renderable, labels);
+    const firstPageTopBlockHeightPx = measureReferenceHeight(labels, renderable, metrics.pageContentWidthPx);
+    const firstPageCapacityPx = Math.max(
+        metrics.pageContentHeightPx - firstPageTopBlockHeightPx - (firstPageTopBlockHeightPx > 0 ? metrics.blockGapPx : 0),
+        120,
+    );
+    const normalCapacityPx = Math.max(metrics.pageContentHeightPx, 120);
+
+    let pages = buildGreedyPages(regularBlocks, normalCapacityPx, firstPageCapacityPx, metrics.pageContentWidthPx, metrics.blockGapPx);
+
+    if (pages.length === 0) {
+        pages = [{ blocks: [] }];
+    }
+
+    if (lastPageBlocks.length > 0) {
+        const lastPageOnlyHeight = computeUsedHeight(lastPageBlocks, metrics.pageContentWidthPx, metrics.blockGapPx);
+        const lastPage = pages[pages.length - 1];
+        const lastPageCapacityPx = pages.length === 1 ? firstPageCapacityPx : normalCapacityPx;
+        const lastPageRegularHeight = computeUsedHeight(lastPage.blocks, metrics.pageContentWidthPx, metrics.blockGapPx);
+        const needsLeadingGap = lastPage.blocks.length > 0;
+        const reserveHeight = lastPageOnlyHeight + (needsLeadingGap ? metrics.blockGapPx : 0);
+        const finalPageMaxRegularHeight = Math.max(lastPageCapacityPx - reserveHeight, 0);
+
+        if (lastPageRegularHeight > finalPageMaxRegularHeight) {
+            const overflowBlocks: PageBlock[] = [];
+
+            while (
+                lastPage.blocks.length > 0
+                && computeUsedHeight(lastPage.blocks, metrics.pageContentWidthPx, metrics.blockGapPx) > finalPageMaxRegularHeight
+            ) {
+                const moved = lastPage.blocks.pop();
+
+                if (moved) {
+                    overflowBlocks.unshift(moved);
+                }
+            }
+
+            if (overflowBlocks.length > 0) {
+                const redistributedPages = buildGreedyPages(
+                    overflowBlocks,
+                    normalCapacityPx,
+                    normalCapacityPx,
+                    metrics.pageContentWidthPx,
+                    metrics.blockGapPx,
+                );
+
+                pages = [...pages.slice(0, -1), ...redistributedPages, lastPage];
+            }
+        }
+
+        if (computeUsedHeight(pages[pages.length - 1].blocks, metrics.pageContentWidthPx, metrics.blockGapPx) > Math.max(lastPageCapacityPx - reserveHeight, 0)) {
+            pages.push({ blocks: [] });
+        }
+    }
+
+    return {
+        metrics,
+        pages,
+        lastPageBlocks,
+    };
+}
+
+function RenderBlock({ block }: { block: PageBlock }) {
+    switch (block.kind) {
+        case 'recipient':
+            return (
+                <Section>
+                    <ContentBlock value={block.value} className="whitespace-pre-line text-sm leading-7" />
+                </Section>
+            );
+        case 'subject':
+            return (
+                <Section>
+                    <div className="border-y border-slate-300 py-3 text-center">
+                        <p className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-500">{block.label}</p>
+                        <p className="mt-2 text-base font-semibold text-slate-950">{block.value}</p>
+                    </div>
+                </Section>
+            );
+        case 'salutation':
+            return (
+                <Section>
+                    <ContentBlock value={block.value} className="whitespace-pre-line text-sm leading-7" />
+                </Section>
+            );
+        case 'body':
+            return (
+                <Section>
+                    <ContentBlock value={block.value} className="prose prose-slate max-w-none text-sm leading-7" />
+                </Section>
+            );
+        case 'closing':
+            return (
+                <Section>
+                    <ContentBlock value={block.value} className="whitespace-pre-line text-sm leading-7" />
+                </Section>
+            );
+        case 'signature':
+            return (
+                <Section>
+                    <div className="ml-auto flex max-w-[240px] flex-col items-end space-y-4 pt-6 text-right break-inside-avoid">
+                        {block.signatureImageUrl ? (
+                            <img src={block.signatureImageUrl} alt="" className="block max-h-[88px] max-w-full w-auto object-contain object-right" />
+                        ) : null}
+                        {block.signerName?.trim() ? (
+                            <div className="space-y-1 text-right">
+                                <p className="text-sm font-semibold text-slate-950">{block.signerName}</p>
+                                {block.signerTitle?.trim() ? (
+                                    <p className="text-sm text-slate-700">{block.signerTitle}</p>
+                                ) : null}
+                            </div>
+                        ) : null}
+                        {block.value?.trim() ? (
+                            <ContentBlock value={block.value} className="whitespace-pre-line text-right text-sm leading-7" />
+                        ) : null}
+                    </div>
+                </Section>
+            );
+        case 'cc':
+            return (
+                <Section title={block.title}>
+                    <BulletListBlock value={block.value} />
+                </Section>
+            );
+        case 'enclosure':
+            return (
+                <Section title={block.title}>
+                    <ContentBlock value={block.value} className="whitespace-pre-line text-sm leading-7" />
+                </Section>
+            );
+    }
+}
+
 export function LetterSheet({
-    document,
+    document: renderable,
     labels,
 }: {
     document: LetterRenderable;
-    labels: {
-        subject: string;
-        cc: string;
-        enclosure: string;
-        reference: string;
-        date: string;
-    };
+    labels: LetterLabels;
 }) {
-    const config = document.layout_config ?? {};
-    const top = config.margin_top_mm ?? 20;
-    const right = config.margin_right_mm ?? 18;
-    const bottom = config.margin_bottom_mm ?? 20;
-    const left = config.margin_left_mm ?? 18;
-    const referenceLabel = document.reference_label?.trim() || labels.reference;
-    const sheetWidth = document.orientation === 'landscape' ? '297mm' : '210mm';
-    const sheetMinHeight = document.orientation === 'landscape' ? '210mm' : '297mm';
-    const headerZoneMm = document.header_image_url ? 34 : 0;
-    const footerZoneMm = document.footer_image_url ? 26 : 0;
+    const signature = useMemo(() => JSON.stringify({ renderable, labels }), [labels, renderable]);
+    const [pageState, setPageState] = useState(() => paginateRenderable(renderable, labels));
+
+    useEffect(() => {
+        setPageState(paginateRenderable(renderable, labels));
+    }, [signature]);
+
+    const { metrics, pages, lastPageBlocks } = pageState;
+    const referenceLabel = renderable.reference_label?.trim() || labels.reference;
 
     return (
         <div className="overflow-x-auto">
-            <div
-                className="mx-auto bg-white text-slate-900 shadow-sm ring-1 ring-slate-200 print:shadow-none print:ring-0"
-                style={{
-                    width: sheetWidth,
-                    minHeight: sheetMinHeight,
-                    paddingTop: `${top}mm`,
-                    paddingRight: `${right}mm`,
-                    paddingBottom: `${bottom}mm`,
-                    paddingLeft: `${left}mm`,
-                }}
-            >
-                <div
-                    className="grid min-h-full gap-6"
-                    style={{
-                        minHeight: `calc(${sheetMinHeight} - ${top + bottom}mm)`,
-                        gridTemplateRows: `${headerZoneMm > 0 ? `${headerZoneMm}mm` : 'auto'} minmax(0, 1fr) ${footerZoneMm > 0 ? `${footerZoneMm}mm` : 'auto'}`,
-                    }}
-                >
-                    {document.header_image_url ? (
-                        <div className="flex items-start border-b border-slate-200 pb-4" data-letter-slot="header">
-                            <img src={document.header_image_url} alt="" className="block h-full max-h-full w-full object-contain object-top" />
-                        </div>
-                    ) : (
-                        <div data-letter-slot="header" />
-                    )}
+            <div className="mx-auto flex w-fit flex-col gap-4 print:gap-0">
+                {pages.map((page, index) => {
+                    const isFirstPage = index === 0;
+                    const isLastPage = index === pages.length - 1;
 
-                    <div className="flex flex-col gap-6">
-                        <div className="grid gap-4 text-sm md:grid-cols-2">
-                            <div>
-                                <p className="font-semibold text-slate-700">{referenceLabel}</p>
-                                <p className="mt-1 text-slate-900">{document.reference_number || '-'}</p>
-                            </div>
-                            <div className="text-left md:text-right">
-                                <p className="font-semibold text-slate-700">{labels.date}</p>
-                                <p className="mt-1 text-slate-900">{document.date || '-'}</p>
-                            </div>
-                        </div>
-
-                        <Section>
-                            <ContentBlock value={document.recipient_block || ''} className="whitespace-pre-line text-sm leading-7" />
-                        </Section>
-
-                        <Section>
-                            {document.subject?.trim() ? (
-                                <div className="border-y border-slate-300 py-3 text-center">
-                                    <p className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-500">{labels.subject}</p>
-                                    <p className="mt-2 text-base font-semibold text-slate-950">{document.subject}</p>
+                    return (
+                        <div
+                            key={`letter-page-${index}`}
+                            data-letter-page={index + 1}
+                            className="mx-auto bg-white text-slate-900 shadow-sm ring-1 ring-slate-200 print:shadow-none print:ring-0"
+                            style={{
+                                width: metrics.pageWidthStyle,
+                                minHeight: metrics.pageMinHeightStyle,
+                                pageBreakAfter: index === pages.length - 1 ? 'auto' : 'always',
+                                breakAfter: index === pages.length - 1 ? 'auto' : 'page',
+                            }}
+                        >
+                            <div
+                                className="grid h-full"
+                                style={{
+                                    minHeight: metrics.pageMinHeightStyle,
+                                    gridTemplateRows: `${metrics.headerTopMarginMm + metrics.headerHeightMm + metrics.headerBottomSpacingMm}mm minmax(0, 1fr) ${metrics.footerTopSpacingMm + metrics.footerHeightMm + metrics.footerBottomMarginMm}mm`,
+                                    paddingLeft: `${metrics.leftMarginMm}mm`,
+                                    paddingRight: `${metrics.rightMarginMm}mm`,
+                                }}
+                            >
+                                <div className="flex items-start border-b border-slate-200" data-letter-slot="header" style={{ paddingTop: `${metrics.headerTopMarginMm}mm`, paddingBottom: `${metrics.headerBottomSpacingMm}mm` }}>
+                                    {renderable.header_image_url ? (
+                                        <img src={renderable.header_image_url} alt="" className="block h-full max-h-full w-full object-contain object-top" />
+                                    ) : null}
                                 </div>
-                            ) : null}
-                        </Section>
 
-                        <Section>
-                            <ContentBlock value={document.salutation || ''} className="whitespace-pre-line text-sm leading-7" />
-                        </Section>
+                                <div
+                                    className="flex flex-col gap-6"
+                                    style={{
+                                        paddingTop: `${metrics.contentTopMarginMm}mm`,
+                                        paddingBottom: `${metrics.contentBottomMarginMm}mm`,
+                                    }}
+                                >
+                                    {isFirstPage ? (
+                                        <div className="grid gap-4 text-sm md:grid-cols-2">
+                                            <div>
+                                                <p className="font-semibold text-slate-700">{referenceLabel}</p>
+                                                <p className="mt-1 text-slate-900">{renderable.reference_number || '-'}</p>
+                                            </div>
+                                            <div className="text-left md:text-right">
+                                                <p className="font-semibold text-slate-700">{labels.date}</p>
+                                                <p className="mt-1 text-slate-900">{renderable.date || '-'}</p>
+                                            </div>
+                                        </div>
+                                    ) : null}
 
-                        <Section>
-                            <ContentBlock value={document.body_content || ''} className="prose prose-slate max-w-none text-sm leading-7" />
-                        </Section>
+                                    {page.blocks.map((block) => (
+                                        <RenderBlock key={block.key} block={block} />
+                                    ))}
 
-                        <Section>
-                            <ContentBlock value={document.closing_content || ''} className="whitespace-pre-line text-sm leading-7" />
-                        </Section>
+                                    {isLastPage ? lastPageBlocks.map((block) => (
+                                        <RenderBlock key={block.key} block={block} />
+                                    )) : null}
+                                </div>
 
-                        <Section>
-                            <div className="ml-auto flex max-w-[240px] flex-col items-end space-y-4 pt-6 text-right">
-                                {document.signature_image_url ? (
-                                    <img src={document.signature_image_url} alt="" className="block max-h-[88px] max-w-full w-auto object-contain object-right" />
-                                ) : null}
-                                {document.signer_full_name?.trim() ? (
-                                    <div className="space-y-1 text-right">
-                                        <p className="text-sm font-semibold text-slate-950">{document.signer_full_name}</p>
-                                        {document.signer_title?.trim() ? (
-                                            <p className="text-sm text-slate-700">{document.signer_title}</p>
-                                        ) : null}
-                                    </div>
-                                ) : null}
-                                <ContentBlock value={document.signature_block_content || ''} className="whitespace-pre-line text-right text-sm leading-7" />
+                                <div className="flex items-end border-t border-slate-200" data-letter-slot="footer" style={{ paddingTop: `${metrics.footerTopSpacingMm}mm`, paddingBottom: `${metrics.footerBottomMarginMm}mm` }}>
+                                    {renderable.footer_image_url ? (
+                                        <img src={renderable.footer_image_url} alt="" className="block h-full max-h-full w-full object-contain object-bottom" />
+                                    ) : null}
+                                </div>
                             </div>
-                        </Section>
-
-                        <Section title={labels.cc}>
-                            <BulletListBlock value={document.cc_content || ''} />
-                        </Section>
-
-                        <Section title={labels.enclosure}>
-                            <ContentBlock value={document.enclosure_content || ''} className="whitespace-pre-line text-sm leading-7" />
-                        </Section>
-                    </div>
-
-                    {document.footer_image_url ? (
-                        <div className="flex items-end border-t border-slate-200 pt-4" data-letter-slot="footer">
-                            <img src={document.footer_image_url} alt="" className="block h-full max-h-full w-full object-contain object-bottom" />
                         </div>
-                    ) : (
-                        <div data-letter-slot="footer" />
-                    )}
-                </div>
+                    );
+                })}
             </div>
         </div>
     );

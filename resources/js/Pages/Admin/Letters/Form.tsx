@@ -63,6 +63,12 @@ export default function LetterForm({ letterItem, selectedTemplate, templateOptio
         margin_right_mm: String(letterItem?.layout_config?.margin_right_mm ?? selectedTemplate?.layout_config?.margin_right_mm ?? 18),
         margin_bottom_mm: String(letterItem?.layout_config?.margin_bottom_mm ?? selectedTemplate?.layout_config?.margin_bottom_mm ?? 20),
         margin_left_mm: String(letterItem?.layout_config?.margin_left_mm ?? selectedTemplate?.layout_config?.margin_left_mm ?? 18),
+        header_top_margin_mm: String(letterItem?.layout_config?.header_top_margin_mm ?? selectedTemplate?.layout_config?.header_top_margin_mm ?? 0),
+        header_bottom_spacing_mm: String(letterItem?.layout_config?.header_bottom_spacing_mm ?? selectedTemplate?.layout_config?.header_bottom_spacing_mm ?? 4),
+        footer_top_spacing_mm: String(letterItem?.layout_config?.footer_top_spacing_mm ?? selectedTemplate?.layout_config?.footer_top_spacing_mm ?? 4),
+        footer_bottom_margin_mm: String(letterItem?.layout_config?.footer_bottom_margin_mm ?? selectedTemplate?.layout_config?.footer_bottom_margin_mm ?? 0),
+        content_top_margin_mm: String(letterItem?.layout_config?.content_top_margin_mm ?? selectedTemplate?.layout_config?.content_top_margin_mm ?? letterItem?.layout_config?.margin_top_mm ?? selectedTemplate?.layout_config?.margin_top_mm ?? 20),
+        content_bottom_margin_mm: String(letterItem?.layout_config?.content_bottom_margin_mm ?? selectedTemplate?.layout_config?.content_bottom_margin_mm ?? letterItem?.layout_config?.margin_bottom_mm ?? selectedTemplate?.layout_config?.margin_bottom_mm ?? 20),
         notes: letterItem?.notes ?? '',
     });
 
@@ -95,10 +101,16 @@ export default function LetterForm({ letterItem, selectedTemplate, templateOptio
             margin_right_mm: numericOrNull(form.data.margin_right_mm),
             margin_bottom_mm: numericOrNull(form.data.margin_bottom_mm),
             margin_left_mm: numericOrNull(form.data.margin_left_mm),
+            header_top_margin_mm: numericOrNull(form.data.header_top_margin_mm),
+            header_bottom_spacing_mm: numericOrNull(form.data.header_bottom_spacing_mm),
+            footer_top_spacing_mm: numericOrNull(form.data.footer_top_spacing_mm),
+            footer_bottom_margin_mm: numericOrNull(form.data.footer_bottom_margin_mm),
+            content_top_margin_mm: numericOrNull(form.data.content_top_margin_mm),
+            content_bottom_margin_mm: numericOrNull(form.data.content_bottom_margin_mm),
         },
         notes: form.data.notes,
         template: letterItem?.template ?? (selectedTemplate ? { id: selectedTemplate.id, name: selectedTemplate.name, code: selectedTemplate.code } : null),
-    }), [form.data.body_content, form.data.cc_content, form.data.closing_content, form.data.enclosure_content, form.data.language, form.data.letter_date, form.data.margin_bottom_mm, form.data.margin_left_mm, form.data.margin_right_mm, form.data.margin_top_mm, form.data.notes, form.data.orientation, form.data.recipient_address, form.data.recipient_name, form.data.recipient_organization, form.data.recipient_title, form.data.reference_number, form.data.salutation, form.data.signature_block_content, form.data.status, form.data.subject, form.data.template_id, letterItem?.footer_image_url, letterItem?.header_image_url, letterItem?.signature_image_url, letterItem?.signer_full_name, letterItem?.signer_title, letterItem?.template, selectedTemplate, sessionSigner.jobTitle, sessionSigner.name, sessionSigner.signatureUrl]);
+    }), [form.data.body_content, form.data.cc_content, form.data.closing_content, form.data.content_bottom_margin_mm, form.data.content_top_margin_mm, form.data.enclosure_content, form.data.footer_bottom_margin_mm, form.data.footer_top_spacing_mm, form.data.header_bottom_spacing_mm, form.data.header_top_margin_mm, form.data.language, form.data.letter_date, form.data.margin_bottom_mm, form.data.margin_left_mm, form.data.margin_right_mm, form.data.margin_top_mm, form.data.notes, form.data.orientation, form.data.recipient_address, form.data.recipient_name, form.data.recipient_organization, form.data.recipient_title, form.data.reference_number, form.data.salutation, form.data.signature_block_content, form.data.status, form.data.subject, form.data.template_id, letterItem?.footer_image_url, letterItem?.header_image_url, letterItem?.signature_image_url, letterItem?.signer_full_name, letterItem?.signer_title, letterItem?.template, selectedTemplate, sessionSigner.jobTitle, sessionSigner.name, sessionSigner.signatureUrl]);
 
     return (
         <AuthenticatedLayout

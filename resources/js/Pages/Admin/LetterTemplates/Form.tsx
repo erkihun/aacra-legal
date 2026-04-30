@@ -69,6 +69,12 @@ export default function LetterTemplateForm({ templateItem, canDelete, placeholde
         margin_right_mm: String(templateItem?.layout_config?.margin_right_mm ?? 18),
         margin_bottom_mm: String(templateItem?.layout_config?.margin_bottom_mm ?? 20),
         margin_left_mm: String(templateItem?.layout_config?.margin_left_mm ?? 18),
+        header_top_margin_mm: String(templateItem?.layout_config?.header_top_margin_mm ?? 0),
+        header_bottom_spacing_mm: String(templateItem?.layout_config?.header_bottom_spacing_mm ?? 4),
+        footer_top_spacing_mm: String(templateItem?.layout_config?.footer_top_spacing_mm ?? 4),
+        footer_bottom_margin_mm: String(templateItem?.layout_config?.footer_bottom_margin_mm ?? 0),
+        content_top_margin_mm: String(templateItem?.layout_config?.content_top_margin_mm ?? templateItem?.layout_config?.margin_top_mm ?? 20),
+        content_bottom_margin_mm: String(templateItem?.layout_config?.content_bottom_margin_mm ?? templateItem?.layout_config?.margin_bottom_mm ?? 20),
         header_image: null as File | null,
         footer_image: null as File | null,
         is_active: templateItem?.is_active ?? true,
@@ -116,6 +122,12 @@ export default function LetterTemplateForm({ templateItem, canDelete, placeholde
             margin_right_mm: numericOrNull(form.data.margin_right_mm),
             margin_bottom_mm: numericOrNull(form.data.margin_bottom_mm),
             margin_left_mm: numericOrNull(form.data.margin_left_mm),
+            header_top_margin_mm: numericOrNull(form.data.header_top_margin_mm),
+            header_bottom_spacing_mm: numericOrNull(form.data.header_bottom_spacing_mm),
+            footer_top_spacing_mm: numericOrNull(form.data.footer_top_spacing_mm),
+            footer_bottom_margin_mm: numericOrNull(form.data.footer_bottom_margin_mm),
+            content_top_margin_mm: numericOrNull(form.data.content_top_margin_mm),
+            content_bottom_margin_mm: numericOrNull(form.data.content_bottom_margin_mm),
         },
         header_image_url: headerPreviewUrl,
         footer_image_url: footerPreviewUrl,
@@ -123,7 +135,7 @@ export default function LetterTemplateForm({ templateItem, canDelete, placeholde
         is_active: form.data.is_active,
         is_default: form.data.is_default,
         notes: form.data.notes,
-    }), [footerPreviewUrl, form.data.body_content, form.data.cc_content, form.data.closing_content, form.data.code, form.data.document_type, form.data.enclosure_content, form.data.is_active, form.data.is_default, form.data.language, form.data.margin_bottom_mm, form.data.margin_left_mm, form.data.margin_right_mm, form.data.margin_top_mm, form.data.name, form.data.numbering_include_year, form.data.numbering_pad_length, form.data.numbering_separator, form.data.orientation, form.data.recipient_block_template, form.data.reference_label, form.data.reference_prefix, form.data.reference_start_number, form.data.salutation_template, form.data.signature_block_content, form.data.subject_template, form.data.notes, headerPreviewUrl, previewReferenceNumber, templateItem?.current_reference_number]);
+    }), [footerPreviewUrl, form.data.body_content, form.data.cc_content, form.data.closing_content, form.data.code, form.data.content_bottom_margin_mm, form.data.content_top_margin_mm, form.data.document_type, form.data.enclosure_content, form.data.footer_bottom_margin_mm, form.data.footer_top_spacing_mm, form.data.header_bottom_spacing_mm, form.data.header_top_margin_mm, form.data.is_active, form.data.is_default, form.data.language, form.data.margin_bottom_mm, form.data.margin_left_mm, form.data.margin_right_mm, form.data.margin_top_mm, form.data.name, form.data.numbering_include_year, form.data.numbering_pad_length, form.data.numbering_separator, form.data.orientation, form.data.recipient_block_template, form.data.reference_label, form.data.reference_prefix, form.data.reference_start_number, form.data.salutation_template, form.data.signature_block_content, form.data.subject_template, form.data.notes, headerPreviewUrl, previewReferenceNumber, templateItem?.current_reference_number]);
 
     return (
         <AuthenticatedLayout
@@ -205,7 +217,7 @@ export default function LetterTemplateForm({ templateItem, canDelete, placeholde
                             <h2 className="text-lg font-semibold text-[color:var(--text)]">{t('letter_templates.sections.layout_settings')}</h2>
                             <p className="mt-1 text-sm text-[color:var(--muted)]">{t('letter_templates.section_help.layout_settings')}</p>
                         </div>
-                        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                             <FormField label={t('letter_templates.fields.page_size')} required error={form.errors.page_size}>
                                 <select value={form.data.page_size} onChange={() => form.setData('page_size', 'A4')} className="select-ui">
                                     <option value="A4">A4</option>
@@ -220,17 +232,49 @@ export default function LetterTemplateForm({ templateItem, canDelete, placeholde
                             <FormField label={t('letter_templates.fields.reference_label')} optional error={form.errors.reference_label}>
                                 <input value={form.data.reference_label} onChange={(event) => form.setData('reference_label', event.target.value)} className="input-ui" />
                             </FormField>
-                            <FormField label={t('letter_templates.fields.margin_top')} optional error={form.errors.margin_top_mm}>
-                                <input value={form.data.margin_top_mm} onChange={(event) => form.setData('margin_top_mm', event.target.value)} className="input-ui" type="number" min="5" max="40" />
-                            </FormField>
                             <FormField label={t('letter_templates.fields.margin_right')} optional error={form.errors.margin_right_mm}>
                                 <input value={form.data.margin_right_mm} onChange={(event) => form.setData('margin_right_mm', event.target.value)} className="input-ui" type="number" min="5" max="35" />
                             </FormField>
-                            <FormField label={t('letter_templates.fields.margin_bottom')} optional error={form.errors.margin_bottom_mm}>
-                                <input value={form.data.margin_bottom_mm} onChange={(event) => form.setData('margin_bottom_mm', event.target.value)} className="input-ui" type="number" min="5" max="40" />
-                            </FormField>
                             <FormField label={t('letter_templates.fields.margin_left')} optional error={form.errors.margin_left_mm}>
                                 <input value={form.data.margin_left_mm} onChange={(event) => form.setData('margin_left_mm', event.target.value)} className="input-ui" type="number" min="5" max="35" />
+                            </FormField>
+                            <FormField label={t('letter_templates.fields.header_top_margin')} optional error={form.errors.header_top_margin_mm} hint={t('letter_templates.helpers.header_top_margin')}>
+                                <input value={form.data.header_top_margin_mm} onChange={(event) => form.setData('header_top_margin_mm', event.target.value)} className="input-ui" type="number" min="0" max="25" />
+                            </FormField>
+                            <FormField label={t('letter_templates.fields.header_bottom_spacing')} optional error={form.errors.header_bottom_spacing_mm} hint={t('letter_templates.helpers.header_bottom_spacing')}>
+                                <input value={form.data.header_bottom_spacing_mm} onChange={(event) => form.setData('header_bottom_spacing_mm', event.target.value)} className="input-ui" type="number" min="0" max="25" />
+                            </FormField>
+                            <FormField label={t('letter_templates.fields.footer_top_spacing')} optional error={form.errors.footer_top_spacing_mm} hint={t('letter_templates.helpers.footer_top_spacing')}>
+                                <input value={form.data.footer_top_spacing_mm} onChange={(event) => form.setData('footer_top_spacing_mm', event.target.value)} className="input-ui" type="number" min="0" max="25" />
+                            </FormField>
+                            <FormField label={t('letter_templates.fields.footer_bottom_margin')} optional error={form.errors.footer_bottom_margin_mm} hint={t('letter_templates.helpers.footer_bottom_margin')}>
+                                <input value={form.data.footer_bottom_margin_mm} onChange={(event) => form.setData('footer_bottom_margin_mm', event.target.value)} className="input-ui" type="number" min="0" max="25" />
+                            </FormField>
+                            <FormField label={t('letter_templates.fields.content_top_margin')} optional error={form.errors.content_top_margin_mm} hint={t('letter_templates.helpers.content_top_margin')}>
+                                <input
+                                    value={form.data.content_top_margin_mm}
+                                    onChange={(event) => {
+                                        form.setData('content_top_margin_mm', event.target.value);
+                                        form.setData('margin_top_mm', event.target.value);
+                                    }}
+                                    className="input-ui"
+                                    type="number"
+                                    min="0"
+                                    max="30"
+                                />
+                            </FormField>
+                            <FormField label={t('letter_templates.fields.content_bottom_margin')} optional error={form.errors.content_bottom_margin_mm} hint={t('letter_templates.helpers.content_bottom_margin')}>
+                                <input
+                                    value={form.data.content_bottom_margin_mm}
+                                    onChange={(event) => {
+                                        form.setData('content_bottom_margin_mm', event.target.value);
+                                        form.setData('margin_bottom_mm', event.target.value);
+                                    }}
+                                    className="input-ui"
+                                    type="number"
+                                    min="0"
+                                    max="30"
+                                />
                             </FormField>
                         </div>
                     </SurfaceCard>
