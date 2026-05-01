@@ -47,7 +47,7 @@ class RenderLetterPdfAction
     public function render(Letter $letter): string
     {
         $previousLocale = App::currentLocale();
-        App::setLocale($letter->language);
+        App::setLocale($this->resolvedLocale($letter));
 
         try {
             $dompdf = new Dompdf($this->options());
@@ -164,6 +164,15 @@ class RenderLetterPdfAction
         $options->set('dpi', 96);
 
         return $options;
+    }
+
+    private function resolvedLocale(Letter $letter): string
+    {
+        $locale = is_string($letter->language) ? strtolower(trim($letter->language)) : '';
+
+        return in_array($locale, ['en', 'am'], true)
+            ? $locale
+            : (string) config('app.locale', 'en');
     }
 
     private function assetDataUri(?string $path): ?string

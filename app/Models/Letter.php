@@ -62,17 +62,17 @@ class Letter extends Model
 
     public function template(): BelongsTo
     {
-        return $this->belongsTo(LetterTemplate::class, 'template_id');
+        return $this->belongsTo(LetterTemplate::class, 'template_id')->withTrashed();
     }
 
     public function creator(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'created_by');
+        return $this->belongsTo(User::class, 'created_by')->withTrashed();
     }
 
     public function updater(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'updated_by');
+        return $this->belongsTo(User::class, 'updated_by')->withTrashed();
     }
 
     public function headerImageUrl(): ?string

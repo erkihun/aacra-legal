@@ -125,9 +125,11 @@ class LetterController extends Controller
     {
         $this->authorize('update', $letter);
 
+        $template = $letter->template;
+
         return Inertia::render('Admin/Letters/Form', [
             'letterItem' => $this->letterPayload($letter),
-            'selectedTemplate' => $this->templateSelectionPayload($letter->template()->firstOrFail()),
+            'selectedTemplate' => $template ? $this->templateSelectionPayload($template) : null,
             'templateOptions' => $this->templateOptions($letter->template_id),
             'canDelete' => request()->user()?->can('delete', $letter) ?? false,
         ]);
@@ -210,8 +212,9 @@ class LetterController extends Controller
     {
         return LetterTemplate::query()
             ->when($selectedTemplateId, function ($query, string $templateId): void {
+                $query->withTrashed();
                 $query->where(function ($builder) use ($templateId): void {
-                    $builder->where('is_active', true)->orWhereKey($templateId);
+                    $builder->where('is_active', true)->orWhere('id', $templateId);
                 });
             }, fn ($query) => $query->where('is_active', true))
             ->orderBy('name')

@@ -339,6 +339,33 @@ it('renders the letter preview page and exposes real PDF endpoints for authorize
         );
 });
 
+it('allows editing and previewing letters whose template was soft deleted later', function (): void {
+    $user = createLetterUser(['letters.view', 'letters.update', 'letters.preview', 'letters.print']);
+    $template = createLetterTemplateForLetters();
+    $letter = createLetterForTesting($template);
+
+    $template->delete();
+
+    $this->actingAs($user)
+        ->get(route('letters.edit', $letter))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Admin/Letters/Form')
+            ->where('letterItem.id', $letter->id)
+            ->where('selectedTemplate.id', $template->id)
+            ->where('selectedTemplate.name', $template->name)
+        );
+
+    $this->actingAs($user)
+        ->get(route('letters.preview', $letter))
+        ->assertOk();
+
+    $this->actingAs($user)
+        ->get(route('letters.pdf', $letter))
+        ->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
+});
+
 it('returns inline and downloadable pdf responses for authorized users', function (): void {
     $user = createLetterUser(['letters.view', 'letters.preview', 'letters.print']);
     $template = createLetterTemplateForLetters();
@@ -368,6 +395,19 @@ it('returns inline and downloadable pdf responses for authorized users', functio
         ->assertOk()
         ->assertHeader('content-type', 'application/pdf')
         ->assertHeader('content-disposition', 'attachment; filename="leg-2026-0001.pdf"');
+});
+
+it('generates pdf safely for letters with invalid legacy language values', function (): void {
+    $user = createLetterUser(['letters.preview']);
+    $template = createLetterTemplateForLetters();
+    $letter = createLetterForTesting($template, [
+        'language' => 'fr',
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('letters.pdf', $letter))
+        ->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
 });
 
 it('serves saved letter signature and template snapshot assets through the branding asset route', function (): void {
