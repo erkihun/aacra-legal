@@ -197,6 +197,12 @@ class RenderLetterPdfAction
         $options->set('defaultFont', 'Nyala');
         $options->set('dpi', 96);
         $options->set('isFontSubsettingEnabled', true);
+        $options->setChroot([
+            base_path(),
+            public_path(),
+            storage_path(),
+            resource_path('fonts/pdf'),
+        ]);
 
         return $options;
     }
@@ -316,7 +322,13 @@ CSS;
 
     private function localFileUri(string $path): string
     {
-        return 'file:///'.str_replace('\\', '/', ltrim($path, '\\/'));
+        $normalizedPath = str_replace('\\', '/', $path);
+
+        if (preg_match('/^[A-Za-z]:\//', $normalizedPath) === 1) {
+            return 'file://'.$normalizedPath;
+        }
+
+        return 'file://'.$normalizedPath;
     }
 
     private function increaseMemoryLimit(string $target): void
