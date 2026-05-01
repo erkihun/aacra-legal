@@ -1,5 +1,6 @@
 type SanitizeRichTextOptions = {
     allowFontSize?: boolean;
+    allowLineHeight?: boolean;
 };
 
 export function sanitizeRichTextHtml(value?: string | null, options: SanitizeRichTextOptions = {}) {
@@ -51,6 +52,14 @@ export function sanitizeRichTextHtml(value?: string | null, options: SanitizeRic
 
             if (fontSizeMatch) {
                 declarations.push(`font-size: ${fontSizeMatch[1].replace(/\s+/g, '')};`);
+            }
+        }
+
+        if (options.allowLineHeight) {
+            const lineHeightMatch = style.match(/line-height\s*:\s*((?:\d+(?:\.\d+)?)\s*(?:px|pt|em|rem|%)?|\d+(?:\.\d+)?)\s*;?/i);
+
+            if (lineHeightMatch) {
+                declarations.push(`line-height: ${lineHeightMatch[1].replace(/\s+/g, '')};`);
             }
         }
 

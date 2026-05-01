@@ -22,18 +22,39 @@ type TemplateOption = {
     is_active: boolean;
 };
 
+type DepartmentOption = {
+    id: string;
+    name_en: string;
+    name_am: string;
+    is_active: boolean;
+};
+
+type RecipientFormRow = {
+    recipient_name: string;
+    recipient_department_id: string;
+};
+
 type Props = {
     letterItem?: LetterItem | null;
     selectedTemplate?: LetterTemplateSelection | null;
     templateOptions: TemplateOption[];
+    departments: DepartmentOption[];
     canDelete: boolean;
 };
 
-const LETTER_BODY_TOOLBAR = 'undo redo | fontsizeinput | bold italic underline | bullist numlist | alignleft aligncenter alignright alignjustify | link | removeformat';
+const LETTER_BODY_TOOLBAR = 'undo redo | fontsizeinput lineheight | bold italic underline | bullist numlist | alignleft aligncenter alignright alignjustify | link | removeformat';
 
 function buildLetterEditorContentStyle(language: 'en' | 'am') {
+    const baseStyles = `
+        body {
+            max-width: 174mm;
+            margin: 0 auto 2rem;
+            padding: 0;
+        }
+    `;
+
     if (language !== 'am') {
-        return '';
+        return baseStyles;
     }
 
     return `
@@ -44,13 +65,16 @@ function buildLetterEditorContentStyle(language: 'en' | 'am') {
             font-weight: 400 700;
         }
         body {
+            max-width: 174mm;
+            margin: 0 auto 2rem;
+            padding: 0;
             font-family: 'LetterNyala', 'Nyala', serif;
             line-height: 1.85;
         }
     `;
 }
 
-export default function LetterForm({ letterItem, selectedTemplate, templateOptions, canDelete }: Props) {
+export default function LetterForm({ letterItem, selectedTemplate, templateOptions, departments, canDelete }: Props) {
     const { t } = useI18n();
     const { props } = usePage<PageProps>();
     const isEditing = !!letterItem;
@@ -61,15 +85,20 @@ export default function LetterForm({ letterItem, selectedTemplate, templateOptio
         jobTitle: props.auth.user?.job_title ?? '',
         signatureUrl: props.auth.user?.signature_url ?? null,
     };
+    const effectiveSigner = letterItem?.approval_status === 'approved'
+        ? {
+            name: letterItem.signer_full_name ?? '',
+            jobTitle: letterItem.signer_title ?? '',
+            signatureUrl: letterItem.signature_image_url ?? null,
+        }
+        : sessionSigner;
+    const initialRecipients = normalizeRecipientsForForm(letterItem);
     const form = useForm({
         template_id: selectedTemplate?.id ?? letterItem?.template_id ?? '',
         reference_number: letterItem?.reference_number ?? selectedTemplate?.reference_number_preview ?? '',
         reference_number_preview: selectedTemplate?.reference_number_preview ?? letterItem?.reference_number ?? '',
         letter_date: letterItem?.letter_date ?? new Date().toISOString().slice(0, 10),
-        recipient_name: letterItem?.recipient_name ?? '',
-        recipient_title: letterItem?.recipient_title ?? '',
-        recipient_organization: letterItem?.recipient_organization ?? '',
-        recipient_address: letterItem?.recipient_address ?? '',
+        recipients: initialRecipients,
         subject: letterItem?.subject ?? selectedTemplate?.subject_template ?? '',
         salutation: letterItem?.salutation ?? selectedTemplate?.salutation_template ?? '',
         body_content: letterItem?.body_content ?? selectedTemplate?.body_content ?? '',
@@ -100,10 +129,22 @@ export default function LetterForm({ letterItem, selectedTemplate, templateOptio
         template_id: form.data.template_id,
         reference_number: form.data.reference_number,
         letter_date: form.data.letter_date,
-        recipient_name: form.data.recipient_name,
-        recipient_title: form.data.recipient_title,
-        recipient_organization: form.data.recipient_organization,
-        recipient_address: form.data.recipient_address,
+        recipient_name: form.data.recipients[0]?.recipient_name ?? '',
+        recipient_organization: resolveDepartmentDisplayName(
+            departments,
+            form.data.recipients[0]?.recipient_department_id ?? '',
+            form.data.language as 'en' | 'am',
+        ),
+        recipients: form.data.recipients.map((recipient) => {
+            const department = departments.find((item) => item.id === recipient.recipient_department_id);
+
+            return {
+                recipient_name: recipient.recipient_name,
+                recipient_department_id: recipient.recipient_department_id || null,
+                recipient_department_name_en: department?.name_en ?? null,
+                recipient_department_name_am: department?.name_am ?? null,
+            };
+        }),
         subject: form.data.subject,
         salutation: form.data.salutation,
         body_content: form.data.body_content,
@@ -113,9 +154,10 @@ export default function LetterForm({ letterItem, selectedTemplate, templateOptio
         enclosure_content: form.data.enclosure_content,
         header_image_url: letterItem?.header_image_url ?? selectedTemplate?.header_image_url ?? null,
         footer_image_url: letterItem?.footer_image_url ?? selectedTemplate?.footer_image_url ?? null,
-        signature_image_url: letterItem?.signature_image_url ?? sessionSigner.signatureUrl,
-        signer_full_name: letterItem?.signer_full_name ?? sessionSigner.name,
-        signer_title: letterItem?.signer_title ?? sessionSigner.jobTitle,
+        signature_image_url: letterItem?.signature_image_url ?? effectiveSigner.signatureUrl,
+        signer_full_name: letterItem?.signer_full_name ?? effectiveSigner.name,
+        signer_title: letterItem?.signer_title ?? effectiveSigner.jobTitle,
+        approval_status: letterItem?.approval_status ?? 'draft',
         language: form.data.language as 'en' | 'am',
         page_size: 'A4',
         orientation: form.data.orientation as 'portrait' | 'landscape',
@@ -136,7 +178,7 @@ export default function LetterForm({ letterItem, selectedTemplate, templateOptio
         },
         notes: form.data.notes,
         template: letterItem?.template ?? (selectedTemplate ? { id: selectedTemplate.id, name: selectedTemplate.name, code: selectedTemplate.code } : null),
-    }), [form.data.body_content, form.data.cc_content, form.data.closing_content, form.data.content_bottom_margin_mm, form.data.content_top_margin_mm, form.data.enclosure_content, form.data.footer_bottom_margin_mm, form.data.footer_left_margin_mm, form.data.footer_right_margin_mm, form.data.footer_top_spacing_mm, form.data.header_bottom_spacing_mm, form.data.header_top_margin_mm, form.data.language, form.data.letter_date, form.data.margin_bottom_mm, form.data.margin_left_mm, form.data.margin_right_mm, form.data.margin_top_mm, form.data.notes, form.data.orientation, form.data.recipient_address, form.data.recipient_name, form.data.recipient_organization, form.data.recipient_title, form.data.reference_number, form.data.salutation, form.data.signature_block_content, form.data.status, form.data.subject, form.data.template_id, letterItem?.footer_image_url, letterItem?.header_image_url, letterItem?.signature_image_url, letterItem?.signer_full_name, letterItem?.signer_title, letterItem?.template, selectedTemplate, sessionSigner.jobTitle, sessionSigner.name, sessionSigner.signatureUrl]);
+    }), [departments, effectiveSigner.jobTitle, effectiveSigner.name, effectiveSigner.signatureUrl, form.data.body_content, form.data.cc_content, form.data.closing_content, form.data.content_bottom_margin_mm, form.data.content_top_margin_mm, form.data.enclosure_content, form.data.footer_bottom_margin_mm, form.data.footer_left_margin_mm, form.data.footer_right_margin_mm, form.data.footer_top_spacing_mm, form.data.header_bottom_spacing_mm, form.data.header_top_margin_mm, form.data.language, form.data.letter_date, form.data.margin_bottom_mm, form.data.margin_left_mm, form.data.margin_right_mm, form.data.margin_top_mm, form.data.notes, form.data.orientation, form.data.recipients, form.data.reference_number, form.data.salutation, form.data.signature_block_content, form.data.status, form.data.subject, form.data.template_id, letterItem?.approval_status, letterItem?.footer_image_url, letterItem?.header_image_url, letterItem?.signature_image_url, letterItem?.signer_full_name, letterItem?.signer_title, letterItem?.template, selectedTemplate]);
 
     return (
         <AuthenticatedLayout
@@ -220,13 +262,16 @@ export default function LetterForm({ letterItem, selectedTemplate, templateOptio
                                 <FormField label={t('letters.fields.letter_date')} required error={form.errors.letter_date}>
                                     <input type="date" value={form.data.letter_date} onChange={(event) => form.setData('letter_date', event.target.value)} className="input-ui" />
                                 </FormField>
-                                <FormField label={t('common.status')} required error={form.errors.status}>
-                                    <select value={form.data.status} onChange={(event) => form.setData('status', event.target.value)} className="select-ui">
-                                        <option value="draft">{t('letters.status.draft')}</option>
-                                        <option value="final">{t('letters.status.final')}</option>
-                                        <option value="archived">{t('letters.status.archived')}</option>
-                                    </select>
-                                </FormField>
+                                {letterItem?.approval_status === 'approved' ? (
+                                    <InfoPill label={t('common.status')} value={t('letters.status.final')} />
+                                ) : (
+                                    <FormField label={t('common.status')} required error={form.errors.status}>
+                                        <select value={form.data.status} onChange={(event) => form.setData('status', event.target.value)} className="select-ui">
+                                            <option value="draft">{t('letters.status.draft')}</option>
+                                            <option value="archived">{t('letters.status.archived')}</option>
+                                        </select>
+                                    </FormField>
+                                )}
                                 <FormField label={t('letters.fields.orientation')} required error={form.errors.orientation}>
                                     <select value={form.data.orientation} onChange={(event) => form.setData('orientation', event.target.value as 'portrait' | 'landscape')} className="select-ui">
                                         <option value="portrait">{t('letter_templates.orientation.portrait')}</option>
@@ -238,19 +283,53 @@ export default function LetterForm({ letterItem, selectedTemplate, templateOptio
 
                         <SurfaceCard className="space-y-4">
                             <h2 className="text-lg font-semibold text-[color:var(--text)]">{t('letters.sections.recipient_information')}</h2>
-                            <div className="grid gap-4 md:grid-cols-2">
-                                <FormField label={t('letters.fields.recipient_name')} required error={form.errors.recipient_name}>
-                                    <input value={form.data.recipient_name} onChange={(event) => form.setData('recipient_name', event.target.value)} className="input-ui" />
-                                </FormField>
-                                <FormField label={t('letters.fields.recipient_title')} optional error={form.errors.recipient_title}>
-                                    <input value={form.data.recipient_title} onChange={(event) => form.setData('recipient_title', event.target.value)} className="input-ui" />
-                                </FormField>
-                                <FormField label={t('letters.fields.recipient_organization')} optional error={form.errors.recipient_organization}>
-                                    <input value={form.data.recipient_organization} onChange={(event) => form.setData('recipient_organization', event.target.value)} className="input-ui" />
-                                </FormField>
-                                <FormField label={t('letters.fields.recipient_address')} optional error={form.errors.recipient_address} className="md:col-span-2">
-                                    <textarea value={form.data.recipient_address} onChange={(event) => form.setData('recipient_address', event.target.value)} className="textarea-ui min-h-24" />
-                                </FormField>
+                            <div className="space-y-4">
+                                {form.data.recipients.map((recipient, index) => (
+                                    <div key={`recipient-${index}`} className="rounded-3xl border border-[color:var(--border)] p-4">
+                                        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr),minmax(0,1fr),auto]">
+                                            <FormField label={t('letters.fields.recipient_name')} required error={form.errors[`recipients.${index}.recipient_name`] as string | undefined}>
+                                                <input
+                                                    value={recipient.recipient_name}
+                                                    onChange={(event) => updateRecipient(form.data.recipients, index, 'recipient_name', event.target.value, form.setData)}
+                                                    className="input-ui"
+                                                />
+                                            </FormField>
+                                            <FormField label={t('letters.fields.recipient_department')} optional error={form.errors[`recipients.${index}.recipient_department_id`] as string | undefined}>
+                                                <select
+                                                    value={recipient.recipient_department_id}
+                                                    onChange={(event) => updateRecipient(form.data.recipients, index, 'recipient_department_id', event.target.value, form.setData)}
+                                                    className="select-ui"
+                                                >
+                                                    <option value="">{t('letters.recipient_department_placeholder')}</option>
+                                                    {departments.map((department) => (
+                                                        <option key={department.id} value={department.id}>
+                                                            {departmentLabel(department, form.data.language as 'en' | 'am')}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </FormField>
+                                            <div className="flex items-end">
+                                                <button
+                                                    type="button"
+                                                    className="btn-base btn-secondary focus-ring"
+                                                    onClick={() => removeRecipientRow(form.data.recipients, index, form.setData)}
+                                                    disabled={form.data.recipients.length === 1}
+                                                >
+                                                    {t('letters.actions.remove_recipient')}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                                <div>
+                                    <button
+                                        type="button"
+                                        className="btn-base btn-secondary focus-ring"
+                                        onClick={() => form.setData('recipients', [...form.data.recipients, emptyRecipient()])}
+                                    >
+                                        {t('letters.actions.add_recipient')}
+                                    </button>
+                                </div>
                             </div>
                         </SurfaceCard>
 
@@ -268,25 +347,27 @@ export default function LetterForm({ letterItem, selectedTemplate, templateOptio
 
                         <SurfaceCard className="space-y-4">
                             <h2 className="text-lg font-semibold text-[color:var(--text)]">{t('letters.sections.main_body')}</h2>
-                            <FormField label={t('letters.fields.body_content')} required error={form.errors.body_content}>
-                                <RichTextEditor
-                                    value={form.data.body_content}
-                                    onChange={(value) => form.setData('body_content', value)}
-                                    minHeight={360}
-                                    toolbar={LETTER_BODY_TOOLBAR}
-                                    contentStyle={buildLetterEditorContentStyle(form.data.language as 'en' | 'am')}
-                                />
-                            </FormField>
+                            <div className="mx-auto w-full max-w-[820px]">
+                                <FormField label={t('letters.fields.body_content')} required error={form.errors.body_content}>
+                                    <RichTextEditor
+                                        value={form.data.body_content}
+                                        onChange={(value) => form.setData('body_content', value)}
+                                        minHeight={360}
+                                        toolbar={LETTER_BODY_TOOLBAR}
+                                        contentStyle={buildLetterEditorContentStyle(form.data.language as 'en' | 'am')}
+                                    />
+                                </FormField>
+                            </div>
                         </SurfaceCard>
 
                         <SurfaceCard className="space-y-4">
                             <h2 className="text-lg font-semibold text-[color:var(--text)]">{t('letters.sections.closing_signature')}</h2>
                             <div className="grid gap-4 md:grid-cols-3">
-                                <InfoPill label={t('letters.fields.signature_image')} value={sessionSigner.signatureUrl ? t('letters.signature_available') : t('common.not_available')} />
-                                <InfoPill label={t('letters.fields.signer_full_name')} value={sessionSigner.name || t('common.not_available')} />
-                                <InfoPill label={t('letters.fields.signer_title')} value={sessionSigner.jobTitle || t('common.not_available')} />
+                                <InfoPill label={t('letters.fields.signature_image')} value={effectiveSigner.signatureUrl ? t('letters.signature_available') : t('common.not_available')} />
+                                <InfoPill label={t('letters.fields.signer_full_name')} value={effectiveSigner.name || t('common.not_available')} />
+                                <InfoPill label={t('letters.fields.signer_title')} value={effectiveSigner.jobTitle || t('common.not_available')} />
                             </div>
-                            {!sessionSigner.signatureUrl ? (
+                            {!effectiveSigner.signatureUrl && letterItem?.approval_status !== 'approved' ? (
                                 <div className="rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
                                     <p className="font-semibold">{t('letters.signature_warning_title')}</p>
                                     <p className="mt-1">{t('letters.signature_warning_description')}</p>
@@ -383,6 +464,79 @@ function numericOrNull(value: string) {
     const numeric = Number(value);
 
     return Number.isFinite(numeric) ? numeric : null;
+}
+
+function emptyRecipient(): RecipientFormRow {
+    return {
+        recipient_name: '',
+        recipient_department_id: '',
+    };
+}
+
+function normalizeRecipientsForForm(letterItem?: LetterItem | null): RecipientFormRow[] {
+    if (Array.isArray(letterItem?.recipients) && letterItem.recipients.length > 0) {
+        return letterItem.recipients.map((recipient) => ({
+            recipient_name: recipient.recipient_name ?? '',
+            recipient_department_id: recipient.recipient_department_id ?? '',
+        }));
+    }
+
+    if (letterItem?.recipient_name) {
+        return [{
+            recipient_name: letterItem.recipient_name,
+            recipient_department_id: '',
+        }];
+    }
+
+    return [emptyRecipient()];
+}
+
+function updateRecipient(
+    recipients: RecipientFormRow[],
+    index: number,
+    key: keyof RecipientFormRow,
+    value: string,
+    setData: (key: 'recipients', value: RecipientFormRow[]) => void,
+) {
+    const nextRecipients = recipients.map((recipient, recipientIndex) => (
+        recipientIndex === index ? { ...recipient, [key]: value } : recipient
+    ));
+
+    setData('recipients', nextRecipients);
+}
+
+function removeRecipientRow(
+    recipients: RecipientFormRow[],
+    index: number,
+    setData: (key: 'recipients', value: RecipientFormRow[]) => void,
+) {
+    if (recipients.length <= 1) {
+        return;
+    }
+
+    setData('recipients', recipients.filter((_, recipientIndex) => recipientIndex !== index));
+}
+
+function departmentLabel(department: DepartmentOption, language: 'en' | 'am') {
+    return language === 'am'
+        ? (department.name_am || department.name_en)
+        : (department.name_en || department.name_am);
+}
+
+function resolveDepartmentDisplayName(
+    departments: DepartmentOption[],
+    departmentId: string,
+    language: 'en' | 'am',
+) {
+    const department = departments.find((item) => item.id === departmentId);
+
+    if (!department) {
+        return '';
+    }
+
+    return language === 'am'
+        ? (department.name_am || department.name_en)
+        : (department.name_en || department.name_am);
 }
 
 function InfoPill({ label, value }: { label: string; value: string }) {

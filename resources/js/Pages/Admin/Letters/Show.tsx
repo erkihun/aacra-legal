@@ -1,4 +1,5 @@
 import BackButton from '@/Components/Ui/BackButton';
+import ConfirmationDialog from '@/Components/Ui/ConfirmationDialog';
 import PageContainer from '@/Components/Ui/PageContainer';
 import SectionHeader from '@/Components/Ui/SectionHeader';
 import StatusBadge from '@/Components/Ui/StatusBadge';
@@ -6,7 +7,8 @@ import SurfaceCard from '@/Components/Ui/SurfaceCard';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useDateFormatter } from '@/lib/dates';
 import { useI18n } from '@/lib/i18n';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
+import { useState } from 'react';
 import { buildLetterRenderable, LetterItem, LetterSheet, previewDocumentLabels } from '../LetterTemplates/shared';
 
 type Props = {
@@ -17,12 +19,14 @@ type Props = {
         preview: boolean;
         print: boolean;
         download: boolean;
+        approve: boolean;
     };
 };
 
 export default function LetterShow({ letterItem, can }: Props) {
     const { t } = useI18n();
     const { formatDateTime, formatDate } = useDateFormatter();
+    const [approveOpen, setApproveOpen] = useState(false);
 
     return (
         <AuthenticatedLayout
@@ -62,6 +66,11 @@ export default function LetterShow({ letterItem, can }: Props) {
                                     {t('common.edit')}
                                 </Link>
                             ) : null}
+                            {can.approve && letterItem.approval_status !== 'approved' ? (
+                                <button type="button" onClick={() => setApproveOpen(true)} className="btn-base btn-primary focus-ring">
+                                    {t('letters.actions.approve')}
+                                </button>
+                            ) : null}
                         </div>
                     }
                 />
@@ -78,8 +87,9 @@ export default function LetterShow({ letterItem, can }: Props) {
                             <Detail label={t('letters.fields.letter_date')} value={formatDate(letterItem.letter_date, '-')} />
                             <Detail label={t('letters.fields.template')} value={letterItem.template?.name} />
                             <Detail label={t('letters.fields.recipient_name')} value={letterItem.recipient_name} />
-                            <Detail label={t('letters.fields.recipient_title')} value={letterItem.recipient_title} />
-                            <Detail label={t('letters.fields.recipient_organization')} value={letterItem.recipient_organization} />
+                            <Detail label={t('letters.fields.approval_status')} value={t(`letters.approval_status.${letterItem.approval_status ?? 'draft'}`)} />
+                            <Detail label={t('letters.fields.approved_by')} value={letterItem.approver?.name} />
+                            <Detail label={t('letters.fields.approved_at')} value={formatDateTime(letterItem.approved_at, '-')} />
                             <Detail label={t('letters.fields.signer_full_name')} value={letterItem.signer_full_name} />
                             <Detail label={t('letters.fields.signer_title')} value={letterItem.signer_title} />
                             <Detail label={t('letters.fields.created_by')} value={letterItem.creator?.name} />
@@ -114,6 +124,20 @@ export default function LetterShow({ letterItem, can }: Props) {
                     </div>
                 </SurfaceCard>
             </PageContainer>
+            <ConfirmationDialog
+                open={approveOpen}
+                title={t('letters.approve_title')}
+                description={t('letters.approve_confirm')}
+                confirmLabel={t('letters.actions.approve')}
+                onCancel={() => setApproveOpen(false)}
+                onConfirm={() => {
+                    if (!letterItem.id) {
+                        return;
+                    }
+
+                    router.patch(route('letters.approve', letterItem.id));
+                }}
+            />
         </AuthenticatedLayout>
     );
 }

@@ -144,6 +144,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/complaints/settings', [ComplaintController::class, 'updateSettings'])->name('complaints.settings.update');
         Route::post('/letters', [AdminLetterController::class, 'store'])->name('letters.store');
         Route::patch('/letters/{letter}', [AdminLetterController::class, 'update'])->whereUuid('letter')->name('letters.update');
+        Route::patch('/letters/{letter}/approve', [AdminLetterController::class, 'approve'])->whereUuid('letter')->name('letters.approve');
         Route::delete('/letters/{letter}', [AdminLetterController::class, 'destroy'])->whereUuid('letter')->name('letters.destroy');
 
         Route::post('/cases', [LegalCaseController::class, 'store'])->name('cases.store');

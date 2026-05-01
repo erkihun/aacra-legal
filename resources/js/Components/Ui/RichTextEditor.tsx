@@ -28,6 +28,7 @@ type RichTextEditorProps = {
     toolbar?: string;
     fontSizeFormats?: string;
     fontSizeDefaultUnit?: string;
+    lineHeightFormats?: string;
     contentStyle?: string;
 };
 
@@ -38,6 +39,7 @@ export default function RichTextEditor({
     toolbar = 'undo redo | bold italic underline | bullist numlist | alignleft aligncenter alignright alignjustify | link | removeformat',
     fontSizeFormats = '8pt 9pt 10pt 11pt 12pt 14pt 16pt 18pt 20pt 24pt 28pt 32pt',
     fontSizeDefaultUnit = 'pt',
+    lineHeightFormats = '1 1.15 1.3 1.5 1.75 2 2.5 3',
     contentStyle = '',
 }: RichTextEditorProps) {
     const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains('dark'));
@@ -77,6 +79,7 @@ export default function RichTextEditor({
                     toolbar,
                     font_size_formats: fontSizeFormats,
                     font_size_input_default_unit: fontSizeDefaultUnit,
+                    line_height_formats: lineHeightFormats,
                     content_style: `
                         body {
                             margin: 1rem;

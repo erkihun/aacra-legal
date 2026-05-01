@@ -89,11 +89,6 @@
         .meta-label {
             margin: 0;
             font-weight: 700;
-            color: #334155;
-        }
-
-        .meta-value {
-            margin: 4px 0 0;
             color: #0f172a;
         }
 
@@ -123,6 +118,7 @@
             font-size: 14px;
             font-weight: 700;
             color: #020617;
+            text-decoration: underline;
         }
 
         .body-block p,
@@ -174,21 +170,32 @@
         }
 
         .section-label {
-            margin: 0 0 8px;
-            font-size: 11px;
+            margin: 0 0 6px;
+            font-size: 12px;
             font-weight: 700;
-            letter-spacing: {{ $sectionLabelLetterSpacingEm }}em;
-            text-transform: {{ $labelTextTransform }};
-            color: #64748b;
+            letter-spacing: {{ $usesNyalaTypography ? 0.04 : 0.04 }}em;
+            text-transform: none;
+            color: #0f172a;
         }
 
         .cc-list {
             margin: 0;
             padding-left: 20px;
+            line-height: 1.25;
         }
 
         .cc-list li {
-            margin-bottom: 6px;
+            margin-bottom: 2px;
+        }
+
+        .recipient-list {
+            margin: 0;
+            padding-left: 20px;
+            line-height: 1.25;
+        }
+
+        .recipient-list li {
+            margin-bottom: 2px;
         }
 
         body.pdf-nyala .meta-label,
@@ -232,17 +239,23 @@
     <table class="reference-table">
         <tr>
             <td>
-                <p class="meta-label">{{ $referenceLabel }}</p>
-                <p class="meta-value">{{ $referenceNumber ?: '-' }}</p>
+                <p class="meta-label">{{ $referenceLabel }}: {{ $referenceNumber ?: '-' }}</p>
             </td>
             <td>
-                <p class="meta-label">{{ $dateLabel }}</p>
-                <p class="meta-value">{{ $letterDate ?: '-' }}</p>
+                <p class="meta-label">{{ $dateLabel }}: {{ $letterDate ?: '-' }}</p>
             </td>
         </tr>
     </table>
 
-    @if ($recipientBlock !== '')
+    @if ($recipientItems !== [])
+        <section class="recipient-block">
+            <ul class="recipient-list">
+                @foreach ($recipientItems as $recipientItem)
+                    <li>{{ $recipientItem }}</li>
+                @endforeach
+            </ul>
+        </section>
+    @elseif ($recipientBlock !== '')
         <section class="recipient-block">
             {!! nl2br(e($recipientBlock)) !!}
         </section>

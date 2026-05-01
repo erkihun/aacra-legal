@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Admin;
 
+use App\Models\Department;
 use App\Models\Letter;
 use App\Models\LetterTemplate;
 use Illuminate\Foundation\Http\FormRequest;
@@ -27,10 +28,11 @@ class LetterRequest extends FormRequest
             'template_id' => $this->filled('template_id') ? (string) $this->input('template_id') : null,
             'reference_number' => $this->filled('reference_number') ? trim((string) $this->input('reference_number')) : null,
             'reference_number_preview' => $this->filled('reference_number_preview') ? trim((string) $this->input('reference_number_preview')) : null,
-            'recipient_name' => trim((string) $this->input('recipient_name')),
+            'recipient_name' => $this->filled('recipient_name') ? trim((string) $this->input('recipient_name')) : null,
             'recipient_title' => $this->filled('recipient_title') ? trim((string) $this->input('recipient_title')) : null,
             'recipient_organization' => $this->filled('recipient_organization') ? trim((string) $this->input('recipient_organization')) : null,
             'recipient_address' => $this->filled('recipient_address') ? trim((string) $this->input('recipient_address')) : null,
+            'recipients' => $this->normalizeRecipients(),
             'subject' => $this->filled('subject') ? trim((string) $this->input('subject')) : null,
             'salutation' => $this->filled('salutation') ? trim((string) $this->input('salutation')) : null,
             'closing_content' => $this->filled('closing_content') ? trim((string) $this->input('closing_content')) : null,
@@ -175,10 +177,17 @@ class LetterRequest extends FormRequest
             ],
             'reference_number_preview' => ['nullable', 'string', 'max:120'],
             'letter_date' => ['required', 'date'],
-            'recipient_name' => ['required', 'string', 'max:255'],
+            'recipient_name' => ['nullable', 'string', 'max:255'],
             'recipient_title' => ['nullable', 'string', 'max:255'],
             'recipient_organization' => ['nullable', 'string', 'max:255'],
             'recipient_address' => ['nullable', 'string'],
+            'recipients' => ['required', 'array', 'min:1'],
+            'recipients.*.recipient_name' => ['required', 'string', 'max:255'],
+            'recipients.*.recipient_department_id' => [
+                'nullable',
+                'uuid',
+                Rule::exists(Department::class, 'id')->where(fn ($query) => $query->whereNull('deleted_at')),
+            ],
             'subject' => ['nullable', 'string', 'max:255'],
             'salutation' => ['nullable', 'string'],
             'body_content' => ['required', 'string'],
@@ -186,7 +195,7 @@ class LetterRequest extends FormRequest
             'signature_block_content' => ['nullable', 'string'],
             'cc_content' => ['nullable', 'string'],
             'enclosure_content' => ['nullable', 'string'],
-            'status' => ['required', Rule::in(['draft', 'final', 'archived'])],
+            'status' => ['required', Rule::in(['draft', 'archived', 'final'])],
             'language' => ['required', Rule::in(['en', 'am'])],
             'page_size' => ['required', Rule::in(['A4'])],
             'orientation' => ['required', Rule::in(['portrait', 'landscape'])],
@@ -220,6 +229,9 @@ class LetterRequest extends FormRequest
             'recipient_title' => __('letters.fields.recipient_title'),
             'recipient_organization' => __('letters.fields.recipient_organization'),
             'recipient_address' => __('letters.fields.recipient_address'),
+            'recipients' => __('letters.fields.recipients'),
+            'recipients.*.recipient_name' => __('letters.fields.recipient_name'),
+            'recipients.*.recipient_department_id' => __('letters.fields.recipient_department'),
             'subject' => __('letters.fields.subject'),
             'salutation' => __('letters.fields.salutation'),
             'body_content' => __('letters.fields.body_content'),
@@ -254,5 +266,48 @@ class LetterRequest extends FormRequest
         }
 
         return (int) $value;
+    }
+
+    /**
+     * @return array<int, array<string, string|null>>
+     */
+    private function normalizeRecipients(): array
+    {
+        $recipients = $this->input('recipients');
+
+        if (is_array($recipients)) {
+            return collect($recipients)
+                ->map(function (mixed $recipient): ?array {
+                    if (! is_array($recipient)) {
+                        return null;
+                    }
+
+                    $name = trim((string) Arr::get($recipient, 'recipient_name', ''));
+                    $departmentId = trim((string) Arr::get($recipient, 'recipient_department_id', ''));
+
+                    if ($name === '') {
+                        return null;
+                    }
+
+                    return [
+                        'recipient_name' => $name,
+                        'recipient_department_id' => $departmentId !== '' ? $departmentId : null,
+                    ];
+                })
+                ->filter()
+                ->values()
+                ->all();
+        }
+
+        $recipientName = trim((string) $this->input('recipient_name', ''));
+
+        if ($recipientName === '') {
+            return [];
+        }
+
+        return [[
+            'recipient_name' => $recipientName,
+            'recipient_department_id' => null,
+        ]];
     }
 }

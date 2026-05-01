@@ -59,6 +59,13 @@ export type LetterTemplateItem = {
     updater?: { name: string } | null;
 };
 
+export type LetterRecipient = {
+    recipient_name: string;
+    recipient_department_id?: string | null;
+    recipient_department_name_en?: string | null;
+    recipient_department_name_am?: string | null;
+};
+
 export type LetterItem = {
     id?: string;
     template_id?: string | null;
@@ -68,6 +75,7 @@ export type LetterItem = {
     recipient_title?: string | null;
     recipient_organization?: string | null;
     recipient_address?: string | null;
+    recipients?: LetterRecipient[] | null;
     subject?: string | null;
     salutation?: string | null;
     body_content?: string | null;
@@ -81,6 +89,8 @@ export type LetterItem = {
     signature_image_url?: string | null;
     signer_full_name?: string | null;
     signer_title?: string | null;
+    approval_status?: 'draft' | 'approved' | string | null;
+    approved_at?: string | null;
     language: 'en' | 'am';
     page_size: 'A4';
     orientation: 'portrait' | 'landscape';
@@ -92,6 +102,7 @@ export type LetterItem = {
     updated_at?: string | null;
     creator?: { name: string } | null;
     updater?: { name: string } | null;
+    approver?: { name: string } | null;
 };
 
 export type LetterTemplateSelection = {
@@ -136,6 +147,7 @@ export type LetterRenderable = {
     reference_number?: string | null;
     date?: string | null;
     recipient_block?: string | null;
+    recipient_items?: string[] | null;
     subject?: string | null;
     salutation?: string | null;
     body_content?: string | null;
@@ -176,7 +188,7 @@ const previewLabelSets: Record<'en' | 'am', LetterLabels> = {
 };
 
 type PageBlock =
-    | { key: string; kind: 'recipient'; value: string }
+    | { key: string; kind: 'recipient'; value: string; items?: string[] }
     | { key: string; kind: 'subject'; value: string }
     | { key: string; kind: 'salutation'; value: string }
     | { key: string; kind: 'body'; value: string }
@@ -298,12 +310,15 @@ export function buildTemplateRenderable(templateItem: LetterTemplateItem, previe
 }
 
 export function buildLetterRenderable(letterItem: LetterItem): LetterRenderable {
-    const recipientLines = [
-        letterItem.recipient_name,
-        letterItem.recipient_title,
-        letterItem.recipient_organization,
-        letterItem.recipient_address,
-    ].filter((value): value is string => Boolean(value && value.trim()));
+    const recipientItems = buildRecipientDisplayItems(letterItem);
+    const recipientBlock = recipientItems.length <= 1
+        ? (recipientItems[0] ?? [
+            letterItem.recipient_name,
+            letterItem.recipient_title,
+            letterItem.recipient_organization,
+            letterItem.recipient_address,
+        ].filter((value): value is string => Boolean(value && value.trim())).join('\n'))
+        : null;
 
     return {
         page_size: letterItem.page_size,
@@ -312,7 +327,8 @@ export function buildLetterRenderable(letterItem: LetterItem): LetterRenderable 
         layout_config: letterItem.layout_config,
         reference_number: letterItem.reference_number,
         date: letterItem.letter_date,
-        recipient_block: recipientLines.join('\n'),
+        recipient_block: recipientBlock,
+        recipient_items: recipientItems.length > 1 ? recipientItems : null,
         subject: letterItem.subject,
         salutation: letterItem.salutation,
         body_content: letterItem.body_content,
@@ -326,6 +342,25 @@ export function buildLetterRenderable(letterItem: LetterItem): LetterRenderable 
         header_image_url: letterItem.header_image_url,
         footer_image_url: letterItem.footer_image_url,
     };
+}
+
+function buildRecipientDisplayItems(letterItem: LetterItem) {
+    const recipients = Array.isArray(letterItem.recipients) ? letterItem.recipients : [];
+
+    return recipients
+        .map((recipient) => {
+            const name = recipient.recipient_name?.trim();
+            const departmentName = letterItem.language === 'am'
+                ? (recipient.recipient_department_name_am?.trim() || recipient.recipient_department_name_en?.trim() || '')
+                : (recipient.recipient_department_name_en?.trim() || recipient.recipient_department_name_am?.trim() || '');
+
+            if (!name) {
+                return null;
+            }
+
+            return departmentName ? `${name} - ${departmentName}` : name;
+        })
+        .filter((value): value is string => Boolean(value));
 }
 
 function contentIsHtml(value: string) {
@@ -437,23 +472,33 @@ function ContentBlock({
     value,
     className,
     allowFontSize = false,
+    allowLineHeight = false,
 }: {
     value: string;
     className?: string;
     allowFontSize?: boolean;
+    allowLineHeight?: boolean;
 }) {
     if (value.trim() === '') {
         return null;
     }
 
     if (contentIsHtml(value)) {
-        return <div className={className} dangerouslySetInnerHTML={{ __html: sanitizeRichTextHtml(value, { allowFontSize }) }} />;
+        return <div className={className} dangerouslySetInnerHTML={{ __html: sanitizeRichTextHtml(value, { allowFontSize, allowLineHeight }) }} />;
     }
 
     return <div className={className ?? 'whitespace-pre-line'}>{value}</div>;
 }
 
-function BulletListBlock({ value, useNyala }: { value: string; useNyala: boolean }) {
+function BulletListBlock({
+    value,
+    useNyala,
+    compact = false,
+}: {
+    value: string;
+    useNyala: boolean;
+    compact?: boolean;
+}) {
     if (value.trim() === '') {
         return null;
     }
@@ -461,9 +506,9 @@ function BulletListBlock({ value, useNyala }: { value: string; useNyala: boolean
     if (contentIsHtml(value)) {
         return (
             <div
-                className="prose prose-slate max-w-none text-sm leading-7"
+                className={compact ? 'prose prose-slate max-w-none text-sm leading-5' : 'prose prose-slate max-w-none text-sm leading-7'}
                 style={useNyala ? { fontFamily: LETTER_NYALA_FONT_FAMILY } : undefined}
-                dangerouslySetInnerHTML={{ __html: sanitizeRichTextHtml(value, { allowFontSize: true }) }}
+                dangerouslySetInnerHTML={{ __html: sanitizeRichTextHtml(value, { allowFontSize: true, allowLineHeight: true }) }}
             />
         );
     }
@@ -475,7 +520,7 @@ function BulletListBlock({ value, useNyala }: { value: string; useNyala: boolean
     }
 
     return (
-        <ul className="list-disc space-y-2 pl-6 text-sm leading-7 marker:text-slate-500">
+        <ul className={compact ? 'list-disc space-y-0.5 pl-6 text-sm leading-5 marker:text-slate-500' : 'list-disc space-y-2 pl-6 text-sm leading-7 marker:text-slate-500'}>
             {items.map((item, index) => (
                 <li key={`${item}-${index}`}>{item}</li>
             ))}
@@ -575,7 +620,14 @@ function mmToPx(value: number) {
 function buildRegularBlocks(renderable: LetterRenderable, _labels: LetterLabels): PageBlock[] {
     const blocks: PageBlock[] = [];
 
-    if (renderable.recipient_block?.trim()) {
+    if (renderable.recipient_items && renderable.recipient_items.length > 1) {
+        blocks.push({
+            key: 'recipient-block',
+            kind: 'recipient',
+            value: '',
+            items: renderable.recipient_items,
+        });
+    } else if (renderable.recipient_block?.trim()) {
         blocks.push({
             key: 'recipient-block',
             kind: 'recipient',
@@ -671,12 +723,10 @@ function measureReferenceHeight(labels: LetterLabels, renderable: LetterRenderab
         `
         <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;font-size:14px;line-height:1.5;${useNyala ? `font-family:${LETTER_NYALA_FONT_FAMILY};` : ''}">
             <div>
-                <p style="margin:0;font-weight:600;color:#334155;">${escapeHtml(renderable.reference_label?.trim() || labels.reference)}</p>
-                <p style="margin:4px 0 0;color:#0f172a;">${escapeHtml(renderable.reference_number || '-')}</p>
+                <p style="margin:0;font-weight:700;color:#0f172a;">${escapeHtml(renderable.reference_label?.trim() || labels.reference)}: ${escapeHtml(renderable.reference_number || '-')}</p>
             </div>
             <div style="text-align:right;">
-                <p style="margin:0;font-weight:600;color:#334155;">${escapeHtml(labels.date)}</p>
-                <p style="margin:4px 0 0;color:#0f172a;">${escapeHtml(renderable.date || '-')}</p>
+                <p style="margin:0;font-weight:700;color:#0f172a;">${escapeHtml(labels.date)}: ${escapeHtml(renderable.date || '-')}</p>
             </div>
         </div>
         `,
@@ -708,6 +758,23 @@ function measureHtmlHeight(html: string, widthPx: number) {
 function measureBlockHeight(block: PageBlock, widthPx: number, useNyala: boolean) {
     switch (block.kind) {
         case 'recipient':
+            if (block.items && block.items.length > 1) {
+                return measureHtmlHeight(
+                    `
+                    <section>
+                        <ul style="margin:0;padding-left:24px;font-size:14px;line-height:20px;color:#0f172a;${useNyala ? `font-family:${LETTER_NYALA_FONT_FAMILY};` : ''}">
+                            ${block.items.map((item) => `<li style="margin:0 0 2px;">${escapeHtml(item)}</li>`).join('')}
+                        </ul>
+                    </section>
+                    `,
+                    widthPx,
+                );
+            }
+
+            return measureHtmlHeight(
+                `<section><div style="white-space:pre-line;font-size:14px;line-height:28px;color:#0f172a;${useNyala ? `font-family:${LETTER_NYALA_FONT_FAMILY};` : ''}">${escapeHtml(block.value)}</div></section>`,
+                widthPx,
+            );
         case 'salutation':
         case 'closing':
             return measureHtmlHeight(
@@ -718,14 +785,14 @@ function measureBlockHeight(block: PageBlock, widthPx: number, useNyala: boolean
             return measureHtmlHeight(
                 `
                 <section>
-                    <p style="margin:0;text-align:center;font-size:16px;font-weight:600;line-height:1.65;color:#020617;${useNyala ? `font-family:${LETTER_NYALA_FONT_FAMILY};` : ''}">${escapeHtml(formatSubjectDisplayValue(block.value))}</p>
+                    <p style="margin:0;text-align:center;font-size:16px;font-weight:700;line-height:1.65;color:#020617;text-decoration:underline;${useNyala ? `font-family:${LETTER_NYALA_FONT_FAMILY};` : ''}">${escapeHtml(formatSubjectDisplayValue(block.value))}</p>
                 </section>
                 `,
                 widthPx,
             );
         case 'body':
             return measureHtmlHeight(
-                `<section><div style="font-size:14px;line-height:28px;color:#0f172a;${useNyala ? `font-family:${LETTER_NYALA_FONT_FAMILY};` : ''}">${contentIsHtml(block.value) ? sanitizeRichTextHtml(block.value, { allowFontSize: true }) : escapeHtml(block.value)}</div></section>`,
+                `<section><div style="font-size:14px;line-height:28px;color:#0f172a;${useNyala ? `font-family:${LETTER_NYALA_FONT_FAMILY};` : ''}">${contentIsHtml(block.value) ? sanitizeRichTextHtml(block.value, { allowFontSize: true, allowLineHeight: true }) : escapeHtml(block.value)}</div></section>`,
                 widthPx,
             );
         case 'signature':
@@ -752,9 +819,9 @@ function measureBlockHeight(block: PageBlock, widthPx: number, useNyala: boolean
             return measureHtmlHeight(
                 `
                 <section>
-                    <h3 style="margin:0 0 8px;font-size:11px;font-weight:600;${useNyala ? `font-family:${LETTER_NYALA_FONT_FAMILY};` : 'letter-spacing:0.18em;text-transform:uppercase;'}color:#64748b;">${escapeHtml(block.title)}</h3>
-                    <ul style="margin:0;padding-left:24px;font-size:14px;line-height:28px;color:#0f172a;${useNyala ? `font-family:${LETTER_NYALA_FONT_FAMILY};` : ''}">
-                        ${items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}
+                    <h3 style="margin:0 0 6px;font-size:12px;font-weight:700;${useNyala ? `font-family:${LETTER_NYALA_FONT_FAMILY};` : 'letter-spacing:0.04em;'}color:#0f172a;">${escapeHtml(block.title)}</h3>
+                    <ul style="margin:0;padding-left:24px;font-size:14px;line-height:20px;color:#0f172a;${useNyala ? `font-family:${LETTER_NYALA_FONT_FAMILY};` : ''}">
+                        ${items.map((item) => `<li style="margin:0 0 2px;">${escapeHtml(item)}</li>`).join('')}
                     </ul>
                 </section>
                 `,
@@ -766,7 +833,7 @@ function measureBlockHeight(block: PageBlock, widthPx: number, useNyala: boolean
                 `
                 <section>
                     <h3 style="margin:0 0 8px;font-size:11px;font-weight:600;${useNyala ? `font-family:${LETTER_NYALA_FONT_FAMILY};` : 'letter-spacing:0.18em;text-transform:uppercase;'}color:#64748b;">${escapeHtml(block.title)}</h3>
-                    <div style="white-space:pre-line;font-size:14px;line-height:28px;color:#0f172a;${useNyala ? `font-family:${LETTER_NYALA_FONT_FAMILY};` : ''}">${contentIsHtml(block.value) ? sanitizeRichTextHtml(block.value, { allowFontSize: true }) : escapeHtml(block.value)}</div>
+                    <div style="white-space:pre-line;font-size:14px;line-height:28px;color:#0f172a;${useNyala ? `font-family:${LETTER_NYALA_FONT_FAMILY};` : ''}">${contentIsHtml(block.value) ? sanitizeRichTextHtml(block.value, { allowFontSize: true, allowLineHeight: true }) : escapeHtml(block.value)}</div>
                 </section>
                 `,
                 widthPx,
@@ -878,6 +945,18 @@ function paginateRenderable(renderable: LetterRenderable, labels: LetterLabels) 
 function RenderBlock({ block, useNyala }: { block: PageBlock; useNyala: boolean }) {
     switch (block.kind) {
         case 'recipient':
+            if (block.items && block.items.length > 1) {
+                return (
+                    <Section useNyala={useNyala}>
+                        <ul className="list-disc space-y-0.5 pl-6 text-sm leading-5 marker:text-slate-500">
+                            {block.items.map((item, index) => (
+                                <li key={`${item}-${index}`}>{item}</li>
+                            ))}
+                        </ul>
+                    </Section>
+                );
+            }
+
             return (
                 <Section useNyala={useNyala}>
                     <ContentBlock value={block.value} className="whitespace-pre-line text-sm leading-7" />
@@ -886,7 +965,7 @@ function RenderBlock({ block, useNyala }: { block: PageBlock; useNyala: boolean 
         case 'subject':
             return (
                 <Section useNyala={useNyala}>
-                    <p className="text-base font-semibold text-slate-950 text-center" style={useNyala ? { fontFamily: LETTER_NYALA_FONT_FAMILY } : undefined}>
+                    <p className="text-base font-bold text-slate-950 text-center underline decoration-slate-950 underline-offset-[3px]" style={useNyala ? { fontFamily: LETTER_NYALA_FONT_FAMILY } : undefined}>
                         {formatSubjectDisplayValue(block.value)}
                     </p>
                 </Section>
@@ -900,7 +979,7 @@ function RenderBlock({ block, useNyala }: { block: PageBlock; useNyala: boolean 
         case 'body':
             return (
                 <Section useNyala={useNyala}>
-                    <ContentBlock value={block.value} className="prose prose-slate max-w-none text-sm leading-7" allowFontSize />
+                    <ContentBlock value={block.value} className="prose prose-slate max-w-none text-sm leading-7" allowFontSize allowLineHeight />
                 </Section>
             );
         case 'closing':
@@ -933,13 +1012,13 @@ function RenderBlock({ block, useNyala }: { block: PageBlock; useNyala: boolean 
         case 'cc':
             return (
                 <Section title={block.title} useNyala={useNyala}>
-                    <BulletListBlock value={block.value} useNyala={useNyala} />
+                    <BulletListBlock value={block.value} useNyala={useNyala} compact />
                 </Section>
             );
         case 'enclosure':
             return (
                 <Section title={block.title} useNyala={useNyala}>
-                    <ContentBlock value={block.value} className="whitespace-pre-line text-sm leading-7" allowFontSize />
+                    <ContentBlock value={block.value} className="whitespace-pre-line text-sm leading-7" allowFontSize allowLineHeight />
                 </Section>
             );
     }
@@ -1022,12 +1101,10 @@ export function LetterSheet({
                                     {isFirstPage ? (
                                         <div className="grid gap-4 text-sm md:grid-cols-2">
                                             <div>
-                                                <p className="font-semibold text-slate-700" style={useNyala ? { fontFamily: LETTER_NYALA_FONT_FAMILY } : undefined}>{referenceLabel}</p>
-                                                <p className="mt-1 text-slate-900">{renderable.reference_number || '-'}</p>
+                                                <p className="font-bold text-slate-900" style={useNyala ? { fontFamily: LETTER_NYALA_FONT_FAMILY } : undefined}>{referenceLabel}: {renderable.reference_number || '-'}</p>
                                             </div>
                                             <div className="text-left md:text-right">
-                                                <p className="font-semibold text-slate-700" style={useNyala ? { fontFamily: LETTER_NYALA_FONT_FAMILY } : undefined}>{labels.date}</p>
-                                                <p className="mt-1 text-slate-900">{renderable.date || '-'}</p>
+                                                <p className="font-bold text-slate-900" style={useNyala ? { fontFamily: LETTER_NYALA_FONT_FAMILY } : undefined}>{labels.date}: {renderable.date || '-'}</p>
                                             </div>
                                         </div>
                                     ) : null}

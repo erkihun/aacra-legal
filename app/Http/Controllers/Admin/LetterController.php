@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
+use App\Actions\ApproveLetterAction;
 use App\Actions\GenerateLetterReferenceNumberAction;
 use App\Actions\PersistLetterAction;
 use App\Actions\RenderLetterPdfAction;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\ApproveLetterRequest;
 use App\Http\Requests\Admin\LetterRequest;
+use App\Models\Department;
 use App\Models\Letter;
 use App\Models\LetterTemplate;
 use Illuminate\Http\RedirectResponse;
@@ -22,6 +25,7 @@ class LetterController extends Controller
 {
     public function __construct(
         private readonly PersistLetterAction $persistLetter,
+        private readonly ApproveLetterAction $approveLetter,
         private readonly GenerateLetterReferenceNumberAction $generateReferenceNumber,
         private readonly RenderLetterPdfAction $renderLetterPdf,
     ) {}
@@ -67,6 +71,7 @@ class LetterController extends Controller
                     'preview' => $request->user()?->can('preview', $letter) ?? false,
                     'print' => $request->user()?->can('print', $letter) ?? false,
                     'download' => $request->user()?->can('preview', $letter) ?? false,
+                    'approve' => $request->user()?->can('approve', $letter) ?? false,
                 ],
             ]);
 
@@ -90,6 +95,7 @@ class LetterController extends Controller
             'letterItem' => null,
             'selectedTemplate' => $selectedTemplate ? $this->templateSelectionPayload($selectedTemplate) : null,
             'templateOptions' => $this->templateOptions(),
+            'departments' => $this->departmentOptions(),
             'canDelete' => false,
         ]);
     }
@@ -117,6 +123,7 @@ class LetterController extends Controller
                 'preview' => request()->user()?->can('preview', $letter) ?? false,
                 'print' => request()->user()?->can('print', $letter) ?? false,
                 'download' => request()->user()?->can('preview', $letter) ?? false,
+                'approve' => request()->user()?->can('approve', $letter) ?? false,
             ],
         ]);
     }
@@ -131,6 +138,7 @@ class LetterController extends Controller
             'letterItem' => $this->letterPayload($letter),
             'selectedTemplate' => $template ? $this->templateSelectionPayload($template) : null,
             'templateOptions' => $this->templateOptions($letter->template_id),
+            'departments' => $this->departmentOptions(),
             'canDelete' => request()->user()?->can('delete', $letter) ?? false,
         ]);
     }
@@ -145,6 +153,17 @@ class LetterController extends Controller
 
         return to_route('letters.show', $letter)
             ->with('success', __('letters.flash.updated'));
+    }
+
+    public function approve(ApproveLetterRequest $request, Letter $letter): RedirectResponse
+    {
+        $letter = $this->approveLetter->execute(
+            $letter,
+            $request->user() ?? abort(403),
+        );
+
+        return to_route('letters.show', $letter)
+            ->with('success', __('letters.flash.approved'));
     }
 
     public function destroy(Letter $letter): RedirectResponse
@@ -231,6 +250,23 @@ class LetterController extends Controller
     }
 
     /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function departmentOptions(): array
+    {
+        return Department::query()
+            ->orderBy('name_en')
+            ->get(['id', 'name_en', 'name_am', 'is_active'])
+            ->map(fn (Department $department): array => [
+                'id' => $department->id,
+                'name_en' => $department->name_en,
+                'name_am' => $department->name_am,
+                'is_active' => $department->is_active,
+            ])
+            ->all();
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function templateSelectionPayload(LetterTemplate $template): array
@@ -284,6 +320,7 @@ class LetterController extends Controller
             'recipient_title' => $letter->recipient_title,
             'recipient_organization' => $letter->recipient_organization,
             'recipient_address' => $letter->recipient_address,
+            'recipients' => $letter->resolvedRecipients(),
             'subject' => $letter->subject,
             'salutation' => $letter->salutation,
             'body_content' => $letter->body_content,
@@ -303,12 +340,15 @@ class LetterController extends Controller
             'page_size' => $letter->page_size,
             'orientation' => $letter->orientation,
             'status' => $letter->status,
+            'approval_status' => $letter->approval_status ?? 'draft',
+            'approved_at' => $letter->approved_at?->toIso8601String(),
             'layout_config' => $letter->layout_config ?? [],
             'notes' => $letter->notes,
             'created_at' => $letter->created_at?->toIso8601String(),
             'updated_at' => $letter->updated_at?->toIso8601String(),
             'creator' => $letter->creator ? ['name' => $letter->creator->name] : null,
             'updater' => $letter->updater ? ['name' => $letter->updater->name] : null,
+            'approver' => $letter->approver ? ['name' => $letter->approver->name] : null,
             'template' => $letter->template ? [
                 'id' => $letter->template->id,
                 'name' => $letter->template->name,
@@ -326,6 +366,7 @@ class LetterController extends Controller
             'reference_number',
             'reference_number_preview',
             'letter_date',
+            'recipients',
             'recipient_name',
             'recipient_title',
             'recipient_organization',

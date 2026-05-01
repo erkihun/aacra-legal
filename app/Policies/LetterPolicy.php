@@ -43,4 +43,9 @@ class LetterPolicy
     {
         return $user->can('letters.print');
     }
+
+    public function approve(User $user, Letter $letter): bool
+    {
+        return $user->can('letters.approve');
+    }
 }

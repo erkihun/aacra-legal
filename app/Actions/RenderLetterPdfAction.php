@@ -101,7 +101,7 @@ class RenderLetterPdfAction
      */
     private function viewData(Letter $letter): array
     {
-        $letter->loadMissing(['template', 'creator']);
+        $letter->loadMissing(['template', 'creator', 'approver']);
 
         $layout = is_array($letter->layout_config) ? $letter->layout_config : [];
         $locale = $this->resolvedLocale($letter);
@@ -120,7 +120,11 @@ class RenderLetterPdfAction
 
         $headerImage = $this->assetSource($letter->header_image_path_snapshot ?: $letter->template?->header_image_path);
         $footerImage = $this->assetSource($letter->footer_image_path_snapshot ?: $letter->template?->footer_image_path);
-        $signatureImage = $this->assetSource($letter->signature_image_path_snapshot ?: $letter->creator?->signature_path);
+        $signatureImage = $this->assetSource(
+            (($letter->approval_status ?? 'draft') === 'approved'
+                ? ($letter->approved_signature_path_snapshot ?: $letter->approver?->signature_path)
+                : ($letter->signature_image_path_snapshot ?: $letter->creator?->signature_path))
+        );
 
         $headerHeight = $headerImage ? 30 : 0;
         $footerHeight = $footerImage ? 22 : 0;
@@ -129,12 +133,15 @@ class RenderLetterPdfAction
         $pageTopMargin = $headerSlotHeight + $contentTopMargin;
         $pageBottomMargin = $footerSlotHeight + $contentBottomMargin;
 
-        $recipientLines = array_values(array_filter([
-            $letter->recipient_name,
-            $letter->recipient_title,
-            $letter->recipient_organization,
-            $letter->recipient_address,
-        ], static fn (?string $value): bool => filled($value)));
+        $recipientItems = $letter->recipientDisplayLines($letter->language);
+        $recipientBlock = count($recipientItems) > 1
+            ? ''
+            : ($recipientItems[0] ?? implode("\n", array_values(array_filter([
+                $letter->recipient_name,
+                $letter->recipient_title,
+                $letter->recipient_organization,
+                $letter->recipient_address,
+            ], static fn (?string $value): bool => filled($value)))));
 
         return [
             'letter' => $letter,
@@ -174,7 +181,8 @@ class RenderLetterPdfAction
             'headerImage' => $headerImage,
             'footerImage' => $footerImage,
             'signatureImage' => $signatureImage,
-            'recipientBlock' => implode("\n", $recipientLines),
+            'recipientBlock' => $recipientBlock,
+            'recipientItems' => count($recipientItems) > 1 ? $recipientItems : [],
             'bodyHtml' => $this->richContentHtml($letter->body_content),
             'salutationHtml' => $this->textOrHtml($letter->salutation),
             'closingHtml' => $this->textOrHtml($letter->closing_content),
@@ -250,10 +258,7 @@ CSS;
         return collect([
             $letter->template?->reference_label,
             $letter->reference_number,
-            $letter->recipient_name,
-            $letter->recipient_title,
-            $letter->recipient_organization,
-            $letter->recipient_address,
+            ...$letter->recipientDisplayLines($letter->language),
             $letter->subject,
             $letter->salutation,
             $letter->body_content,

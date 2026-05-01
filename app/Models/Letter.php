@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Spatie\Activitylog\LogOptions;
@@ -30,6 +31,7 @@ class Letter extends Model
         'recipient_title',
         'recipient_organization',
         'recipient_address',
+        'recipients',
         'subject',
         'salutation',
         'body_content',
@@ -46,6 +48,12 @@ class Letter extends Model
         'page_size',
         'orientation',
         'status',
+        'approval_status',
+        'approved_by',
+        'approved_at',
+        'approved_signature_path_snapshot',
+        'approved_signer_name_snapshot',
+        'approved_signer_title_snapshot',
         'layout_config',
         'notes',
         'created_by',
@@ -56,7 +64,9 @@ class Letter extends Model
     {
         return [
             'letter_date' => 'date',
+            'approved_at' => 'datetime',
             'layout_config' => 'array',
+            'recipients' => 'array',
         ];
     }
 
@@ -75,6 +85,11 @@ class Letter extends Model
         return $this->belongsTo(User::class, 'updated_by')->withTrashed();
     }
 
+    public function approver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by')->withTrashed();
+    }
+
     public function headerImageUrl(): ?string
     {
         return $this->assetUrl($this->header_image_path_snapshot)
@@ -89,12 +104,23 @@ class Letter extends Model
 
     public function signatureImageUrl(): ?string
     {
+        if (($this->approval_status ?? 'draft') === 'approved') {
+            return $this->assetUrl($this->approved_signature_path_snapshot)
+                ?? $this->approver?->signatureUrl();
+        }
+
         return $this->assetUrl($this->signature_image_path_snapshot)
             ?? $this->creator?->signatureUrl();
     }
 
     public function signerFullName(): ?string
     {
+        if (($this->approval_status ?? 'draft') === 'approved') {
+            return filled($this->approved_signer_name_snapshot)
+                ? $this->approved_signer_name_snapshot
+                : $this->approver?->name;
+        }
+
         return filled($this->signer_full_name_snapshot)
             ? $this->signer_full_name_snapshot
             : $this->creator?->name;
@@ -102,23 +128,102 @@ class Letter extends Model
 
     public function signerTitle(): ?string
     {
+        if (($this->approval_status ?? 'draft') === 'approved') {
+            return filled($this->approved_signer_title_snapshot)
+                ? $this->approved_signer_title_snapshot
+                : $this->approver?->job_title;
+        }
+
         return filled($this->signer_title_snapshot)
             ? $this->signer_title_snapshot
             : $this->creator?->job_title;
     }
 
+    /**
+     * @return array<int, array<string, string|null>>
+     */
+    public function resolvedRecipients(): array
+    {
+        $storedRecipients = is_array($this->recipients) ? $this->recipients : [];
+        $normalizedRecipients = collect($storedRecipients)
+            ->map(function (mixed $recipient): ?array {
+                if (! is_array($recipient)) {
+                    return null;
+                }
+
+                $name = trim((string) Arr::get($recipient, 'recipient_name', ''));
+
+                if ($name === '') {
+                    return null;
+                }
+
+                return [
+                    'recipient_name' => $name,
+                    'recipient_department_id' => $this->normalizeOptionalString(Arr::get($recipient, 'recipient_department_id')),
+                    'recipient_department_name_en' => $this->normalizeOptionalString(Arr::get($recipient, 'recipient_department_name_en')),
+                    'recipient_department_name_am' => $this->normalizeOptionalString(Arr::get($recipient, 'recipient_department_name_am')),
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
+
+        if ($normalizedRecipients !== []) {
+            return $normalizedRecipients;
+        }
+
+        if (! filled($this->recipient_name)) {
+            return [];
+        }
+
+        return [[
+            'recipient_name' => $this->recipient_name,
+            'recipient_department_id' => null,
+            'recipient_department_name_en' => $this->normalizeOptionalString($this->recipient_organization),
+            'recipient_department_name_am' => $this->normalizeOptionalString($this->recipient_organization),
+        ]];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function recipientDisplayLines(?string $language = null): array
+    {
+        $documentLanguage = in_array($language, ['en', 'am'], true)
+            ? $language
+            : $this->language;
+
+        return collect($this->resolvedRecipients())
+            ->map(function (array $recipient) use ($documentLanguage): string {
+                $departmentName = $documentLanguage === 'am'
+                    ? ($recipient['recipient_department_name_am'] ?? $recipient['recipient_department_name_en'])
+                    : ($recipient['recipient_department_name_en'] ?? $recipient['recipient_department_name_am']);
+
+                return filled($departmentName)
+                    ? sprintf('%s - %s', $recipient['recipient_name'], $departmentName)
+                    : $recipient['recipient_name'];
+            })
+            ->values()
+            ->all();
+    }
+
     public function previewPlaceholders(): array
     {
+        $primaryRecipient = $this->resolvedRecipients()[0] ?? null;
+        $recipientDepartmentName = $this->language === 'am'
+            ? ($primaryRecipient['recipient_department_name_am'] ?? $primaryRecipient['recipient_department_name_en'] ?? '')
+            : ($primaryRecipient['recipient_department_name_en'] ?? $primaryRecipient['recipient_department_name_am'] ?? '');
+
         return [
             'date' => $this->letter_date?->toDateString() ?? now()->toDateString(),
             'reference_number' => $this->reference_number,
-            'recipient_name' => $this->recipient_name,
+            'recipient_name' => $primaryRecipient['recipient_name'] ?? $this->recipient_name,
             'recipient_title' => $this->recipient_title ?? '',
-            'recipient_organization' => $this->recipient_organization ?? '',
+            'recipient_organization' => $recipientDepartmentName,
             'subject' => $this->subject ?? '',
-            'sender_name' => $this->creator?->name ?? '',
-            'sender_title' => $this->creator?->job_title ?? '',
-            'department_name' => '',
+            'sender_name' => $this->signerFullName() ?? $this->creator?->name ?? '',
+            'sender_title' => $this->signerTitle() ?? $this->creator?->job_title ?? '',
+            'department_name' => $recipientDepartmentName,
             'organization_name' => config('app.name'),
             'signature_name' => $this->signerFullName() ?? '',
             'signature_title' => $this->signerTitle() ?? '',
@@ -149,5 +254,16 @@ class Letter extends Model
         return $storagePath !== null
             ? route('branding-assets.show', ['path' => $storagePath])
             : null;
+    }
+
+    private function normalizeOptionalString(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $trimmed = trim($value);
+
+        return $trimmed !== '' ? $trimmed : null;
     }
 }

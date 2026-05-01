@@ -39,11 +39,17 @@ type PlaceholderTarget =
     | 'cc_content'
     | 'enclosure_content';
 
-const LETTER_TEMPLATE_BODY_TOOLBAR = 'undo redo | fontsizeinput | bold italic underline | bullist numlist | alignleft aligncenter alignright alignjustify | link | removeformat';
+const LETTER_TEMPLATE_BODY_TOOLBAR = 'undo redo | fontsizeinput lineheight | bold italic underline | bullist numlist | alignleft aligncenter alignright alignjustify | link | removeformat';
 
 function buildTemplateEditorContentStyle(language: 'en' | 'am') {
     if (language !== 'am') {
-        return '';
+        return `
+            body {
+                max-width: 174mm;
+                margin: 0 auto 2rem;
+                padding: 0;
+            }
+        `;
     }
 
     return `
@@ -54,6 +60,9 @@ function buildTemplateEditorContentStyle(language: 'en' | 'am') {
             font-weight: 400 700;
         }
         body {
+            max-width: 174mm;
+            margin: 0 auto 2rem;
+            padding: 0;
             font-family: 'LetterNyala', 'Nyala', serif;
             line-height: 1.85;
         }
@@ -437,15 +446,17 @@ export default function LetterTemplateForm({ templateItem, canDelete, placeholde
                             <FormField label={t('letter_templates.fields.salutation_template')} optional error={form.errors.salutation_template}>
                                 <textarea value={form.data.salutation_template} onChange={(event) => form.setData('salutation_template', event.target.value)} className="textarea-ui min-h-28" />
                             </FormField>
-                            <FormField label={t('letter_templates.fields.body_template')} required error={form.errors.body_content}>
-                                <RichTextEditor
-                                    value={form.data.body_content}
-                                    onChange={(value) => form.setData('body_content', value)}
-                                    minHeight={320}
-                                    toolbar={LETTER_TEMPLATE_BODY_TOOLBAR}
-                                    contentStyle={buildTemplateEditorContentStyle(form.data.language as 'en' | 'am')}
-                                />
-                            </FormField>
+                            <div className="xl:col-span-2 mx-auto w-full max-w-[820px]">
+                                <FormField label={t('letter_templates.fields.body_template')} required error={form.errors.body_content}>
+                                    <RichTextEditor
+                                        value={form.data.body_content}
+                                        onChange={(value) => form.setData('body_content', value)}
+                                        minHeight={320}
+                                        toolbar={LETTER_TEMPLATE_BODY_TOOLBAR}
+                                        contentStyle={buildTemplateEditorContentStyle(form.data.language as 'en' | 'am')}
+                                    />
+                                </FormField>
+                            </div>
                         </div>
                     </SurfaceCard>
 
