@@ -25,12 +25,20 @@ type RichTextEditorProps = {
     value: string;
     onChange: (value: string) => void;
     minHeight?: number;
+    toolbar?: string;
+    fontSizeFormats?: string;
+    fontSizeDefaultUnit?: string;
+    contentStyle?: string;
 };
 
 export default function RichTextEditor({
     value,
     onChange,
     minHeight = 320,
+    toolbar = 'undo redo | bold italic underline | bullist numlist | alignleft aligncenter alignright alignjustify | link | removeformat',
+    fontSizeFormats = '8pt 9pt 10pt 11pt 12pt 14pt 16pt 18pt 20pt 24pt 28pt 32pt',
+    fontSizeDefaultUnit = 'pt',
+    contentStyle = '',
 }: RichTextEditorProps) {
     const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains('dark'));
 
@@ -66,8 +74,9 @@ export default function RichTextEditor({
                     min_height: minHeight,
                     autoresize_bottom_margin: 16,
                     plugins: ['advlist', 'autoresize', 'link', 'lists'],
-                    toolbar:
-                        'undo redo | bold italic underline | bullist numlist | alignleft aligncenter alignright alignjustify | link | removeformat',
+                    toolbar,
+                    font_size_formats: fontSizeFormats,
+                    font_size_input_default_unit: fontSizeDefaultUnit,
                     content_style: `
                         body {
                             margin: 1rem;
@@ -79,6 +88,7 @@ export default function RichTextEditor({
                         }
                         p { margin: 0 0 0.75rem; }
                         a { color: ${isDark ? '#67e8f9' : '#0f766e'}; }
+                        ${contentStyle}
                     `,
                 }}
             />

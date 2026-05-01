@@ -375,8 +375,9 @@ it('renders amharic letter pdf html with embedded ethiopic fonts', function (): 
 
     expect($html)
         ->toContain('<html lang="am">')
-        ->toContain('class="pdf-amharic"')
-        ->toContain("font-family: 'LDMSPdfEthiopic', 'DejaVu Sans', sans-serif;")
+        ->toContain('class="pdf-nyala"')
+        ->toContain("font-family: 'Nyala', serif;")
+        ->toContain("font-family: 'Nyala';")
         ->toContain('data:font/ttf;base64,')
         ->toContain('ይህ የአማርኛ ፒዲኤፍ ሙከራ ይዘት ነው።')
         ->toContain('መሰረት ከበደ');
@@ -476,6 +477,9 @@ it('keeps the shared letter renderer contracts for centered subject, right signa
     $renderer = file_get_contents(base_path('resources/js/Pages/Admin/LetterTemplates/shared.tsx'));
 
     expect($renderer)
+        ->toContain("const LETTER_NYALA_FONT_FAMILY = \"'LetterNyala', 'Nyala', serif\";")
+        ->toContain("data-letter-font={useNyala ? 'nyala' : 'default'}")
+        ->toContain('sanitizeRichTextHtml(value, { allowFontSize: true })')
         ->toContain('data-letter-slot="header"')
         ->toContain('data-letter-slot="footer"')
         ->toContain('data-letter-page')
@@ -492,6 +496,22 @@ it('keeps the shared letter renderer contracts for centered subject, right signa
         ->toContain('border-y border-slate-300 py-3 text-center')
         ->toContain('items-end space-y-4 pt-6 text-right')
         ->toContain('list-disc space-y-2 pl-6');
+});
+
+it('configures the letter main body editor with a font size control and nyala content style', function (): void {
+    $form = file_get_contents(base_path('resources/js/Pages/Admin/Letters/Form.tsx'));
+    $editor = file_get_contents(base_path('resources/js/Components/Ui/RichTextEditor.tsx'));
+
+    expect($form)
+        ->toContain('fontsizeinput')
+        ->toContain("font-family: 'LetterNyala', 'Nyala', serif;")
+        ->toContain("import nyalaFontUrl from '../../../../fonts/pdf/Nyala.ttf?url';")
+        ->toContain("contentStyle={buildLetterEditorContentStyle(form.data.language as 'en' | 'am')}");
+
+    expect($editor)
+        ->toContain('toolbar?: string;')
+        ->toContain('font_size_formats: fontSizeFormats')
+        ->toContain('font_size_input_default_unit: fontSizeDefaultUnit');
 });
 
 it('generates multi-page letter pdf output without crashing', function (): void {

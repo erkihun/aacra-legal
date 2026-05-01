@@ -93,6 +93,7 @@ class RenderLetterPdfAction
 
         $layout = is_array($letter->layout_config) ? $letter->layout_config : [];
         $locale = $this->resolvedLocale($letter);
+        $usesNyalaTypography = $this->usesNyalaTypography($letter, $locale);
         $isAmharicDocument = $locale === 'am';
         $leftMargin = (int) ($layout['margin_left_mm'] ?? 18);
         $rightMargin = (int) ($layout['margin_right_mm'] ?? 18);
@@ -127,6 +128,7 @@ class RenderLetterPdfAction
             'letter' => $letter,
             'documentLanguage' => $locale,
             'isAmharicDocument' => $isAmharicDocument,
+            'usesNyalaTypography' => $usesNyalaTypography,
             'documentTitle' => $letter->reference_number ?: __('letters.detail_title'),
             'referenceLabel' => $letter->template?->reference_label ?: __('letters.preview.reference'),
             'dateLabel' => __('letters.preview.date'),
@@ -134,14 +136,14 @@ class RenderLetterPdfAction
             'enclosureLabel' => __('letters.preview.enclosure'),
             'subjectLabel' => __('letters.preview.subject'),
             'embeddedFontCss' => $this->embeddedFontCss(),
-            'pdfBodyClass' => $isAmharicDocument ? 'pdf-amharic' : 'pdf-latin',
-            'bodyFontSizePx' => $isAmharicDocument ? 12.5 : 12,
-            'bodyLineHeight' => $isAmharicDocument ? 1.85 : 1.65,
-            'bodyWordSpacingEm' => $isAmharicDocument ? 0.03 : 0,
-            'bodyLetterSpacingEm' => $isAmharicDocument ? 0.01 : 0,
-            'subjectLabelLetterSpacingEm' => $isAmharicDocument ? 0.03 : 0.12,
-            'sectionLabelLetterSpacingEm' => $isAmharicDocument ? 0.04 : 0.18,
-            'labelTextTransform' => $isAmharicDocument ? 'none' : 'uppercase',
+            'pdfBodyClass' => $usesNyalaTypography ? 'pdf-nyala' : 'pdf-latin',
+            'bodyFontSizePx' => $usesNyalaTypography ? 12.5 : 12,
+            'bodyLineHeight' => $usesNyalaTypography ? 1.85 : 1.65,
+            'bodyWordSpacingEm' => $usesNyalaTypography ? 0.03 : 0,
+            'bodyLetterSpacingEm' => $usesNyalaTypography ? 0.01 : 0,
+            'subjectLabelLetterSpacingEm' => $usesNyalaTypography ? 0.03 : 0.12,
+            'sectionLabelLetterSpacingEm' => $usesNyalaTypography ? 0.04 : 0.18,
+            'labelTextTransform' => $usesNyalaTypography ? 'none' : 'uppercase',
             'orientation' => $letter->orientation === 'landscape' ? 'landscape' : 'portrait',
             'pageTopMarginMm' => $pageTopMargin,
             'pageBottomMarginMm' => $pageBottomMargin,
@@ -182,7 +184,7 @@ class RenderLetterPdfAction
         $options = new Options;
         $options->set('isHtml5ParserEnabled', true);
         $options->set('isRemoteEnabled', false);
-        $options->set('defaultFont', 'DejaVu Sans');
+        $options->set('defaultFont', 'Nyala');
         $options->set('dpi', 96);
         $options->set('isFontSubsettingEnabled', true);
 
@@ -200,28 +202,52 @@ class RenderLetterPdfAction
 
     private function embeddedFontCss(): string
     {
-        $regularFont = $this->fontDataUri('NotoSansEthiopic-Regular.ttf');
-        $boldFont = $this->fontDataUri('NotoSansEthiopic-Bold.ttf');
+        $regularFont = $this->fontDataUri('Nyala.ttf');
 
-        if ($regularFont === null || $boldFont === null) {
+        if ($regularFont === null) {
             return '';
         }
 
         return <<<CSS
 @font-face {
-    font-family: 'LDMSPdfEthiopic';
+    font-family: 'Nyala';
     font-style: normal;
     font-weight: 400;
     src: url('{$regularFont}') format('truetype');
 }
 
 @font-face {
-    font-family: 'LDMSPdfEthiopic';
+    font-family: 'Nyala';
     font-style: normal;
     font-weight: 700;
-    src: url('{$boldFont}') format('truetype');
+    src: url('{$regularFont}') format('truetype');
 }
 CSS;
+    }
+
+    private function usesNyalaTypography(Letter $letter, string $locale): bool
+    {
+        if ($locale === 'am') {
+            return true;
+        }
+
+        return collect([
+            $letter->template?->reference_label,
+            $letter->reference_number,
+            $letter->recipient_name,
+            $letter->recipient_title,
+            $letter->recipient_organization,
+            $letter->recipient_address,
+            $letter->subject,
+            $letter->salutation,
+            $letter->body_content,
+            $letter->closing_content,
+            $letter->signature_block_content,
+            $letter->cc_content,
+            $letter->enclosure_content,
+            $letter->signerFullName(),
+            $letter->signerTitle(),
+        ])->contains(static fn (mixed $value): bool => is_string($value) && preg_match('/[\x{1200}-\x{137F}\x{1380}-\x{139F}\x{2D80}-\x{2DDF}\x{AB00}-\x{AB2F}]/u', $value) === 1);
     }
 
     private function fontDataUri(string $fileName): ?string

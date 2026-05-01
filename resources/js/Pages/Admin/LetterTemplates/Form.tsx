@@ -9,6 +9,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useI18n } from '@/lib/i18n';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
+import nyalaFontUrl from '../../../../fonts/pdf/Nyala.ttf?url';
 import {
     appendPlaceholder,
     buildReferencePreview,
@@ -37,6 +38,27 @@ type PlaceholderTarget =
     | 'signature_block_content'
     | 'cc_content'
     | 'enclosure_content';
+
+const LETTER_TEMPLATE_BODY_TOOLBAR = 'undo redo | fontsizeinput | bold italic underline | bullist numlist | alignleft aligncenter alignright alignjustify | link | removeformat';
+
+function buildTemplateEditorContentStyle(language: 'en' | 'am') {
+    if (language !== 'am') {
+        return '';
+    }
+
+    return `
+        @font-face {
+            font-family: 'LetterNyala';
+            src: url('${nyalaFontUrl}') format('truetype');
+            font-style: normal;
+            font-weight: 400 700;
+        }
+        body {
+            font-family: 'LetterNyala', 'Nyala', serif;
+            line-height: 1.85;
+        }
+    `;
+}
 
 export default function LetterTemplateForm({ templateItem, canDelete, placeholderFields, previewData = defaultPreviewData }: Props) {
     const { t } = useI18n();
@@ -416,7 +438,13 @@ export default function LetterTemplateForm({ templateItem, canDelete, placeholde
                                 <textarea value={form.data.salutation_template} onChange={(event) => form.setData('salutation_template', event.target.value)} className="textarea-ui min-h-28" />
                             </FormField>
                             <FormField label={t('letter_templates.fields.body_template')} required error={form.errors.body_content}>
-                                <RichTextEditor value={form.data.body_content} onChange={(value) => form.setData('body_content', value)} minHeight={320} />
+                                <RichTextEditor
+                                    value={form.data.body_content}
+                                    onChange={(value) => form.setData('body_content', value)}
+                                    minHeight={320}
+                                    toolbar={LETTER_TEMPLATE_BODY_TOOLBAR}
+                                    contentStyle={buildTemplateEditorContentStyle(form.data.language as 'en' | 'am')}
+                                />
                             </FormField>
                         </div>
                     </SurfaceCard>

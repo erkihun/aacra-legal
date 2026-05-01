@@ -12,7 +12,7 @@
         }
 
         body {
-            font-family: 'LDMSPdfEthiopic', 'DejaVu Sans', sans-serif;
+            font-family: {{ $usesNyalaTypography ? "'Nyala', serif" : "'DejaVu Sans', sans-serif" }};
             font-size: {{ $bodyFontSizePx }}px;
             line-height: {{ $bodyLineHeight }};
             word-spacing: {{ $bodyWordSpacingEm }}em;
@@ -20,7 +20,7 @@
             color: #0f172a;
             margin: 0;
             padding: 0;
-            -dompdf-font-family: 'LDMSPdfEthiopic';
+            -dompdf-font-family: {{ $usesNyalaTypography ? "'Nyala'" : "'DejaVu Sans'" }};
         }
 
         header {
@@ -205,23 +205,23 @@
             margin-bottom: 6px;
         }
 
-        body.pdf-amharic .meta-label,
-        body.pdf-amharic .subject-label,
-        body.pdf-amharic .section-label {
-            font-family: 'LDMSPdfEthiopic', 'DejaVu Sans', sans-serif;
+        body.pdf-nyala .meta-label,
+        body.pdf-nyala .subject-label,
+        body.pdf-nyala .section-label {
+            font-family: 'Nyala', serif;
         }
 
-        body.pdf-amharic .meta-value,
-        body.pdf-amharic .recipient-block,
-        body.pdf-amharic .salutation-block,
-        body.pdf-amharic .body-block,
-        body.pdf-amharic .closing-block,
-        body.pdf-amharic .signature-note,
-        body.pdf-amharic .signer-name,
-        body.pdf-amharic .signer-title,
-        body.pdf-amharic .cc-list,
-        body.pdf-amharic .enclosure-block {
-            font-family: 'LDMSPdfEthiopic', 'DejaVu Sans', sans-serif;
+        body.pdf-nyala .meta-value,
+        body.pdf-nyala .recipient-block,
+        body.pdf-nyala .salutation-block,
+        body.pdf-nyala .body-block,
+        body.pdf-nyala .closing-block,
+        body.pdf-nyala .signature-note,
+        body.pdf-nyala .signer-name,
+        body.pdf-nyala .signer-title,
+        body.pdf-nyala .cc-list,
+        body.pdf-nyala .enclosure-block {
+            font-family: 'Nyala', serif;
             line-height: {{ $bodyLineHeight }};
         }
     </style>

@@ -286,6 +286,8 @@ it('keeps the shared letter renderer contracts for repeated pages and first-last
     $renderer = file_get_contents(base_path('resources/js/Pages/Admin/LetterTemplates/shared.tsx'));
 
     expect($renderer)
+        ->toContain("const LETTER_NYALA_FONT_FAMILY = \"'LetterNyala', 'Nyala', serif\";")
+        ->toContain("data-letter-font={useNyala ? 'nyala' : 'default'}")
         ->toContain('data-letter-page')
         ->toContain('pageBreakAfter')
         ->toContain('breakAfter')
@@ -307,6 +309,16 @@ it('keeps the shared letter renderer contracts for repeated pages and first-last
         ->toContain('footer_bottom_margin_mm')
         ->toContain('content_top_margin_mm')
         ->toContain('content_bottom_margin_mm');
+});
+
+it('configures the template main body editor with a font size control and nyala content style', function (): void {
+    $form = file_get_contents(base_path('resources/js/Pages/Admin/LetterTemplates/Form.tsx'));
+
+    expect($form)
+        ->toContain('fontsizeinput')
+        ->toContain("font-family: 'LetterNyala', 'Nyala', serif;")
+        ->toContain("import nyalaFontUrl from '../../../../fonts/pdf/Nyala.ttf?url';")
+        ->toContain("contentStyle={buildTemplateEditorContentStyle(form.data.language as 'en' | 'am')}");
 });
 
 it('shares localized template labels when amharic is active', function (): void {

@@ -11,6 +11,7 @@ import { PageProps } from '@/types';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 import { buildLetterRenderable, LetterItem, LetterSheet, LetterTemplateSelection, previewDocumentLabels } from '../LetterTemplates/shared';
+import nyalaFontUrl from '../../../../fonts/pdf/Nyala.ttf?url';
 
 type TemplateOption = {
     id: string;
@@ -27,6 +28,27 @@ type Props = {
     templateOptions: TemplateOption[];
     canDelete: boolean;
 };
+
+const LETTER_BODY_TOOLBAR = 'undo redo | fontsizeinput | bold italic underline | bullist numlist | alignleft aligncenter alignright alignjustify | link | removeformat';
+
+function buildLetterEditorContentStyle(language: 'en' | 'am') {
+    if (language !== 'am') {
+        return '';
+    }
+
+    return `
+        @font-face {
+            font-family: 'LetterNyala';
+            src: url('${nyalaFontUrl}') format('truetype');
+            font-style: normal;
+            font-weight: 400 700;
+        }
+        body {
+            font-family: 'LetterNyala', 'Nyala', serif;
+            line-height: 1.85;
+        }
+    `;
+}
 
 export default function LetterForm({ letterItem, selectedTemplate, templateOptions, canDelete }: Props) {
     const { t } = useI18n();
@@ -247,7 +269,13 @@ export default function LetterForm({ letterItem, selectedTemplate, templateOptio
                         <SurfaceCard className="space-y-4">
                             <h2 className="text-lg font-semibold text-[color:var(--text)]">{t('letters.sections.main_body')}</h2>
                             <FormField label={t('letters.fields.body_content')} required error={form.errors.body_content}>
-                                <RichTextEditor value={form.data.body_content} onChange={(value) => form.setData('body_content', value)} minHeight={360} />
+                                <RichTextEditor
+                                    value={form.data.body_content}
+                                    onChange={(value) => form.setData('body_content', value)}
+                                    minHeight={360}
+                                    toolbar={LETTER_BODY_TOOLBAR}
+                                    contentStyle={buildLetterEditorContentStyle(form.data.language as 'en' | 'am')}
+                                />
                             </FormField>
                         </SurfaceCard>
 

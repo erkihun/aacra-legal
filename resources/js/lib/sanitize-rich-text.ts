@@ -1,4 +1,8 @@
-export function sanitizeRichTextHtml(value?: string | null) {
+type SanitizeRichTextOptions = {
+    allowFontSize?: boolean;
+};
+
+export function sanitizeRichTextHtml(value?: string | null, options: SanitizeRichTextOptions = {}) {
     if (!value) {
         return '';
     }
@@ -35,9 +39,22 @@ export function sanitizeRichTextHtml(value?: string | null) {
             return null;
         }
 
-        const match = style.match(/text-align\s*:\s*(left|center|right|justify)\s*;?/i);
+        const declarations: string[] = [];
+        const textAlignMatch = style.match(/text-align\s*:\s*(left|center|right|justify)\s*;?/i);
 
-        return match ? `text-align: ${match[1].toLowerCase()};` : null;
+        if (textAlignMatch) {
+            declarations.push(`text-align: ${textAlignMatch[1].toLowerCase()};`);
+        }
+
+        if (options.allowFontSize) {
+            const fontSizeMatch = style.match(/font-size\s*:\s*((?:\d+(?:\.\d+)?)\s*(?:px|pt|em|rem|%))\s*;?/i);
+
+            if (fontSizeMatch) {
+                declarations.push(`font-size: ${fontSizeMatch[1].replace(/\s+/g, '')};`);
+            }
+        }
+
+        return declarations.length > 0 ? declarations.join(' ') : null;
     };
 
     const sanitizeNode = (node: Node): Node | null => {

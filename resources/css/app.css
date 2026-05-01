@@ -4,6 +4,14 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+    font-family: 'LetterNyala';
+    src: url('../fonts/pdf/Nyala.ttf') format('truetype');
+    font-style: normal;
+    font-weight: 400 700;
+    font-display: swap;
+}
+
 :root {
     color-scheme: light;
     --public-header-offset: 8rem;

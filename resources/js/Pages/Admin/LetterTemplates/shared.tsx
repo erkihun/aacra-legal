@@ -130,6 +130,7 @@ export type PreviewData = Record<string, string>;
 export type LetterRenderable = {
     page_size: 'A4';
     orientation: 'portrait' | 'landscape';
+    language: 'en' | 'am';
     layout_config?: LayoutConfig | null;
     reference_label?: string | null;
     reference_number?: string | null;
@@ -212,6 +213,8 @@ type LetterLayoutMetrics = {
     blockGapPx: number;
 };
 
+const LETTER_NYALA_FONT_FAMILY = "'LetterNyala', 'Nyala', serif";
+
 export const defaultPreviewData: PreviewData = {
     date: '2026-04-28',
     reference_number: 'LDMS/2026/0001',
@@ -274,6 +277,7 @@ export function buildTemplateRenderable(templateItem: LetterTemplateItem, previe
     return {
         page_size: templateItem.page_size,
         orientation: templateItem.orientation,
+        language: templateItem.language,
         layout_config: templateItem.layout_config,
         reference_label: templateItem.reference_label,
         reference_number: previewData.reference_number || templateItem.next_reference_number_preview || '',
@@ -304,6 +308,7 @@ export function buildLetterRenderable(letterItem: LetterItem): LetterRenderable 
     return {
         page_size: letterItem.page_size,
         orientation: letterItem.orientation,
+        language: letterItem.language,
         layout_config: letterItem.layout_config,
         reference_number: letterItem.reference_number,
         date: letterItem.letter_date,
@@ -391,25 +396,64 @@ function parseBulletListItems(value: string) {
         .filter((item) => item !== '');
 }
 
-function ContentBlock({ value, className }: { value: string; className?: string }) {
+function containsEthiopicText(value?: string | null) {
+    return typeof value === 'string' && /[\u1200-\u137F\u1380-\u139F\u2D80-\u2DDF\uAB00-\uAB2F]/u.test(value);
+}
+
+function usesNyalaTypography(renderable: LetterRenderable) {
+    if (renderable.language === 'am') {
+        return true;
+    }
+
+    return [
+        renderable.reference_label,
+        renderable.reference_number,
+        renderable.recipient_block,
+        renderable.subject,
+        renderable.salutation,
+        renderable.body_content,
+        renderable.closing_content,
+        renderable.signature_block_content,
+        renderable.signer_full_name,
+        renderable.signer_title,
+        renderable.cc_content,
+        renderable.enclosure_content,
+    ].some((value) => containsEthiopicText(value ?? null));
+}
+
+function ContentBlock({
+    value,
+    className,
+    allowFontSize = false,
+}: {
+    value: string;
+    className?: string;
+    allowFontSize?: boolean;
+}) {
     if (value.trim() === '') {
         return null;
     }
 
     if (contentIsHtml(value)) {
-        return <div className={className} dangerouslySetInnerHTML={{ __html: sanitizeRichTextHtml(value) }} />;
+        return <div className={className} dangerouslySetInnerHTML={{ __html: sanitizeRichTextHtml(value, { allowFontSize }) }} />;
     }
 
     return <div className={className ?? 'whitespace-pre-line'}>{value}</div>;
 }
 
-function BulletListBlock({ value }: { value: string }) {
+function BulletListBlock({ value, useNyala }: { value: string; useNyala: boolean }) {
     if (value.trim() === '') {
         return null;
     }
 
     if (contentIsHtml(value)) {
-        return <div className="prose prose-slate max-w-none text-sm leading-7" dangerouslySetInnerHTML={{ __html: sanitizeRichTextHtml(value) }} />;
+        return (
+            <div
+                className="prose prose-slate max-w-none text-sm leading-7"
+                style={useNyala ? { fontFamily: LETTER_NYALA_FONT_FAMILY } : undefined}
+                dangerouslySetInnerHTML={{ __html: sanitizeRichTextHtml(value, { allowFontSize: true }) }}
+            />
+        );
     }
 
     const items = parseBulletListItems(value);
@@ -427,14 +471,21 @@ function BulletListBlock({ value }: { value: string }) {
     );
 }
 
-function Section({ title, children }: { title?: string; children?: ReactNode }) {
+function Section({ title, children, useNyala = false }: { title?: string; children?: ReactNode; useNyala?: boolean }) {
     if (! children) {
         return null;
     }
 
     return (
         <section className="space-y-2">
-            {title ? <h3 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{title}</h3> : null}
+            {title ? (
+                <h3
+                    className={useNyala ? 'text-[11px] font-semibold text-slate-500' : 'text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500'}
+                    style={useNyala ? { fontFamily: LETTER_NYALA_FONT_FAMILY } : undefined}
+                >
+                    {title}
+                </h3>
+            ) : null}
             {children}
         </section>
     );
@@ -600,14 +651,14 @@ function buildLastPageBlocks(renderable: LetterRenderable, labels: LetterLabels)
     return blocks;
 }
 
-function measureReferenceHeight(labels: LetterLabels, renderable: LetterRenderable, widthPx: number) {
+function measureReferenceHeight(labels: LetterLabels, renderable: LetterRenderable, widthPx: number, useNyala: boolean) {
     if ((! renderable.reference_number || renderable.reference_number.trim() === '') && (! renderable.date || renderable.date.trim() === '')) {
         return 0;
     }
 
     return measureHtmlHeight(
         `
-        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;font-size:14px;line-height:1.5;">
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;font-size:14px;line-height:1.5;${useNyala ? `font-family:${LETTER_NYALA_FONT_FAMILY};` : ''}">
             <div>
                 <p style="margin:0;font-weight:600;color:#334155;">${escapeHtml(renderable.reference_label?.trim() || labels.reference)}</p>
                 <p style="margin:4px 0 0;color:#0f172a;">${escapeHtml(renderable.reference_number || '-')}</p>
@@ -643,13 +694,13 @@ function measureHtmlHeight(html: string, widthPx: number) {
     return Math.ceil(height);
 }
 
-function measureBlockHeight(block: PageBlock, widthPx: number) {
+function measureBlockHeight(block: PageBlock, widthPx: number, useNyala: boolean) {
     switch (block.kind) {
         case 'recipient':
         case 'salutation':
         case 'closing':
             return measureHtmlHeight(
-                `<section><div style="white-space:pre-line;font-size:14px;line-height:28px;color:#0f172a;">${escapeHtml(block.value)}</div></section>`,
+                `<section><div style="white-space:pre-line;font-size:14px;line-height:28px;color:#0f172a;${useNyala ? `font-family:${LETTER_NYALA_FONT_FAMILY};` : ''}">${escapeHtml(block.value)}</div></section>`,
                 widthPx,
             );
         case 'subject':
@@ -657,8 +708,8 @@ function measureBlockHeight(block: PageBlock, widthPx: number) {
                 `
                 <section>
                     <div style="border-top:1px solid #cbd5e1;border-bottom:1px solid #cbd5e1;padding:12px 0;text-align:center;">
-                        <p style="margin:0;font-size:14px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:#64748b;">${escapeHtml(block.label)}</p>
-                        <p style="margin:8px 0 0;font-size:16px;font-weight:600;color:#020617;">${escapeHtml(block.value)}</p>
+                        <p style="margin:0;font-size:14px;font-weight:600;${useNyala ? `font-family:${LETTER_NYALA_FONT_FAMILY};` : 'letter-spacing:0.12em;text-transform:uppercase;'}color:#64748b;">${escapeHtml(block.label)}</p>
+                        <p style="margin:8px 0 0;font-size:16px;font-weight:600;color:#020617;${useNyala ? `font-family:${LETTER_NYALA_FONT_FAMILY};` : ''}">${escapeHtml(block.value)}</p>
                     </div>
                 </section>
                 `,
@@ -666,14 +717,14 @@ function measureBlockHeight(block: PageBlock, widthPx: number) {
             );
         case 'body':
             return measureHtmlHeight(
-                `<section><div style="font-size:14px;line-height:28px;color:#0f172a;">${contentIsHtml(block.value) ? sanitizeRichTextHtml(block.value) : escapeHtml(block.value)}</div></section>`,
+                `<section><div style="font-size:14px;line-height:28px;color:#0f172a;${useNyala ? `font-family:${LETTER_NYALA_FONT_FAMILY};` : ''}">${contentIsHtml(block.value) ? sanitizeRichTextHtml(block.value, { allowFontSize: true }) : escapeHtml(block.value)}</div></section>`,
                 widthPx,
             );
         case 'signature':
             return measureHtmlHeight(
                 `
                 <section>
-                    <div style="margin-left:auto;display:flex;max-width:240px;flex-direction:column;align-items:flex-end;gap:16px;padding-top:24px;text-align:right;">
+                    <div style="margin-left:auto;display:flex;max-width:240px;flex-direction:column;align-items:flex-end;gap:16px;padding-top:24px;text-align:right;${useNyala ? `font-family:${LETTER_NYALA_FONT_FAMILY};` : ''}">
                         ${block.signatureImageUrl ? '<div style="height:88px;width:140px;"></div>' : ''}
                         ${(block.signerName?.trim() || block.signerTitle?.trim()) ? `
                             <div style="text-align:right;">
@@ -681,7 +732,7 @@ function measureBlockHeight(block: PageBlock, widthPx: number) {
                                 ${block.signerTitle?.trim() ? `<p style="margin:4px 0 0;font-size:14px;color:#334155;">${escapeHtml(block.signerTitle)}</p>` : ''}
                             </div>
                         ` : ''}
-                        ${block.value?.trim() ? `<div style="white-space:pre-line;font-size:14px;line-height:28px;color:#0f172a;">${escapeHtml(block.value)}</div>` : ''}
+                        ${block.value?.trim() ? `<div style="white-space:pre-line;font-size:14px;line-height:28px;color:#0f172a;${useNyala ? `font-family:${LETTER_NYALA_FONT_FAMILY};` : ''}">${escapeHtml(block.value)}</div>` : ''}
                     </div>
                 </section>
                 `,
@@ -693,8 +744,8 @@ function measureBlockHeight(block: PageBlock, widthPx: number) {
             return measureHtmlHeight(
                 `
                 <section>
-                    <h3 style="margin:0 0 8px;font-size:11px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:#64748b;">${escapeHtml(block.title)}</h3>
-                    <ul style="margin:0;padding-left:24px;font-size:14px;line-height:28px;color:#0f172a;">
+                    <h3 style="margin:0 0 8px;font-size:11px;font-weight:600;${useNyala ? `font-family:${LETTER_NYALA_FONT_FAMILY};` : 'letter-spacing:0.18em;text-transform:uppercase;'}color:#64748b;">${escapeHtml(block.title)}</h3>
+                    <ul style="margin:0;padding-left:24px;font-size:14px;line-height:28px;color:#0f172a;${useNyala ? `font-family:${LETTER_NYALA_FONT_FAMILY};` : ''}">
                         ${items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}
                     </ul>
                 </section>
@@ -706,8 +757,8 @@ function measureBlockHeight(block: PageBlock, widthPx: number) {
             return measureHtmlHeight(
                 `
                 <section>
-                    <h3 style="margin:0 0 8px;font-size:11px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:#64748b;">${escapeHtml(block.title)}</h3>
-                    <div style="white-space:pre-line;font-size:14px;line-height:28px;color:#0f172a;">${contentIsHtml(block.value) ? sanitizeRichTextHtml(block.value) : escapeHtml(block.value)}</div>
+                    <h3 style="margin:0 0 8px;font-size:11px;font-weight:600;${useNyala ? `font-family:${LETTER_NYALA_FONT_FAMILY};` : 'letter-spacing:0.18em;text-transform:uppercase;'}color:#64748b;">${escapeHtml(block.title)}</h3>
+                    <div style="white-space:pre-line;font-size:14px;line-height:28px;color:#0f172a;${useNyala ? `font-family:${LETTER_NYALA_FONT_FAMILY};` : ''}">${contentIsHtml(block.value) ? sanitizeRichTextHtml(block.value, { allowFontSize: true }) : escapeHtml(block.value)}</div>
                 </section>
                 `,
                 widthPx,
@@ -715,16 +766,16 @@ function measureBlockHeight(block: PageBlock, widthPx: number) {
     }
 }
 
-function blockHeights(blocks: PageBlock[], widthPx: number, gapPx: number) {
+function blockHeights(blocks: PageBlock[], widthPx: number, gapPx: number, useNyala: boolean) {
     return blocks.map((block, index) => ({
         block,
-        height: measureBlockHeight(block, widthPx) + (index > 0 ? gapPx : 0),
+        height: measureBlockHeight(block, widthPx, useNyala) + (index > 0 ? gapPx : 0),
     }));
 }
 
-function buildGreedyPages(blocks: PageBlock[], capacityPx: number, firstPageCapacityPx: number, widthPx: number, gapPx: number) {
+function buildGreedyPages(blocks: PageBlock[], capacityPx: number, firstPageCapacityPx: number, widthPx: number, gapPx: number, useNyala: boolean) {
     const pages: LetterPage[] = [{ blocks: [] }];
-    const heights = blockHeights(blocks, widthPx, gapPx);
+    const heights = blockHeights(blocks, widthPx, gapPx, useNyala);
     let used = 0;
     let currentCapacity = firstPageCapacityPx;
 
@@ -742,34 +793,35 @@ function buildGreedyPages(blocks: PageBlock[], capacityPx: number, firstPageCapa
     return pages;
 }
 
-function computeUsedHeight(blocks: PageBlock[], widthPx: number, gapPx: number) {
-    const measured = blockHeights(blocks, widthPx, gapPx);
+function computeUsedHeight(blocks: PageBlock[], widthPx: number, gapPx: number, useNyala: boolean) {
+    const measured = blockHeights(blocks, widthPx, gapPx, useNyala);
 
     return measured.reduce((sum, item) => sum + item.height, 0);
 }
 
 function paginateRenderable(renderable: LetterRenderable, labels: LetterLabels) {
     const metrics = buildLayoutMetrics(renderable);
+    const useNyala = usesNyalaTypography(renderable);
     const regularBlocks = buildRegularBlocks(renderable, labels);
     const lastPageBlocks = buildLastPageBlocks(renderable, labels);
-    const firstPageTopBlockHeightPx = measureReferenceHeight(labels, renderable, metrics.pageContentWidthPx);
+    const firstPageTopBlockHeightPx = measureReferenceHeight(labels, renderable, metrics.pageContentWidthPx, useNyala);
     const firstPageCapacityPx = Math.max(
         metrics.pageContentHeightPx - firstPageTopBlockHeightPx - (firstPageTopBlockHeightPx > 0 ? metrics.blockGapPx : 0),
         120,
     );
     const normalCapacityPx = Math.max(metrics.pageContentHeightPx, 120);
 
-    let pages = buildGreedyPages(regularBlocks, normalCapacityPx, firstPageCapacityPx, metrics.pageContentWidthPx, metrics.blockGapPx);
+    let pages = buildGreedyPages(regularBlocks, normalCapacityPx, firstPageCapacityPx, metrics.pageContentWidthPx, metrics.blockGapPx, useNyala);
 
     if (pages.length === 0) {
         pages = [{ blocks: [] }];
     }
 
     if (lastPageBlocks.length > 0) {
-        const lastPageOnlyHeight = computeUsedHeight(lastPageBlocks, metrics.pageContentWidthPx, metrics.blockGapPx);
+        const lastPageOnlyHeight = computeUsedHeight(lastPageBlocks, metrics.pageContentWidthPx, metrics.blockGapPx, useNyala);
         const lastPage = pages[pages.length - 1];
         const lastPageCapacityPx = pages.length === 1 ? firstPageCapacityPx : normalCapacityPx;
-        const lastPageRegularHeight = computeUsedHeight(lastPage.blocks, metrics.pageContentWidthPx, metrics.blockGapPx);
+        const lastPageRegularHeight = computeUsedHeight(lastPage.blocks, metrics.pageContentWidthPx, metrics.blockGapPx, useNyala);
         const needsLeadingGap = lastPage.blocks.length > 0;
         const reserveHeight = lastPageOnlyHeight + (needsLeadingGap ? metrics.blockGapPx : 0);
         const finalPageMaxRegularHeight = Math.max(lastPageCapacityPx - reserveHeight, 0);
@@ -779,7 +831,7 @@ function paginateRenderable(renderable: LetterRenderable, labels: LetterLabels) 
 
             while (
                 lastPage.blocks.length > 0
-                && computeUsedHeight(lastPage.blocks, metrics.pageContentWidthPx, metrics.blockGapPx) > finalPageMaxRegularHeight
+                && computeUsedHeight(lastPage.blocks, metrics.pageContentWidthPx, metrics.blockGapPx, useNyala) > finalPageMaxRegularHeight
             ) {
                 const moved = lastPage.blocks.pop();
 
@@ -795,13 +847,14 @@ function paginateRenderable(renderable: LetterRenderable, labels: LetterLabels) 
                     normalCapacityPx,
                     metrics.pageContentWidthPx,
                     metrics.blockGapPx,
+                    useNyala,
                 );
 
                 pages = [...pages.slice(0, -1), ...redistributedPages, lastPage];
             }
         }
 
-        if (computeUsedHeight(pages[pages.length - 1].blocks, metrics.pageContentWidthPx, metrics.blockGapPx) > Math.max(lastPageCapacityPx - reserveHeight, 0)) {
+        if (computeUsedHeight(pages[pages.length - 1].blocks, metrics.pageContentWidthPx, metrics.blockGapPx, useNyala) > Math.max(lastPageCapacityPx - reserveHeight, 0)) {
             pages.push({ blocks: [] });
         }
     }
@@ -810,56 +863,62 @@ function paginateRenderable(renderable: LetterRenderable, labels: LetterLabels) 
         metrics,
         pages,
         lastPageBlocks,
+        useNyala,
     };
 }
 
-function RenderBlock({ block }: { block: PageBlock }) {
+function RenderBlock({ block, useNyala }: { block: PageBlock; useNyala: boolean }) {
     switch (block.kind) {
         case 'recipient':
             return (
-                <Section>
+                <Section useNyala={useNyala}>
                     <ContentBlock value={block.value} className="whitespace-pre-line text-sm leading-7" />
                 </Section>
             );
         case 'subject':
             return (
-                <Section>
+                <Section useNyala={useNyala}>
                     <div className="border-y border-slate-300 py-3 text-center">
-                        <p className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-500">{block.label}</p>
-                        <p className="mt-2 text-base font-semibold text-slate-950">{block.value}</p>
+                        <p
+                            className={useNyala ? 'text-sm font-semibold text-slate-500' : 'text-sm font-semibold uppercase tracking-[0.12em] text-slate-500'}
+                            style={useNyala ? { fontFamily: LETTER_NYALA_FONT_FAMILY } : undefined}
+                        >
+                            {block.label}
+                        </p>
+                        <p className="mt-2 text-base font-semibold text-slate-950" style={useNyala ? { fontFamily: LETTER_NYALA_FONT_FAMILY } : undefined}>{block.value}</p>
                     </div>
                 </Section>
             );
         case 'salutation':
             return (
-                <Section>
+                <Section useNyala={useNyala}>
                     <ContentBlock value={block.value} className="whitespace-pre-line text-sm leading-7" />
                 </Section>
             );
         case 'body':
             return (
-                <Section>
-                    <ContentBlock value={block.value} className="prose prose-slate max-w-none text-sm leading-7" />
+                <Section useNyala={useNyala}>
+                    <ContentBlock value={block.value} className="prose prose-slate max-w-none text-sm leading-7" allowFontSize />
                 </Section>
             );
         case 'closing':
             return (
-                <Section>
+                <Section useNyala={useNyala}>
                     <ContentBlock value={block.value} className="whitespace-pre-line text-sm leading-7" />
                 </Section>
             );
         case 'signature':
             return (
-                <Section>
+                <Section useNyala={useNyala}>
                     <div className="ml-auto flex max-w-[240px] flex-col items-end space-y-4 pt-6 text-right break-inside-avoid">
                         {block.signatureImageUrl ? (
                             <img src={block.signatureImageUrl} alt="" className="block max-h-[88px] max-w-full w-auto object-contain object-right" />
                         ) : null}
                         {block.signerName?.trim() ? (
                             <div className="space-y-1 text-right">
-                                <p className="text-sm font-semibold text-slate-950">{block.signerName}</p>
+                                <p className="text-sm font-semibold text-slate-950" style={useNyala ? { fontFamily: LETTER_NYALA_FONT_FAMILY } : undefined}>{block.signerName}</p>
                                 {block.signerTitle?.trim() ? (
-                                    <p className="text-sm text-slate-700">{block.signerTitle}</p>
+                                    <p className="text-sm text-slate-700" style={useNyala ? { fontFamily: LETTER_NYALA_FONT_FAMILY } : undefined}>{block.signerTitle}</p>
                                 ) : null}
                             </div>
                         ) : null}
@@ -871,14 +930,14 @@ function RenderBlock({ block }: { block: PageBlock }) {
             );
         case 'cc':
             return (
-                <Section title={block.title}>
-                    <BulletListBlock value={block.value} />
+                <Section title={block.title} useNyala={useNyala}>
+                    <BulletListBlock value={block.value} useNyala={useNyala} />
                 </Section>
             );
         case 'enclosure':
             return (
-                <Section title={block.title}>
-                    <ContentBlock value={block.value} className="whitespace-pre-line text-sm leading-7" />
+                <Section title={block.title} useNyala={useNyala}>
+                    <ContentBlock value={block.value} className="whitespace-pre-line text-sm leading-7" allowFontSize />
                 </Section>
             );
     }
@@ -898,7 +957,7 @@ export function LetterSheet({
         setPageState(paginateRenderable(renderable, labels));
     }, [signature]);
 
-    const { metrics, pages, lastPageBlocks } = pageState;
+    const { metrics, pages, lastPageBlocks, useNyala } = pageState;
     const referenceLabel = renderable.reference_label?.trim() || labels.reference;
 
     return (
@@ -913,12 +972,15 @@ export function LetterSheet({
                             key={`letter-page-${index}`}
                             data-letter-page={index + 1}
                             className="mx-auto bg-white text-slate-900 shadow-sm ring-1 ring-slate-200 print:shadow-none print:ring-0"
+                            data-letter-font={useNyala ? 'nyala' : 'default'}
+                            data-letter-language={renderable.language}
                             style={{
                                 width: metrics.pageWidthStyle,
                                 height: metrics.pageMinHeightStyle,
                                 minHeight: metrics.pageMinHeightStyle,
                                 pageBreakAfter: index === pages.length - 1 ? 'auto' : 'always',
                                 breakAfter: index === pages.length - 1 ? 'auto' : 'page',
+                                fontFamily: useNyala ? LETTER_NYALA_FONT_FAMILY : undefined,
                             }}
                         >
                             <div
@@ -958,22 +1020,22 @@ export function LetterSheet({
                                     {isFirstPage ? (
                                         <div className="grid gap-4 text-sm md:grid-cols-2">
                                             <div>
-                                                <p className="font-semibold text-slate-700">{referenceLabel}</p>
+                                                <p className="font-semibold text-slate-700" style={useNyala ? { fontFamily: LETTER_NYALA_FONT_FAMILY } : undefined}>{referenceLabel}</p>
                                                 <p className="mt-1 text-slate-900">{renderable.reference_number || '-'}</p>
                                             </div>
                                             <div className="text-left md:text-right">
-                                                <p className="font-semibold text-slate-700">{labels.date}</p>
+                                                <p className="font-semibold text-slate-700" style={useNyala ? { fontFamily: LETTER_NYALA_FONT_FAMILY } : undefined}>{labels.date}</p>
                                                 <p className="mt-1 text-slate-900">{renderable.date || '-'}</p>
                                             </div>
                                         </div>
                                     ) : null}
 
                                     {page.blocks.map((block) => (
-                                        <RenderBlock key={block.key} block={block} />
+                                        <RenderBlock key={block.key} block={block} useNyala={useNyala} />
                                     ))}
 
                                     {isLastPage ? lastPageBlocks.map((block) => (
-                                        <RenderBlock key={block.key} block={block} />
+                                        <RenderBlock key={block.key} block={block} useNyala={useNyala} />
                                     )) : null}
                                 </div>
 
