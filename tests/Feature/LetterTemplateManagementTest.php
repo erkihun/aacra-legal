@@ -275,7 +275,7 @@ it('keeps the shared template preview renderer free of subject labels and divide
 
     expect($renderer)
         ->toContain('function formatSubjectDisplayValue(value: string)')
-        ->toContain('text-base font-semibold text-slate-950 text-center')
+        ->toContain('text-base font-bold text-slate-950 text-center underline')
         ->not->toContain('border-y border-slate-300 py-3 text-center')
         ->not->toContain('className="grid border-b border-slate-200"')
         ->not->toContain('className="grid border-t border-slate-200"');
@@ -431,6 +431,7 @@ it('configures the template main body editor with a font size control and nyala 
 
     expect($form)
         ->toContain('fontsizeinput')
+        ->toContain('lineheight')
         ->toContain("font-family: 'LetterNyala', 'Nyala', serif;")
         ->toContain("import nyalaFontUrl from '../../../../fonts/pdf/Nyala.ttf?url';")
         ->toContain("contentStyle={buildTemplateEditorContentStyle(form.data.language as 'en' | 'am')}");

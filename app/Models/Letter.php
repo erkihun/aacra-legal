@@ -152,16 +152,19 @@ class Letter extends Model
                 }
 
                 $name = trim((string) Arr::get($recipient, 'recipient_name', ''));
+                $departmentNameEn = $this->normalizeOptionalString(Arr::get($recipient, 'recipient_department_name_en'));
+                $departmentNameAm = $this->normalizeOptionalString(Arr::get($recipient, 'recipient_department_name_am'));
 
-                if ($name === '') {
+                if ($name === '' && ! filled($departmentNameEn) && ! filled($departmentNameAm)) {
                     return null;
                 }
 
                 return [
-                    'recipient_name' => $name,
+                    'recipient_type' => $this->normalizeOptionalString(Arr::get($recipient, 'recipient_type')) ?? ($name === '' ? 'department' : 'text'),
+                    'recipient_name' => $name !== '' ? $name : null,
                     'recipient_department_id' => $this->normalizeOptionalString(Arr::get($recipient, 'recipient_department_id')),
-                    'recipient_department_name_en' => $this->normalizeOptionalString(Arr::get($recipient, 'recipient_department_name_en')),
-                    'recipient_department_name_am' => $this->normalizeOptionalString(Arr::get($recipient, 'recipient_department_name_am')),
+                    'recipient_department_name_en' => $departmentNameEn,
+                    'recipient_department_name_am' => $departmentNameAm,
                 ];
             })
             ->filter()
@@ -177,6 +180,7 @@ class Letter extends Model
         }
 
         return [[
+            'recipient_type' => 'text',
             'recipient_name' => $this->recipient_name,
             'recipient_department_id' => null,
             'recipient_department_name_en' => $this->normalizeOptionalString($this->recipient_organization),
@@ -199,10 +203,13 @@ class Letter extends Model
                     ? ($recipient['recipient_department_name_am'] ?? $recipient['recipient_department_name_en'])
                     : ($recipient['recipient_department_name_en'] ?? $recipient['recipient_department_name_am']);
 
-                return filled($departmentName)
-                    ? sprintf('%s - %s', $recipient['recipient_name'], $departmentName)
-                    : $recipient['recipient_name'];
+                if (filled($recipient['recipient_name'] ?? null)) {
+                    return (string) $recipient['recipient_name'];
+                }
+
+                return (string) ($departmentName ?? '');
             })
+            ->filter(static fn (string $value): bool => $value !== '')
             ->values()
             ->all();
     }

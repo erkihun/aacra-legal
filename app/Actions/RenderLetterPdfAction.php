@@ -134,7 +134,7 @@ class RenderLetterPdfAction
         $pageBottomMargin = $footerSlotHeight + $contentBottomMargin;
 
         $recipientItems = $letter->recipientDisplayLines($letter->language);
-        $recipientBlock = count($recipientItems) > 1
+        $recipientBlock = count($recipientItems) > 0
             ? ''
             : ($recipientItems[0] ?? implode("\n", array_values(array_filter([
                 $letter->recipient_name,
@@ -182,7 +182,7 @@ class RenderLetterPdfAction
             'footerImage' => $footerImage,
             'signatureImage' => $signatureImage,
             'recipientBlock' => $recipientBlock,
-            'recipientItems' => count($recipientItems) > 1 ? $recipientItems : [],
+            'recipientItems' => $recipientItems,
             'bodyHtml' => $this->richContentHtml($letter->body_content),
             'salutationHtml' => $this->textOrHtml($letter->salutation),
             'closingHtml' => $this->textOrHtml($letter->closing_content),

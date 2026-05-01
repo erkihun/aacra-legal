@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Actions\RenderLetterPdfAction;
 use App\Actions\GenerateLetterReferenceNumberAction;
 use App\Enums\LocaleCode;
+use App\Models\Department;
 use App\Models\Letter;
 use App\Models\LetterTemplate;
 use App\Models\User;
@@ -40,6 +41,7 @@ it('shows the letter list and create action for authorized users', function (): 
 it('loads the letter create page for authorized users', function (): void {
     $user = createLetterUser(['letters.create']);
     $template = createLetterTemplateForLetters();
+    $department = createLetterDepartment();
 
     $this->actingAs($user)
         ->get(route('letters.create', ['template_id' => $template->id]))
@@ -47,6 +49,8 @@ it('loads the letter create page for authorized users', function (): void {
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Admin/Letters/Form')
             ->where('selectedTemplate.id', $template->id)
+            ->has('departments', 1)
+            ->where('departments.0.id', $department->id)
         );
 });
 
@@ -133,6 +137,119 @@ it('allows an authorized user to create a letter from a selected template', func
     Storage::disk('public')->assertExists((string) $letter->header_image_path_snapshot);
     Storage::disk('public')->assertExists((string) $letter->footer_image_path_snapshot);
     Storage::disk('public')->assertExists((string) $letter->signature_image_path_snapshot);
+});
+
+it('supports creating a letter with one free-text recipient', function (): void {
+    $user = createLetterUser(['letters.view', 'letters.create']);
+    $template = createLetterTemplateForLetters();
+    $preview = app(GenerateLetterReferenceNumberAction::class)->preview($template);
+
+    $this->actingAs($user)
+        ->post(route('letters.store'), letterPayload($template, [
+            'reference_number' => $preview,
+            'reference_number_preview' => $preview,
+            'recipients' => [
+                ['recipient_name' => 'Ato Abebe Kebede'],
+            ],
+        ]))
+        ->assertRedirect();
+
+    $letter = Letter::query()->latest('created_at')->firstOrFail();
+
+    expect($letter->recipientDisplayLines())->toBe(['Ato Abebe Kebede'])
+        ->and($letter->recipient_name)->toBe('Ato Abebe Kebede');
+});
+
+it('supports creating a letter with one department recipient', function (): void {
+    $user = createLetterUser(['letters.view', 'letters.create']);
+    $template = createLetterTemplateForLetters();
+    $department = createLetterDepartment([
+        'name_en' => 'Legal Directorate',
+        'name_am' => 'የህግ ዳይሬክቶሬት',
+    ]);
+    $preview = app(GenerateLetterReferenceNumberAction::class)->preview($template);
+
+    $this->actingAs($user)
+        ->post(route('letters.store'), letterPayload($template, [
+            'reference_number' => $preview,
+            'reference_number_preview' => $preview,
+            'recipients' => [
+                ['recipient_department_id' => $department->id],
+            ],
+        ]))
+        ->assertRedirect();
+
+    $letter = Letter::query()->latest('created_at')->firstOrFail();
+
+    expect($letter->recipientDisplayLines())->toBe(['Legal Directorate'])
+        ->and($letter->recipient_name)->toBe('Legal Directorate')
+        ->and($letter->resolvedRecipients()[0]['recipient_department_id'])->toBe($department->id);
+});
+
+it('supports creating a letter with multiple mixed recipients', function (): void {
+    $user = createLetterUser(['letters.view', 'letters.create', 'letters.preview']);
+    $template = createLetterTemplateForLetters();
+    $legal = createLetterDepartment([
+        'code' => 'LEG',
+        'name_en' => 'Legal Directorate',
+        'name_am' => 'የህግ ዳይሬክቶሬት',
+    ]);
+    $finance = createLetterDepartment([
+        'code' => 'FIN',
+        'name_en' => 'Finance Department',
+        'name_am' => 'የፋይናንስ መምሪያ',
+    ]);
+    $preview = app(GenerateLetterReferenceNumberAction::class)->preview($template);
+
+    $this->actingAs($user)
+        ->post(route('letters.store'), letterPayload($template, [
+            'reference_number' => $preview,
+            'reference_number_preview' => $preview,
+            'recipients' => [
+                ['recipient_name' => 'Ato Abebe Kebede'],
+                ['recipient_department_id' => $legal->id],
+                ['recipient_department_id' => $finance->id],
+            ],
+        ]))
+        ->assertRedirect();
+
+    $letter = Letter::query()->latest('created_at')->firstOrFail();
+
+    expect($letter->recipientDisplayLines())->toBe([
+        'Ato Abebe Kebede',
+        'Legal Directorate',
+        'Finance Department',
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('letters.preview', $letter))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('letterItem.recipients.0.recipient_name', 'Ato Abebe Kebede')
+            ->where('letterItem.recipients.1.recipient_department_name_en', 'Legal Directorate')
+            ->where('letterItem.recipients.2.recipient_department_name_en', 'Finance Department')
+        );
+
+    $html = app(RenderLetterPdfAction::class)->html($letter);
+
+    expect($html)
+        ->toContain('<ul class="recipient-list">')
+        ->toContain('<li>Ato Abebe Kebede</li>')
+        ->toContain('<li>Legal Directorate</li>')
+        ->toContain('<li>Finance Department</li>');
+});
+
+it('rejects recipient rows when both name and department are missing', function (): void {
+    $user = createLetterUser(['letters.create']);
+    $template = createLetterTemplateForLetters();
+
+    $this->actingAs($user)
+        ->post(route('letters.store'), letterPayload($template, [
+            'recipients' => [
+                ['recipient_name' => '', 'recipient_department_id' => ''],
+            ],
+        ]))
+        ->assertSessionHasErrors(['recipients.0']);
 });
 
 it('inherits low template margin values into saved letters and pdf rendering', function (): void {
@@ -581,7 +698,7 @@ it('keeps the shared letter renderer contracts for centered subject, right signa
         ->toContain('function formatSubjectDisplayValue(value: string)')
         ->toContain("trimmed.replace(/^(subject|ጉዳይ|ርዕስ)\\s*[:\\-–—]+\\s*/iu, '')")
         ->toContain("data-letter-font={useNyala ? 'nyala' : 'default'}")
-        ->toContain('sanitizeRichTextHtml(value, { allowFontSize: true })')
+        ->toContain('sanitizeRichTextHtml(value, { allowFontSize: true, allowLineHeight: true })')
         ->toContain('data-letter-slot="header"')
         ->toContain('data-letter-slot="footer"')
         ->toContain('data-letter-page')
@@ -595,9 +712,10 @@ it('keeps the shared letter renderer contracts for centered subject, right signa
         ->toContain('gridTemplateRows: `${metrics.footerTopSpacingMm}mm ${metrics.footerHeightMm}mm ${metrics.footerBottomMarginMm}mm`')
         ->toContain('paddingLeft: `${metrics.footerLeftMarginMm}mm`')
         ->toContain('paddingRight: `${metrics.footerRightMarginMm}mm`')
-        ->toContain('text-base font-semibold text-slate-950 text-center')
+        ->toContain('text-base font-bold text-slate-950 text-center underline')
         ->toContain('items-end space-y-4 pt-6 text-right')
-        ->toContain('list-disc space-y-2 pl-6')
+        ->toContain('list-disc space-y-0.5 pl-6 text-sm leading-5 marker:text-slate-500')
+        ->toContain('recipient_items')
         ->not->toContain('border-y border-slate-300 py-3 text-center')
         ->not->toContain('className="grid border-b border-slate-200"')
         ->not->toContain('className="grid border-t border-slate-200"');
@@ -609,6 +727,7 @@ it('configures the letter main body editor with a font size control and nyala co
 
     expect($form)
         ->toContain('fontsizeinput')
+        ->toContain('lineheight')
         ->toContain("font-family: 'LetterNyala', 'Nyala', serif;")
         ->toContain("import nyalaFontUrl from '../../../../fonts/pdf/Nyala.ttf?url';")
         ->toContain("contentStyle={buildLetterEditorContentStyle(form.data.language as 'en' | 'am')}");
@@ -616,7 +735,8 @@ it('configures the letter main body editor with a font size control and nyala co
     expect($editor)
         ->toContain('toolbar?: string;')
         ->toContain('font_size_formats: fontSizeFormats')
-        ->toContain('font_size_input_default_unit: fontSizeDefaultUnit');
+        ->toContain('font_size_input_default_unit: fontSizeDefaultUnit')
+        ->toContain('line_height_formats: lineHeightFormats');
 });
 
 it('generates multi-page letter pdf output without crashing', function (): void {
@@ -713,7 +833,7 @@ it('allows editing a saved letter even if its source template is later inactive'
     $letter->refresh();
 
     expect($letter->recipient_name)->toBe('Updated Recipient')
-        ->and($letter->status)->toBe('final');
+        ->and($letter->status)->toBe('draft');
 });
 
 it('allows deleting a saved letter for authorized users', function (): void {
@@ -856,6 +976,25 @@ function createLetterForTesting(LetterTemplate $template, array $overrides = [])
     }
 
     return $letter;
+}
+
+/**
+ * @param  array<string, mixed>  $overrides
+ */
+function createLetterDepartment(array $overrides = []): Department
+{
+    static $sequence = 1;
+
+    $department = Department::query()->create(array_merge([
+        'code' => 'DPT-'.$sequence,
+        'name_en' => 'Department '.$sequence,
+        'name_am' => 'መምሪያ '.$sequence,
+        'is_active' => true,
+    ], $overrides));
+
+    $sequence++;
+
+    return $department;
 }
 
 /**

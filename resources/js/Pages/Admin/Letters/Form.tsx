@@ -287,7 +287,7 @@ export default function LetterForm({ letterItem, selectedTemplate, templateOptio
                                 {form.data.recipients.map((recipient, index) => (
                                     <div key={`recipient-${index}`} className="rounded-3xl border border-[color:var(--border)] p-4">
                                         <div className="grid gap-4 md:grid-cols-[minmax(0,1fr),minmax(0,1fr),auto]">
-                                            <FormField label={t('letters.fields.recipient_name')} required error={form.errors[`recipients.${index}.recipient_name`] as string | undefined}>
+                                            <FormField label={t('letters.fields.recipient_name')} optional error={form.errors[`recipients.${index}.recipient_name`] as string | undefined}>
                                                 <input
                                                     value={recipient.recipient_name}
                                                     onChange={(event) => updateRecipient(form.data.recipients, index, 'recipient_name', event.target.value, form.setData)}
@@ -319,6 +319,11 @@ export default function LetterForm({ letterItem, selectedTemplate, templateOptio
                                                 </button>
                                             </div>
                                         </div>
+                                        {form.errors[`recipients.${index}`] ? (
+                                            <p className="mt-3 text-sm text-red-600 dark:text-red-300">
+                                                {form.errors[`recipients.${index}`] as string}
+                                            </p>
+                                        ) : null}
                                     </div>
                                 ))}
                                 <div>

@@ -60,7 +60,8 @@ export type LetterTemplateItem = {
 };
 
 export type LetterRecipient = {
-    recipient_name: string;
+    recipient_type?: 'text' | 'department' | string | null;
+    recipient_name?: string | null;
     recipient_department_id?: string | null;
     recipient_department_name_en?: string | null;
     recipient_department_name_am?: string | null;
@@ -311,13 +312,14 @@ export function buildTemplateRenderable(templateItem: LetterTemplateItem, previe
 
 export function buildLetterRenderable(letterItem: LetterItem): LetterRenderable {
     const recipientItems = buildRecipientDisplayItems(letterItem);
-    const recipientBlock = recipientItems.length <= 1
-        ? (recipientItems[0] ?? [
+    const hasStructuredRecipients = Array.isArray(letterItem.recipients) && letterItem.recipients.length > 0;
+    const recipientBlock = !hasStructuredRecipients
+        ? [
             letterItem.recipient_name,
             letterItem.recipient_title,
             letterItem.recipient_organization,
             letterItem.recipient_address,
-        ].filter((value): value is string => Boolean(value && value.trim())).join('\n'))
+        ].filter((value): value is string => Boolean(value && value.trim())).join('\n')
         : null;
 
     return {
@@ -328,7 +330,7 @@ export function buildLetterRenderable(letterItem: LetterItem): LetterRenderable 
         reference_number: letterItem.reference_number,
         date: letterItem.letter_date,
         recipient_block: recipientBlock,
-        recipient_items: recipientItems.length > 1 ? recipientItems : null,
+        recipient_items: hasStructuredRecipients ? recipientItems : null,
         subject: letterItem.subject,
         salutation: letterItem.salutation,
         body_content: letterItem.body_content,
@@ -349,16 +351,20 @@ function buildRecipientDisplayItems(letterItem: LetterItem) {
 
     return recipients
         .map((recipient) => {
-            const name = recipient.recipient_name?.trim();
+            const name = recipient.recipient_name?.trim() || '';
             const departmentName = letterItem.language === 'am'
                 ? (recipient.recipient_department_name_am?.trim() || recipient.recipient_department_name_en?.trim() || '')
                 : (recipient.recipient_department_name_en?.trim() || recipient.recipient_department_name_am?.trim() || '');
 
-            if (!name) {
-                return null;
+            if (name) {
+                return name;
             }
 
-            return departmentName ? `${name} - ${departmentName}` : name;
+            if (departmentName) {
+                return departmentName;
+            }
+
+            return null;
         })
         .filter((value): value is string => Boolean(value));
 }
@@ -620,7 +626,7 @@ function mmToPx(value: number) {
 function buildRegularBlocks(renderable: LetterRenderable, _labels: LetterLabels): PageBlock[] {
     const blocks: PageBlock[] = [];
 
-    if (renderable.recipient_items && renderable.recipient_items.length > 1) {
+    if (renderable.recipient_items && renderable.recipient_items.length > 0) {
         blocks.push({
             key: 'recipient-block',
             kind: 'recipient',
@@ -758,7 +764,7 @@ function measureHtmlHeight(html: string, widthPx: number) {
 function measureBlockHeight(block: PageBlock, widthPx: number, useNyala: boolean) {
     switch (block.kind) {
         case 'recipient':
-            if (block.items && block.items.length > 1) {
+            if (block.items && block.items.length > 0) {
                 return measureHtmlHeight(
                     `
                     <section>
@@ -945,7 +951,7 @@ function paginateRenderable(renderable: LetterRenderable, labels: LetterLabels) 
 function RenderBlock({ block, useNyala }: { block: PageBlock; useNyala: boolean }) {
     switch (block.kind) {
         case 'recipient':
-            if (block.items && block.items.length > 1) {
+            if (block.items && block.items.length > 0) {
                 return (
                     <Section useNyala={useNyala}>
                         <ul className="list-disc space-y-0.5 pl-6 text-sm leading-5 marker:text-slate-500">

@@ -51,13 +51,14 @@ class PersistLetterAction
             $resolvedStatus = (($letter->approval_status ?? 'draft') === 'approved' && $requestedStatus === 'archived')
                 ? 'archived'
                 : (($letter->approval_status ?? 'draft') === 'approved' ? 'final' : ($requestedStatus === 'final' ? 'draft' : $requestedStatus));
+            $legacyRecipientName = $this->legacyRecipientName($primaryRecipient, $documentLanguage);
             $legacyRecipientOrganization = $this->legacyRecipientOrganization($primaryRecipient, $documentLanguage);
 
             $letter->fill([
                 ...$payload,
                 'template_id' => $template->getKey(),
                 'recipients' => $normalizedRecipients,
-                'recipient_name' => $primaryRecipient['recipient_name'] ?? $letter->recipient_name ?? ($payload['recipient_name'] ?? null),
+                'recipient_name' => $legacyRecipientName ?? $letter->recipient_name ?? ($payload['recipient_name'] ?? null),
                 'recipient_organization' => $legacyRecipientOrganization ?? $letter->recipient_organization ?? ($payload['recipient_organization'] ?? null),
                 'language' => $payload['language'] ?? $letter->language ?? $template->language,
                 'page_size' => $payload['page_size'] ?? $letter->page_size ?? $template->page_size,
@@ -154,17 +155,18 @@ class PersistLetterAction
                     return null;
                 }
 
+                $departmentId = $this->normalizeOptionalString($recipient['recipient_department_id'] ?? null);
                 $name = $this->normalizeOptionalString($recipient['recipient_name'] ?? null);
 
-                if (! filled($name)) {
+                if (! filled($name) && ! filled($departmentId)) {
                     return null;
                 }
-
-                $departmentId = $this->normalizeOptionalString($recipient['recipient_department_id'] ?? null);
                 /** @var Department|null $department */
                 $department = $departmentId ? $departments->get($departmentId) : null;
+                $resolvedType = filled($department?->getKey()) && ! filled($name) ? 'department' : 'text';
 
                 return [
+                    'recipient_type' => $resolvedType,
                     'recipient_name' => $name,
                     'recipient_department_id' => $department?->getKey() ?? $departmentId,
                     'recipient_department_name_en' => $department?->name_en ?? $this->normalizeOptionalString($recipient['recipient_department_name_en'] ?? null),
@@ -174,6 +176,22 @@ class PersistLetterAction
             ->filter()
             ->values()
             ->all();
+    }
+
+    /**
+     * @param  array<string, string|null>|null  $recipient
+     */
+    private function legacyRecipientName(?array $recipient, string $language): ?string
+    {
+        if (! is_array($recipient)) {
+            return null;
+        }
+
+        if (filled($recipient['recipient_name'] ?? null)) {
+            return $recipient['recipient_name'];
+        }
+
+        return $this->legacyRecipientOrganization($recipient, $language);
     }
 
     /**

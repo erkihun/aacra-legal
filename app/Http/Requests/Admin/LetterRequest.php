@@ -182,7 +182,19 @@ class LetterRequest extends FormRequest
             'recipient_organization' => ['nullable', 'string', 'max:255'],
             'recipient_address' => ['nullable', 'string'],
             'recipients' => ['required', 'array', 'min:1'],
-            'recipients.*.recipient_name' => ['required', 'string', 'max:255'],
+            'recipients.*' => [
+                'required',
+                'array',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    $name = is_array($value) ? trim((string) Arr::get($value, 'recipient_name', '')) : '';
+                    $departmentId = is_array($value) ? trim((string) Arr::get($value, 'recipient_department_id', '')) : '';
+
+                    if ($name === '' && $departmentId === '') {
+                        $fail(__('letters.validation.recipient_row_required'));
+                    }
+                },
+            ],
+            'recipients.*.recipient_name' => ['nullable', 'string', 'max:255'],
             'recipients.*.recipient_department_id' => [
                 'nullable',
                 'uuid',
@@ -285,29 +297,25 @@ class LetterRequest extends FormRequest
                     $name = trim((string) Arr::get($recipient, 'recipient_name', ''));
                     $departmentId = trim((string) Arr::get($recipient, 'recipient_department_id', ''));
 
-                    if ($name === '') {
-                        return null;
-                    }
-
                     return [
-                        'recipient_name' => $name,
+                        'recipient_name' => $name !== '' ? $name : null,
                         'recipient_department_id' => $departmentId !== '' ? $departmentId : null,
                     ];
                 })
-                ->filter()
                 ->values()
                 ->all();
         }
 
         $recipientName = trim((string) $this->input('recipient_name', ''));
+        $legacyDepartmentId = trim((string) $this->input('recipient_department_id', ''));
 
-        if ($recipientName === '') {
+        if ($recipientName === '' && $legacyDepartmentId === '') {
             return [];
         }
 
         return [[
-            'recipient_name' => $recipientName,
-            'recipient_department_id' => null,
+            'recipient_name' => $recipientName !== '' ? $recipientName : null,
+            'recipient_department_id' => $legacyDepartmentId !== '' ? $legacyDepartmentId : null,
         ]];
     }
 }

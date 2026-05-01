@@ -1600,6 +1600,7 @@
     "letters.flash.already_approved": "This letter has already been approved.",
     "letters.approval_errors.missing_signature": "The approving user must have a saved signature image before approval.",
     "letters.approval_errors.missing_approver_name": "The approving user must have a full name before approval.",
+    "letters.validation.recipient_row_required": "Each recipient row must contain a recipient name or a recipient department.",
     "letters.placeholders.date": "Current date",
     "letters.placeholders.reference_number": "Reference number",
     "letters.placeholders.recipient_name": "Recipient name",

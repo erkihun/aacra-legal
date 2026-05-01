@@ -1601,6 +1601,7 @@
     "letters.flash.already_approved": "ይህ ደብዳቤ ከዚህ በፊት ተጸድቋል።",
     "letters.approval_errors.missing_signature": "የሚያጸድቀው ተጠቃሚ ከማጽደቁ በፊት የተቀመጠ የፊርማ ምስል ሊኖረው ይገባል።",
     "letters.approval_errors.missing_approver_name": "የሚያጸድቀው ተጠቃሚ ከማጽደቁ በፊት ሙሉ ስም ሊኖረው ይገባል።",
+    "letters.validation.recipient_row_required": "በእያንዳንዱ ተቀባይ ረድፍ ውስጥ የተቀባይ ስም ወይም የተቀባይ የስራ ክፍል መኖር አለበት።",
     "letters.placeholders.date": "የአሁኑ ቀን",
     "letters.placeholders.reference_number": "የማጣቀሻ ቁጥር",
     "letters.placeholders.recipient_name": "የተቀባይ ስም",
