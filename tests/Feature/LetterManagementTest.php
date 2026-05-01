@@ -456,6 +456,37 @@ it('renders amharic letter pdf html with embedded ethiopic fonts', function (): 
         ->assertHeader('content-type', 'application/pdf');
 });
 
+it('renders letter pdf subject without automatic label or divider lines', function (): void {
+    $template = createLetterTemplateForLetters([
+        'subject_template' => 'Subject: Official Matter',
+    ]);
+    $letter = createLetterForTesting($template, [
+        'subject' => 'Subject: Official Matter',
+    ]);
+
+    $html = app(RenderLetterPdfAction::class)->html($letter);
+
+    expect($html)
+        ->toContain('<p class="subject-value">Official Matter</p>')
+        ->not->toContain('class="subject-label"')
+        ->not->toContain('<p class="subject-value">Subject: Official Matter</p>')
+        ->not->toContain('border-bottom: 1px solid #cbd5e1;')
+        ->not->toContain('border-top: 1px solid #cbd5e1;');
+});
+
+it('renders letter pdf safely when the subject is empty', function (): void {
+    $template = createLetterTemplateForLetters();
+    $letter = createLetterForTesting($template, [
+        'subject' => null,
+    ]);
+
+    $html = app(RenderLetterPdfAction::class)->html($letter);
+
+    expect($html)
+        ->not->toContain('class="subject-block"')
+        ->toContain('Saved letter body.');
+});
+
 it('allows editing and previewing letters whose template was soft deleted later', function (): void {
     $user = createLetterUser(['letters.view', 'letters.update', 'letters.preview', 'letters.print']);
     $template = createLetterTemplateForLetters();
@@ -546,6 +577,8 @@ it('keeps the shared letter renderer contracts for centered subject, right signa
 
     expect($renderer)
         ->toContain("const LETTER_NYALA_FONT_FAMILY = \"'LetterNyala', 'Nyala', serif\";")
+        ->toContain('function formatSubjectDisplayValue(value: string)')
+        ->toContain("trimmed.replace(/^(subject|ጉዳይ|ርዕስ)\\s*[:\\-–—]+\\s*/iu, '')")
         ->toContain("data-letter-font={useNyala ? 'nyala' : 'default'}")
         ->toContain('sanitizeRichTextHtml(value, { allowFontSize: true })')
         ->toContain('data-letter-slot="header"')
@@ -561,9 +594,12 @@ it('keeps the shared letter renderer contracts for centered subject, right signa
         ->toContain('gridTemplateRows: `${metrics.footerTopSpacingMm}mm ${metrics.footerHeightMm}mm ${metrics.footerBottomMarginMm}mm`')
         ->toContain('paddingLeft: `${metrics.footerLeftMarginMm}mm`')
         ->toContain('paddingRight: `${metrics.footerRightMarginMm}mm`')
-        ->toContain('border-y border-slate-300 py-3 text-center')
+        ->toContain('text-base font-semibold text-slate-950 text-center')
         ->toContain('items-end space-y-4 pt-6 text-right')
-        ->toContain('list-disc space-y-2 pl-6');
+        ->toContain('list-disc space-y-2 pl-6')
+        ->not->toContain('border-y border-slate-300 py-3 text-center')
+        ->not->toContain('className="grid border-b border-slate-200"')
+        ->not->toContain('className="grid border-t border-slate-200"');
 });
 
 it('configures the letter main body editor with a font size control and nyala content style', function (): void {

@@ -177,7 +177,7 @@ const previewLabelSets: Record<'en' | 'am', LetterLabels> = {
 
 type PageBlock =
     | { key: string; kind: 'recipient'; value: string }
-    | { key: string; kind: 'subject'; value: string; label: string }
+    | { key: string; kind: 'subject'; value: string }
     | { key: string; kind: 'salutation'; value: string }
     | { key: string; kind: 'body'; value: string }
     | { key: string; kind: 'closing'; value: string }
@@ -396,6 +396,18 @@ function parseBulletListItems(value: string) {
         .filter((item) => item !== '');
 }
 
+function formatSubjectDisplayValue(value: string) {
+    const trimmed = value.trim();
+
+    if (trimmed === '') {
+        return '';
+    }
+
+    const normalized = trimmed.replace(/^(subject|ጉዳይ|ርዕስ)\s*[:\-–—]+\s*/iu, '').trim();
+
+    return normalized !== '' ? normalized : trimmed;
+}
+
 function containsEthiopicText(value?: string | null) {
     return typeof value === 'string' && /[\u1200-\u137F\u1380-\u139F\u2D80-\u2DDF\uAB00-\uAB2F]/u.test(value);
 }
@@ -560,7 +572,7 @@ function mmToPx(value: number) {
     return (value * 96) / 25.4;
 }
 
-function buildRegularBlocks(renderable: LetterRenderable, labels: LetterLabels): PageBlock[] {
+function buildRegularBlocks(renderable: LetterRenderable, _labels: LetterLabels): PageBlock[] {
     const blocks: PageBlock[] = [];
 
     if (renderable.recipient_block?.trim()) {
@@ -576,7 +588,6 @@ function buildRegularBlocks(renderable: LetterRenderable, labels: LetterLabels):
             key: 'subject-block',
             kind: 'subject',
             value: renderable.subject,
-            label: labels.subject,
         });
     }
 
@@ -707,10 +718,7 @@ function measureBlockHeight(block: PageBlock, widthPx: number, useNyala: boolean
             return measureHtmlHeight(
                 `
                 <section>
-                    <div style="border-top:1px solid #cbd5e1;border-bottom:1px solid #cbd5e1;padding:12px 0;text-align:center;">
-                        <p style="margin:0;font-size:14px;font-weight:600;${useNyala ? `font-family:${LETTER_NYALA_FONT_FAMILY};` : 'letter-spacing:0.12em;text-transform:uppercase;'}color:#64748b;">${escapeHtml(block.label)}</p>
-                        <p style="margin:8px 0 0;font-size:16px;font-weight:600;color:#020617;${useNyala ? `font-family:${LETTER_NYALA_FONT_FAMILY};` : ''}">${escapeHtml(block.value)}</p>
-                    </div>
+                    <p style="margin:0;text-align:center;font-size:16px;font-weight:600;line-height:1.65;color:#020617;${useNyala ? `font-family:${LETTER_NYALA_FONT_FAMILY};` : ''}">${escapeHtml(formatSubjectDisplayValue(block.value))}</p>
                 </section>
                 `,
                 widthPx,
@@ -878,15 +886,9 @@ function RenderBlock({ block, useNyala }: { block: PageBlock; useNyala: boolean 
         case 'subject':
             return (
                 <Section useNyala={useNyala}>
-                    <div className="border-y border-slate-300 py-3 text-center">
-                        <p
-                            className={useNyala ? 'text-sm font-semibold text-slate-500' : 'text-sm font-semibold uppercase tracking-[0.12em] text-slate-500'}
-                            style={useNyala ? { fontFamily: LETTER_NYALA_FONT_FAMILY } : undefined}
-                        >
-                            {block.label}
-                        </p>
-                        <p className="mt-2 text-base font-semibold text-slate-950" style={useNyala ? { fontFamily: LETTER_NYALA_FONT_FAMILY } : undefined}>{block.value}</p>
-                    </div>
+                    <p className="text-base font-semibold text-slate-950 text-center" style={useNyala ? { fontFamily: LETTER_NYALA_FONT_FAMILY } : undefined}>
+                        {formatSubjectDisplayValue(block.value)}
+                    </p>
                 </Section>
             );
         case 'salutation':
@@ -994,7 +996,7 @@ export function LetterSheet({
                                 }}
                             >
                                 <div
-                                    className="grid border-b border-slate-200"
+                                    className="grid"
                                     data-letter-slot="header"
                                     style={{
                                         minHeight: `${metrics.headerSlotHeightMm}mm`,
@@ -1040,7 +1042,7 @@ export function LetterSheet({
                                 </div>
 
                                 <div
-                                    className="grid border-t border-slate-200"
+                                    className="grid"
                                     data-letter-slot="footer"
                                     style={{
                                         minHeight: `${metrics.footerSlotHeightMm}mm`,

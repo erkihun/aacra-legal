@@ -134,14 +134,12 @@ class RenderLetterPdfAction
             'dateLabel' => __('letters.preview.date'),
             'ccLabel' => __('letters.preview.cc'),
             'enclosureLabel' => __('letters.preview.enclosure'),
-            'subjectLabel' => __('letters.preview.subject'),
             'embeddedFontCss' => $this->embeddedFontCss(),
             'pdfBodyClass' => $usesNyalaTypography ? 'pdf-nyala' : 'pdf-latin',
             'bodyFontSizePx' => $usesNyalaTypography ? 12.5 : 12,
             'bodyLineHeight' => $usesNyalaTypography ? 1.85 : 1.65,
             'bodyWordSpacingEm' => $usesNyalaTypography ? 0.03 : 0,
             'bodyLetterSpacingEm' => $usesNyalaTypography ? 0.01 : 0,
-            'subjectLabelLetterSpacingEm' => $usesNyalaTypography ? 0.03 : 0.12,
             'sectionLabelLetterSpacingEm' => $usesNyalaTypography ? 0.04 : 0.18,
             'labelTextTransform' => $usesNyalaTypography ? 'none' : 'uppercase',
             'orientation' => $letter->orientation === 'landscape' ? 'landscape' : 'portrait',
@@ -171,7 +169,7 @@ class RenderLetterPdfAction
             'signatureBlockHtml' => $this->textOrHtml($letter->signature_block_content),
             'enclosureHtml' => $this->textOrHtml($letter->enclosure_content),
             'ccItems' => $this->bulletItems($letter->cc_content),
-            'subject' => $letter->subject,
+            'subject' => $this->displaySubject($letter->subject),
             'referenceNumber' => $letter->reference_number,
             'letterDate' => $letter->letter_date?->toDateString(),
             'signerName' => $letter->signerFullName(),
@@ -353,6 +351,19 @@ CSS;
         return collect($paragraphs)
             ->map(fn (string $paragraph): string => '<p>'.nl2br(e($paragraph)).'</p>')
             ->implode('');
+    }
+
+    private function displaySubject(?string $subject): ?string
+    {
+        if (! is_string($subject) || trim($subject) === '') {
+            return null;
+        }
+
+        $trimmed = trim($subject);
+        $normalized = preg_replace('/^(subject|ጉዳይ|ርዕስ)\s*[:\-–—]+\s*/iu', '', $trimmed);
+        $normalized = is_string($normalized) ? trim($normalized) : '';
+
+        return $normalized !== '' ? $normalized : $trimmed;
     }
 
     /**

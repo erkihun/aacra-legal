@@ -29,7 +29,6 @@
             left: 0;
             right: 0;
             height: {{ $headerSlotHeightMm }}mm;
-            border-bottom: 1px solid #cbd5e1;
         }
 
         header .header-inner {
@@ -53,7 +52,6 @@
             left: -{{ $leftMarginMm }}mm;
             right: -{{ $rightMarginMm }}mm;
             height: {{ $footerSlotHeightMm }}mm;
-            border-top: 1px solid #cbd5e1;
         }
 
         footer .footer-inner {
@@ -117,23 +115,11 @@
         }
 
         .subject-block {
-            border-top: 1px solid #cbd5e1;
-            border-bottom: 1px solid #cbd5e1;
-            padding: 12px 0;
             text-align: center;
         }
 
-        .subject-block .subject-label {
-            margin: 0;
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: {{ $subjectLabelLetterSpacingEm }}em;
-            text-transform: {{ $labelTextTransform }};
-            color: #64748b;
-        }
-
         .subject-block .subject-value {
-            margin: 8px 0 0;
+            margin: 0;
             font-size: 14px;
             font-weight: 700;
             color: #020617;
@@ -206,7 +192,6 @@
         }
 
         body.pdf-nyala .meta-label,
-        body.pdf-nyala .subject-label,
         body.pdf-nyala .section-label {
             font-family: 'Nyala', serif;
         }
@@ -265,7 +250,6 @@
 
     @if (filled($subject))
         <section class="subject-block">
-            <p class="subject-label">{{ $subjectLabel }}</p>
             <p class="subject-value">{{ $subject }}</p>
         </section>
     @endif

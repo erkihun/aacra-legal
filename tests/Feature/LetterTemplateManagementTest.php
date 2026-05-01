@@ -270,6 +270,17 @@ it('uses amharic preview sample data when the template language is amharic', fun
         );
 });
 
+it('keeps the shared template preview renderer free of subject labels and divider lines', function (): void {
+    $renderer = file_get_contents(base_path('resources/js/Pages/Admin/LetterTemplates/shared.tsx'));
+
+    expect($renderer)
+        ->toContain('function formatSubjectDisplayValue(value: string)')
+        ->toContain('text-base font-semibold text-slate-950 text-center')
+        ->not->toContain('border-y border-slate-300 py-3 text-center')
+        ->not->toContain('className="grid border-b border-slate-200"')
+        ->not->toContain('className="grid border-t border-slate-200"');
+});
+
 it('serves template header and footer assets through the branding asset route', function (): void {
     $template = createLetterTemplate([
         'header_image_path' => 'letter-templates/assets/header.png',
