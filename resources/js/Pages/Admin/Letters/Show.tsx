@@ -16,6 +16,7 @@ type Props = {
         delete: boolean;
         preview: boolean;
         print: boolean;
+        download: boolean;
     };
 };
 
@@ -43,13 +44,18 @@ export default function LetterShow({ letterItem, can }: Props) {
                             <BackButton fallbackHref={route('letters.index')} />
                             {can.preview ? (
                                 <Link href={route('letters.preview', letterItem.id)} className="btn-base btn-secondary focus-ring">
-                                    {t('letters.actions.preview')}
+                                    {t('letters.actions.preview_pdf')}
                                 </Link>
                             ) : null}
+                            {can.download ? (
+                                <a href={route('letters.download-pdf', letterItem.id)} className="btn-base btn-secondary focus-ring">
+                                    {t('letters.actions.download_pdf')}
+                                </a>
+                            ) : null}
                             {can.print ? (
-                                <Link href={route('letters.print', letterItem.id)} className="btn-base btn-secondary focus-ring">
-                                    {t('letters.actions.print')}
-                                </Link>
+                                <a href={route('letters.print', letterItem.id)} target="_blank" rel="noreferrer" className="btn-base btn-secondary focus-ring">
+                                    {t('letters.actions.print_pdf')}
+                                </a>
                             ) : null}
                             {can.update ? (
                                 <Link href={route('letters.edit', letterItem.id)} className="btn-base btn-primary focus-ring">
@@ -95,9 +101,9 @@ export default function LetterShow({ letterItem, can }: Props) {
                     <div className="flex items-center justify-between gap-3">
                         <h2 className="text-lg font-semibold text-[color:var(--text)]">{t('letters.sections.preview')}</h2>
                         {can.print ? (
-                            <Link href={route('letters.print', letterItem.id)} className="btn-base btn-secondary focus-ring">
-                                {t('letters.actions.print')}
-                            </Link>
+                            <a href={route('letters.print', letterItem.id)} target="_blank" rel="noreferrer" className="btn-base btn-secondary focus-ring">
+                                {t('letters.actions.print_pdf')}
+                            </a>
                         ) : null}
                     </div>
                     <div className="overflow-x-auto rounded-3xl bg-slate-100 p-4 dark:bg-slate-900">

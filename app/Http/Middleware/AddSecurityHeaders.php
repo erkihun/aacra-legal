@@ -17,8 +17,9 @@ class AddSecurityHeaders
     {
         $response = $next($request);
         $isLocal = app()->environment(['local', 'testing']);
+        $allowsSameOriginFrame = $request->routeIs('letters.pdf');
 
-        $response->headers->set('X-Frame-Options', 'DENY');
+        $response->headers->set('X-Frame-Options', $allowsSameOriginFrame ? 'SAMEORIGIN' : 'DENY');
         $response->headers->set('X-Content-Type-Options', 'nosniff');
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
         $response->headers->set('Permissions-Policy', 'camera=(), geolocation=(), microphone=()');
@@ -26,7 +27,7 @@ class AddSecurityHeaders
         $response->headers->set('Cross-Origin-Resource-Policy', 'same-origin');
         $response->headers->set('Origin-Agent-Cluster', '?1');
         $response->headers->set('X-Permitted-Cross-Domain-Policies', 'none');
-        $response->headers->set('Content-Security-Policy', $this->contentSecurityPolicy($isLocal));
+        $response->headers->set('Content-Security-Policy', $this->contentSecurityPolicy($isLocal, $allowsSameOriginFrame));
 
         if ($request->isSecure()) {
             $response->headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
@@ -35,7 +36,7 @@ class AddSecurityHeaders
         return $response;
     }
 
-    private function contentSecurityPolicy(bool $isLocal): string
+    private function contentSecurityPolicy(bool $isLocal, bool $allowsSameOriginFrame): string
     {
         $connectSources = ["'self'"];
         $scriptSources = ["'self'", "'unsafe-inline'"];
@@ -66,7 +67,7 @@ class AddSecurityHeaders
             "default-src 'self'",
             "base-uri 'self'",
             "form-action 'self'",
-            "frame-ancestors 'none'",
+            $allowsSameOriginFrame ? "frame-ancestors 'self'" : "frame-ancestors 'none'",
             "object-src 'none'",
             "img-src 'self' data: blob:",
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",

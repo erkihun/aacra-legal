@@ -78,6 +78,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/letters/create', [AdminLetterController::class, 'create'])->name('letters.create');
     Route::get('/letters/{letter}/edit', [AdminLetterController::class, 'edit'])->whereUuid('letter')->name('letters.edit');
     Route::get('/letters/{letter}/preview', [AdminLetterController::class, 'preview'])->whereUuid('letter')->name('letters.preview');
+    Route::get('/letters/{letter}/pdf', [AdminLetterController::class, 'pdf'])->whereUuid('letter')->name('letters.pdf');
+    Route::get('/letters/{letter}/download-pdf', [AdminLetterController::class, 'downloadPdf'])->whereUuid('letter')->name('letters.download-pdf');
     Route::get('/letters/{letter}/print', [AdminLetterController::class, 'print'])->whereUuid('letter')->name('letters.print');
     Route::get('/letters/{letter}', [AdminLetterController::class, 'show'])->whereUuid('letter')->name('letters.show');
 

@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Actions\GenerateLetterReferenceNumberAction;
 use App\Actions\PersistLetterAction;
+use App\Actions\RenderLetterPdfAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\LetterRequest;
 use App\Models\Letter;
@@ -14,16 +15,18 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Inertia\Inertia;
-use Inertia\Response;
+use Inertia\Response as InertiaResponse;
+use Symfony\Component\HttpFoundation\Response;
 
 class LetterController extends Controller
 {
     public function __construct(
         private readonly PersistLetterAction $persistLetter,
         private readonly GenerateLetterReferenceNumberAction $generateReferenceNumber,
+        private readonly RenderLetterPdfAction $renderLetterPdf,
     ) {}
 
-    public function index(Request $request): Response
+    public function index(Request $request): InertiaResponse
     {
         $this->authorize('viewAny', Letter::class);
 
@@ -63,6 +66,7 @@ class LetterController extends Controller
                     'delete' => $request->user()?->can('delete', $letter) ?? false,
                     'preview' => $request->user()?->can('preview', $letter) ?? false,
                     'print' => $request->user()?->can('print', $letter) ?? false,
+                    'download' => $request->user()?->can('preview', $letter) ?? false,
                 ],
             ]);
 
@@ -76,7 +80,7 @@ class LetterController extends Controller
         ]);
     }
 
-    public function create(Request $request): Response
+    public function create(Request $request): InertiaResponse
     {
         $this->authorize('create', Letter::class);
 
@@ -101,7 +105,7 @@ class LetterController extends Controller
             ->with('success', __('letters.flash.created'));
     }
 
-    public function show(Letter $letter): Response
+    public function show(Letter $letter): InertiaResponse
     {
         $this->authorize('view', $letter);
 
@@ -112,11 +116,12 @@ class LetterController extends Controller
                 'delete' => request()->user()?->can('delete', $letter) ?? false,
                 'preview' => request()->user()?->can('preview', $letter) ?? false,
                 'print' => request()->user()?->can('print', $letter) ?? false,
+                'download' => request()->user()?->can('preview', $letter) ?? false,
             ],
         ]);
     }
 
-    public function edit(Letter $letter): Response
+    public function edit(Letter $letter): InertiaResponse
     {
         $this->authorize('update', $letter);
 
@@ -150,22 +155,38 @@ class LetterController extends Controller
             ->with('success', __('letters.flash.deleted'));
     }
 
-    public function preview(Letter $letter): Response
+    public function preview(Letter $letter): InertiaResponse
     {
         $this->authorize('preview', $letter);
 
         return Inertia::render('Admin/Letters/Preview', [
             'letterItem' => $this->letterPayload($letter),
+            'pdfUrl' => route('letters.pdf', $letter),
+            'downloadUrl' => route('letters.download-pdf', $letter),
+            'printUrl' => request()->user()?->can('print', $letter) ? route('letters.print', $letter) : null,
+            'canPrint' => request()->user()?->can('print', $letter) ?? false,
         ]);
+    }
+
+    public function pdf(Letter $letter): Response
+    {
+        $this->authorize('preview', $letter);
+
+        return $this->renderLetterPdf->inlineResponse($letter);
     }
 
     public function print(Letter $letter): Response
     {
         $this->authorize('print', $letter);
 
-        return Inertia::render('Admin/Letters/Print', [
-            'letterItem' => $this->letterPayload($letter),
-        ]);
+        return $this->renderLetterPdf->inlineResponse($letter);
+    }
+
+    public function downloadPdf(Letter $letter): Response
+    {
+        $this->authorize('preview', $letter);
+
+        return $this->renderLetterPdf->downloadResponse($letter);
     }
 
     private function resolveTemplateFromRequest(Request $request): ?LetterTemplate

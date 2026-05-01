@@ -243,6 +243,7 @@ it('loads the saved letter show page for authorized users', function (): void {
             ->where('letterItem.footer_image_url', route('branding-assets.show', ['path' => $template->footer_image_path]))
             ->where('letterItem.signature_image_url', route('branding-assets.show', ['path' => 'letters/saved/signature.png']))
             ->where('letterItem.signer_full_name', 'Meseret Kebede')
+            ->where('can.download', false)
         );
 });
 
@@ -284,7 +285,7 @@ it('renders old letters safely without signer snapshots', function (): void {
         );
 });
 
-it('renders the letter preview and print pages for authorized users', function (): void {
+it('renders the letter preview page and exposes real PDF endpoints for authorized users', function (): void {
     $user = createLetterUser(['letters.view', 'letters.preview', 'letters.print']);
     $template = createLetterTemplateForLetters([
         'layout_config' => [
@@ -327,23 +328,46 @@ it('renders the letter preview and print pages for authorized users', function (
             ->where('letterItem.id', $letter->id)
             ->where('letterItem.header_image_url', route('branding-assets.show', ['path' => $template->header_image_path]))
             ->where('letterItem.footer_image_url', route('branding-assets.show', ['path' => $template->footer_image_path]))
+            ->where('pdfUrl', route('letters.pdf', $letter))
+            ->where('downloadUrl', route('letters.download-pdf', $letter))
+            ->where('printUrl', route('letters.print', $letter))
+            ->where('canPrint', true)
             ->where('letterItem.layout_config.footer_top_spacing_mm', 9)
             ->where('letterItem.layout_config.footer_left_margin_mm', 10)
             ->where('letterItem.layout_config.footer_right_margin_mm', 14)
             ->where('letterItem.layout_config.footer_bottom_margin_mm', 7)
         );
+});
+
+it('returns inline and downloadable pdf responses for authorized users', function (): void {
+    $user = createLetterUser(['letters.view', 'letters.preview', 'letters.print']);
+    $template = createLetterTemplateForLetters();
+    $letter = createLetterForTesting($template);
+
+    $this->actingAs($user)
+        ->get(route('letters.pdf', $letter))
+        ->assertOk()
+        ->assertHeader('content-type', 'application/pdf')
+        ->assertHeader('content-disposition', 'inline; filename="leg-2026-0001.pdf"')
+        ->assertHeader('x-frame-options', 'SAMEORIGIN');
+
+    expect($this->actingAs($user)->get(route('letters.pdf', $letter))->headers->get('content-security-policy'))
+        ->toContain("frame-ancestors 'self'");
+
+    expect($this->actingAs($user)->get(route('letters.pdf', $letter))->getContent())
+        ->toStartWith('%PDF');
 
     $this->actingAs($user)
         ->get(route('letters.print', $letter))
         ->assertOk()
-        ->assertInertia(fn (AssertableInertia $page) => $page
-            ->component('Admin/Letters/Print')
-            ->where('letterItem.id', $letter->id)
-            ->where('letterItem.layout_config.footer_top_spacing_mm', 9)
-            ->where('letterItem.layout_config.footer_left_margin_mm', 10)
-            ->where('letterItem.layout_config.footer_right_margin_mm', 14)
-            ->where('letterItem.layout_config.footer_bottom_margin_mm', 7)
-        );
+        ->assertHeader('content-type', 'application/pdf')
+        ->assertHeader('content-disposition', 'inline; filename="leg-2026-0001.pdf"');
+
+    $this->actingAs($user)
+        ->get(route('letters.download-pdf', $letter))
+        ->assertOk()
+        ->assertHeader('content-type', 'application/pdf')
+        ->assertHeader('content-disposition', 'attachment; filename="leg-2026-0001.pdf"');
 });
 
 it('serves saved letter signature and template snapshot assets through the branding asset route', function (): void {
@@ -382,6 +406,40 @@ it('keeps the shared letter renderer contracts for centered subject, right signa
         ->toContain('list-disc space-y-2 pl-6');
 });
 
+it('generates multi-page letter pdf output without crashing', function (): void {
+    $user = createLetterUser(['letters.preview']);
+    $template = createLetterTemplateForLetters();
+    $letter = createLetterForTesting($template, [
+        'body_content' => collect(range(1, 80))
+            ->map(fn (int $index): string => "<p>Paragraph {$index} for a long institutional letter body.</p>")
+            ->implode(''),
+    ]);
+
+    $response = $this->actingAs($user)->get(route('letters.pdf', $letter));
+
+    $response->assertOk()->assertHeader('content-type', 'application/pdf');
+
+    expect($response->getContent())->toStartWith('%PDF');
+});
+
+it('generates pdf safely for older letters with missing snapshot assets', function (): void {
+    $user = createLetterUser(['letters.preview']);
+    $template = createLetterTemplateForLetters();
+    $letter = createLetterForTesting($template, [
+        'header_image_path_snapshot' => null,
+        'footer_image_path_snapshot' => null,
+        'signature_image_path_snapshot' => null,
+        'signer_full_name_snapshot' => null,
+        'signer_title_snapshot' => null,
+    ]);
+
+    $response = $this->actingAs($user)->get(route('letters.pdf', $letter));
+
+    $response->assertOk()->assertHeader('content-type', 'application/pdf');
+
+    expect($response->getContent())->toStartWith('%PDF');
+});
+
 it('denies unauthorized users from letter routes', function (): void {
     $user = User::factory()->create();
     $template = createLetterTemplateForLetters();
@@ -391,6 +449,10 @@ it('denies unauthorized users from letter routes', function (): void {
     $this->actingAs($user)->get(route('letters.create'))->assertForbidden();
     $this->actingAs($user)->post(route('letters.store'), letterPayload($template))->assertForbidden();
     $this->actingAs($user)->get(route('letters.show', $letter))->assertForbidden();
+    $this->actingAs($user)->get(route('letters.preview', $letter))->assertForbidden();
+    $this->actingAs($user)->get(route('letters.pdf', $letter))->assertForbidden();
+    $this->actingAs($user)->get(route('letters.download-pdf', $letter))->assertForbidden();
+    $this->actingAs($user)->get(route('letters.print', $letter))->assertForbidden();
     $this->actingAs($user)->patch(route('letters.update', $letter), [
         'letter_date' => '2026-04-28',
         'recipient_name' => 'Changed',

@@ -26,6 +26,7 @@ type LetterRow = {
         delete: boolean;
         preview: boolean;
         print: boolean;
+        download: boolean;
     };
 };
 
@@ -128,8 +129,9 @@ export default function LettersIndex({ filters, letters, templates, can }: any) 
                             emptyDescription={t('letters.empty_description')}
                             actions={(row: LetterRow) => [
                                 { label: t('common.view'), href: route('letters.show', row.id) },
-                                ...(row.can.preview ? [{ label: t('letters.actions.preview'), href: route('letters.preview', row.id) }] : []),
-                                ...(row.can.print ? [{ label: t('letters.actions.print'), href: route('letters.print', row.id) }] : []),
+                                ...(row.can.preview ? [{ label: t('letters.actions.preview_pdf'), href: route('letters.preview', row.id) }] : []),
+                                ...(row.can.print ? [{ label: t('letters.actions.print_pdf'), href: route('letters.print', row.id) }] : []),
+                                ...(row.can.download ? [{ label: t('letters.actions.download_pdf'), href: route('letters.download-pdf', row.id) }] : []),
                                 ...(row.can.update ? [{ label: t('common.edit'), href: route('letters.edit', row.id) }] : []),
                                 ...(row.can.delete ? [{ label: t('common.delete'), onClick: () => setPendingDelete(row) }] : []),
                             ]}
