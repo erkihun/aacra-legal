@@ -92,12 +92,12 @@ export default function LetterTemplateForm({ templateItem, canDelete, placeholde
         margin_right_mm: String(templateItem?.layout_config?.margin_right_mm ?? 18),
         margin_bottom_mm: String(templateItem?.layout_config?.margin_bottom_mm ?? 20),
         margin_left_mm: String(templateItem?.layout_config?.margin_left_mm ?? 18),
-        header_top_margin_mm: String(templateItem?.layout_config?.header_top_margin_mm ?? 0),
+        header_top_margin_mm: String(templateItem?.layout_config?.header_top_margin_mm ?? 1),
         header_bottom_spacing_mm: String(templateItem?.layout_config?.header_bottom_spacing_mm ?? 4),
         footer_top_spacing_mm: String(templateItem?.layout_config?.footer_top_spacing_mm ?? 4),
         footer_left_margin_mm: String(templateItem?.layout_config?.footer_left_margin_mm ?? templateItem?.layout_config?.margin_left_mm ?? 18),
         footer_right_margin_mm: String(templateItem?.layout_config?.footer_right_margin_mm ?? templateItem?.layout_config?.margin_right_mm ?? 18),
-        footer_bottom_margin_mm: String(templateItem?.layout_config?.footer_bottom_margin_mm ?? 0),
+        footer_bottom_margin_mm: String(templateItem?.layout_config?.footer_bottom_margin_mm ?? 1),
         content_top_margin_mm: String(templateItem?.layout_config?.content_top_margin_mm ?? templateItem?.layout_config?.margin_top_mm ?? 20),
         content_bottom_margin_mm: String(templateItem?.layout_config?.content_bottom_margin_mm ?? templateItem?.layout_config?.margin_bottom_mm ?? 20),
         header_image: null as File | null,
@@ -260,28 +260,28 @@ export default function LetterTemplateForm({ templateItem, canDelete, placeholde
                                 <input value={form.data.reference_label} onChange={(event) => form.setData('reference_label', event.target.value)} className="input-ui" />
                             </FormField>
                             <FormField label={t('letter_templates.fields.margin_right')} optional error={form.errors.margin_right_mm}>
-                                <input value={form.data.margin_right_mm} onChange={(event) => form.setData('margin_right_mm', event.target.value)} className="input-ui" type="number" min="5" max="35" />
+                                <input value={form.data.margin_right_mm} onChange={(event) => form.setData('margin_right_mm', event.target.value)} className="input-ui" type="number" min="1" max="35" />
                             </FormField>
                             <FormField label={t('letter_templates.fields.margin_left')} optional error={form.errors.margin_left_mm}>
-                                <input value={form.data.margin_left_mm} onChange={(event) => form.setData('margin_left_mm', event.target.value)} className="input-ui" type="number" min="5" max="35" />
+                                <input value={form.data.margin_left_mm} onChange={(event) => form.setData('margin_left_mm', event.target.value)} className="input-ui" type="number" min="1" max="35" />
                             </FormField>
                             <FormField label={t('letter_templates.fields.header_top_margin')} optional error={form.errors.header_top_margin_mm} hint={t('letter_templates.helpers.header_top_margin')}>
-                                <input value={form.data.header_top_margin_mm} onChange={(event) => form.setData('header_top_margin_mm', event.target.value)} className="input-ui" type="number" min="0" max="25" />
+                                <input value={form.data.header_top_margin_mm} onChange={(event) => form.setData('header_top_margin_mm', event.target.value)} className="input-ui" type="number" min="1" max="25" />
                             </FormField>
                             <FormField label={t('letter_templates.fields.header_bottom_spacing')} optional error={form.errors.header_bottom_spacing_mm} hint={t('letter_templates.helpers.header_bottom_spacing')}>
-                                <input value={form.data.header_bottom_spacing_mm} onChange={(event) => form.setData('header_bottom_spacing_mm', event.target.value)} className="input-ui" type="number" min="0" max="25" />
+                                <input value={form.data.header_bottom_spacing_mm} onChange={(event) => form.setData('header_bottom_spacing_mm', event.target.value)} className="input-ui" type="number" min="1" max="25" />
                             </FormField>
                             <FormField label={t('letter_templates.fields.footer_top_spacing')} optional error={form.errors.footer_top_spacing_mm} hint={t('letter_templates.helpers.footer_top_spacing')}>
-                                <input value={form.data.footer_top_spacing_mm} onChange={(event) => form.setData('footer_top_spacing_mm', event.target.value)} className="input-ui" type="number" min="0" max="25" />
+                                <input value={form.data.footer_top_spacing_mm} onChange={(event) => form.setData('footer_top_spacing_mm', event.target.value)} className="input-ui" type="number" min="1" max="25" />
                             </FormField>
                             <FormField label={t('letter_templates.fields.footer_left_margin')} optional error={form.errors.footer_left_margin_mm} hint={t('letter_templates.helpers.footer_left_margin')}>
-                                <input value={form.data.footer_left_margin_mm} onChange={(event) => form.setData('footer_left_margin_mm', event.target.value)} className="input-ui" type="number" min="0" max="35" />
+                                <input value={form.data.footer_left_margin_mm} onChange={(event) => form.setData('footer_left_margin_mm', event.target.value)} className="input-ui" type="number" min="1" max="35" />
                             </FormField>
                             <FormField label={t('letter_templates.fields.footer_right_margin')} optional error={form.errors.footer_right_margin_mm} hint={t('letter_templates.helpers.footer_right_margin')}>
-                                <input value={form.data.footer_right_margin_mm} onChange={(event) => form.setData('footer_right_margin_mm', event.target.value)} className="input-ui" type="number" min="0" max="35" />
+                                <input value={form.data.footer_right_margin_mm} onChange={(event) => form.setData('footer_right_margin_mm', event.target.value)} className="input-ui" type="number" min="1" max="35" />
                             </FormField>
                             <FormField label={t('letter_templates.fields.footer_bottom_margin')} optional error={form.errors.footer_bottom_margin_mm} hint={t('letter_templates.helpers.footer_bottom_margin')}>
-                                <input value={form.data.footer_bottom_margin_mm} onChange={(event) => form.setData('footer_bottom_margin_mm', event.target.value)} className="input-ui" type="number" min="0" max="25" />
+                                <input value={form.data.footer_bottom_margin_mm} onChange={(event) => form.setData('footer_bottom_margin_mm', event.target.value)} className="input-ui" type="number" min="1" max="25" />
                             </FormField>
                             <FormField label={t('letter_templates.fields.content_top_margin')} optional error={form.errors.content_top_margin_mm} hint={t('letter_templates.helpers.content_top_margin')}>
                                 <input
@@ -292,7 +292,7 @@ export default function LetterTemplateForm({ templateItem, canDelete, placeholde
                                     }}
                                     className="input-ui"
                                     type="number"
-                                    min="0"
+                                    min="1"
                                     max="30"
                                 />
                             </FormField>
@@ -305,7 +305,7 @@ export default function LetterTemplateForm({ templateItem, canDelete, placeholde
                                     }}
                                     className="input-ui"
                                     type="number"
-                                    min="0"
+                                    min="1"
                                     max="30"
                                 />
                             </FormField>

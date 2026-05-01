@@ -100,6 +100,79 @@ it('allows an authorized user to update template numbering settings', function (
         ->and($template->is_active)->toBeFalse();
 });
 
+it('allows saving letter template margin values starting from one and reuses them in preview output', function (): void {
+    $user = createLetterTemplateUser(['letter_templates.view', 'letter_templates.create', 'letter_templates.update', 'letter_templates.preview', 'letter_templates.print']);
+
+    $this->actingAs($user)
+        ->post(route('letter-templates.store'), letterTemplatePayload([
+            'code' => 'LTR-LOW',
+            'name' => 'Low Margin Template',
+            'margin_right_mm' => 2,
+            'margin_left_mm' => 1,
+            'header_top_margin_mm' => 1,
+            'header_bottom_spacing_mm' => 2,
+            'footer_top_spacing_mm' => 3,
+            'footer_left_margin_mm' => 1,
+            'footer_right_margin_mm' => 2,
+            'footer_bottom_margin_mm' => 4,
+            'content_top_margin_mm' => 3,
+            'content_bottom_margin_mm' => 4,
+        ]))
+        ->assertRedirect();
+
+    $template = LetterTemplate::query()->where('code', 'LTR-LOW')->firstOrFail();
+
+    expect($template->layout_config['margin_right_mm'])->toBe(2)
+        ->and($template->layout_config['margin_left_mm'])->toBe(1)
+        ->and($template->layout_config['header_top_margin_mm'])->toBe(1)
+        ->and($template->layout_config['header_bottom_spacing_mm'])->toBe(2)
+        ->and($template->layout_config['footer_top_spacing_mm'])->toBe(3)
+        ->and($template->layout_config['footer_left_margin_mm'])->toBe(1)
+        ->and($template->layout_config['footer_right_margin_mm'])->toBe(2)
+        ->and($template->layout_config['footer_bottom_margin_mm'])->toBe(4)
+        ->and($template->layout_config['content_top_margin_mm'])->toBe(3)
+        ->and($template->layout_config['content_bottom_margin_mm'])->toBe(4);
+
+    $this->actingAs($user)
+        ->get(route('letter-templates.edit', $template))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Admin/LetterTemplates/Form')
+            ->where('templateItem.layout_config.margin_right_mm', 2)
+            ->where('templateItem.layout_config.margin_left_mm', 1)
+            ->where('templateItem.layout_config.header_top_margin_mm', 1)
+            ->where('templateItem.layout_config.header_bottom_spacing_mm', 2)
+            ->where('templateItem.layout_config.footer_top_spacing_mm', 3)
+            ->where('templateItem.layout_config.footer_left_margin_mm', 1)
+            ->where('templateItem.layout_config.footer_right_margin_mm', 2)
+            ->where('templateItem.layout_config.footer_bottom_margin_mm', 4)
+            ->where('templateItem.layout_config.content_top_margin_mm', 3)
+            ->where('templateItem.layout_config.content_bottom_margin_mm', 4)
+        );
+
+    $this->actingAs($user)
+        ->get(route('letter-templates.preview', $template))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Admin/LetterTemplates/Preview')
+            ->where('templateItem.layout_config.margin_left_mm', 1)
+            ->where('templateItem.layout_config.footer_left_margin_mm', 1)
+            ->where('templateItem.layout_config.footer_right_margin_mm', 2)
+            ->where('templateItem.layout_config.footer_bottom_margin_mm', 4)
+        );
+
+    $this->actingAs($user)
+        ->get(route('letter-templates.print', $template))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Admin/LetterTemplates/Print')
+            ->where('templateItem.layout_config.margin_left_mm', 1)
+            ->where('templateItem.layout_config.footer_left_margin_mm', 1)
+            ->where('templateItem.layout_config.footer_right_margin_mm', 2)
+            ->where('templateItem.layout_config.footer_bottom_margin_mm', 4)
+        );
+});
+
 it('reloads saved footer margin values on the template edit page', function (): void {
     $user = createLetterTemplateUser(['letter_templates.view', 'letter_templates.update']);
     $template = createLetterTemplate([
@@ -260,6 +333,37 @@ it('validates template input including duplicate code and png restrictions', fun
             'header_image' => UploadedFile::fake()->create('header.jpg', 50, 'image/jpeg'),
         ]))
         ->assertSessionHasErrors(['code', 'name', 'body_content', 'language', 'header_image']);
+});
+
+it('rejects zero and negative letter template margin values', function (): void {
+    $user = createLetterTemplateUser(['letter_templates.view', 'letter_templates.create']);
+
+    $this->actingAs($user)
+        ->post(route('letter-templates.store'), letterTemplatePayload([
+            'code' => 'LTR-BADMARGIN',
+            'margin_right_mm' => 0,
+            'margin_left_mm' => -1,
+            'header_top_margin_mm' => 0,
+            'header_bottom_spacing_mm' => -2,
+            'footer_top_spacing_mm' => 0,
+            'footer_left_margin_mm' => -3,
+            'footer_right_margin_mm' => 0,
+            'footer_bottom_margin_mm' => -4,
+            'content_top_margin_mm' => 0,
+            'content_bottom_margin_mm' => -5,
+        ]))
+        ->assertSessionHasErrors([
+            'margin_right_mm',
+            'margin_left_mm',
+            'header_top_margin_mm',
+            'header_bottom_spacing_mm',
+            'footer_top_spacing_mm',
+            'footer_left_margin_mm',
+            'footer_right_margin_mm',
+            'footer_bottom_margin_mm',
+            'content_top_margin_mm',
+            'content_bottom_margin_mm',
+        ]);
 });
 
 it('duplicates a template for authorized users without reusing template assets', function (): void {
@@ -437,12 +541,12 @@ function letterTemplatePayload(array $overrides = [], string $code = 'LTR-NEW'):
         'margin_right_mm' => 18,
         'margin_bottom_mm' => 20,
         'margin_left_mm' => 18,
-        'header_top_margin_mm' => 0,
+        'header_top_margin_mm' => 1,
         'header_bottom_spacing_mm' => 4,
         'footer_top_spacing_mm' => 4,
         'footer_left_margin_mm' => 18,
         'footer_right_margin_mm' => 18,
-        'footer_bottom_margin_mm' => 0,
+        'footer_bottom_margin_mm' => 1,
         'content_top_margin_mm' => 20,
         'content_bottom_margin_mm' => 20,
         'is_active' => true,

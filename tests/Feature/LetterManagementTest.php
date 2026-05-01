@@ -135,6 +135,74 @@ it('allows an authorized user to create a letter from a selected template', func
     Storage::disk('public')->assertExists((string) $letter->signature_image_path_snapshot);
 });
 
+it('inherits low template margin values into saved letters and pdf rendering', function (): void {
+    $user = createLetterUser(['letters.view', 'letters.create', 'letters.preview']);
+    $template = createLetterTemplateForLetters([
+        'reference_prefix' => 'LOW',
+        'layout_config' => [
+            'margin_top_mm' => 3,
+            'margin_right_mm' => 2,
+            'margin_bottom_mm' => 4,
+            'margin_left_mm' => 1,
+            'header_top_margin_mm' => 1,
+            'header_bottom_spacing_mm' => 2,
+            'footer_top_spacing_mm' => 3,
+            'footer_left_margin_mm' => 1,
+            'footer_right_margin_mm' => 2,
+            'footer_bottom_margin_mm' => 4,
+            'content_top_margin_mm' => 3,
+            'content_bottom_margin_mm' => 4,
+        ],
+    ]);
+
+    $preview = app(GenerateLetterReferenceNumberAction::class)->preview($template);
+
+    $this->actingAs($user)
+        ->post(route('letters.store'), letterPayload($template, [
+            'reference_number' => $preview,
+            'reference_number_preview' => $preview,
+            'margin_top_mm' => 3,
+            'margin_right_mm' => 2,
+            'margin_bottom_mm' => 4,
+            'margin_left_mm' => 1,
+        ]))
+        ->assertRedirect();
+
+    $letter = Letter::query()->latest('created_at')->firstOrFail();
+
+    expect($letter->layout_config['margin_top_mm'])->toBe(3)
+        ->and($letter->layout_config['margin_right_mm'])->toBe(2)
+        ->and($letter->layout_config['margin_bottom_mm'])->toBe(4)
+        ->and($letter->layout_config['margin_left_mm'])->toBe(1)
+        ->and($letter->layout_config['header_top_margin_mm'])->toBe(1)
+        ->and($letter->layout_config['header_bottom_spacing_mm'])->toBe(2)
+        ->and($letter->layout_config['footer_top_spacing_mm'])->toBe(3)
+        ->and($letter->layout_config['footer_left_margin_mm'])->toBe(1)
+        ->and($letter->layout_config['footer_right_margin_mm'])->toBe(2)
+        ->and($letter->layout_config['footer_bottom_margin_mm'])->toBe(4)
+        ->and($letter->layout_config['content_top_margin_mm'])->toBe(3)
+        ->and($letter->layout_config['content_bottom_margin_mm'])->toBe(4);
+
+    $this->actingAs($user)
+        ->get(route('letters.preview', $letter))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Admin/Letters/Preview')
+            ->where('letterItem.layout_config.margin_left_mm', 1)
+            ->where('letterItem.layout_config.footer_left_margin_mm', 1)
+            ->where('letterItem.layout_config.footer_right_margin_mm', 2)
+            ->where('letterItem.layout_config.footer_bottom_margin_mm', 4)
+        );
+
+    $html = app(RenderLetterPdfAction::class)->html($letter);
+
+    expect($html)
+        ->toContain('margin: 36mm 2mm 33mm 1mm;')
+        ->toContain('padding-right: 2mm;')
+        ->toContain('padding-bottom: 4mm;')
+        ->toContain('padding-left: 1mm;');
+});
+
 it('increments template numbering safely when letters are created', function (): void {
     $user = createLetterUser(['letters.view', 'letters.create']);
     $template = createLetterTemplateForLetters([
@@ -679,12 +747,12 @@ function createLetterTemplateForLetters(array $overrides = []): LetterTemplate
             'margin_right_mm' => 18,
             'margin_bottom_mm' => 20,
             'margin_left_mm' => 18,
-            'header_top_margin_mm' => 0,
+            'header_top_margin_mm' => 1,
             'header_bottom_spacing_mm' => 4,
             'footer_top_spacing_mm' => 4,
             'footer_left_margin_mm' => 18,
             'footer_right_margin_mm' => 18,
-            'footer_bottom_margin_mm' => 0,
+            'footer_bottom_margin_mm' => 1,
             'content_top_margin_mm' => 20,
             'content_bottom_margin_mm' => 20,
         ],
@@ -735,12 +803,12 @@ function createLetterForTesting(LetterTemplate $template, array $overrides = [])
             'margin_right_mm' => 18,
             'margin_bottom_mm' => 20,
             'margin_left_mm' => 18,
-            'header_top_margin_mm' => 0,
+            'header_top_margin_mm' => 1,
             'header_bottom_spacing_mm' => 4,
             'footer_top_spacing_mm' => 4,
             'footer_left_margin_mm' => 18,
             'footer_right_margin_mm' => 18,
-            'footer_bottom_margin_mm' => 0,
+            'footer_bottom_margin_mm' => 1,
             'content_top_margin_mm' => 20,
             'content_bottom_margin_mm' => 20,
         ],
