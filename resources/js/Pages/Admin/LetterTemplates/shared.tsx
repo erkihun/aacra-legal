@@ -157,6 +157,23 @@ type LetterLabels = {
     date: string;
 };
 
+const previewLabelSets: Record<'en' | 'am', LetterLabels> = {
+    en: {
+        subject: 'Subject',
+        cc: 'CC',
+        enclosure: 'Enclosure',
+        reference: 'Reference Number',
+        date: 'Date',
+    },
+    am: {
+        subject: 'ጉዳይ',
+        cc: 'ግልባጭ',
+        enclosure: 'አባሪ',
+        reference: 'የማጣቀሻ ቁጥር',
+        date: 'ቀን',
+    },
+};
+
 type PageBlock =
     | { key: string; kind: 'recipient'; value: string }
     | { key: string; kind: 'subject'; value: string; label: string }
@@ -209,6 +226,10 @@ export const defaultPreviewData: PreviewData = {
     signature_name: 'Meseret Kebede',
     signature_title: 'Head, Legal Affairs',
 };
+
+export function previewDocumentLabels(language: string | null | undefined): LetterLabels {
+    return language === 'am' ? previewLabelSets.am : previewLabelSets.en;
+}
 
 export function mergeTemplatePlaceholders(value: string | null | undefined, previewData: PreviewData) {
     let output = value ?? '';

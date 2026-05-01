@@ -316,19 +316,23 @@ class LetterTemplateController extends Controller
      */
     private function previewData(?LetterTemplate $letterTemplate = null): array
     {
+        $locale = $letterTemplate && in_array($letterTemplate->language, ['en', 'am'], true)
+            ? $letterTemplate->language
+            : app()->getLocale();
+
         return [
             'date' => now()->toDateString(),
             'reference_number' => $letterTemplate ? $this->generateReferenceNumber->preview($letterTemplate) : 'LDMS/2026/0001',
-            'recipient_name' => __('letters.sample.recipient_name'),
-            'recipient_title' => __('letters.sample.recipient_title'),
-            'recipient_organization' => __('letters.sample.recipient_organization'),
-            'subject' => __('letters.sample.subject'),
-            'sender_name' => __('letters.sample.sender_name'),
-            'sender_title' => __('letters.sample.sender_title'),
-            'department_name' => __('letters.sample.department_name'),
-            'organization_name' => __('letters.sample.organization_name'),
-            'signature_name' => __('letters.sample.signature_name'),
-            'signature_title' => __('letters.sample.signature_title'),
+            'recipient_name' => __('letters.sample.recipient_name', locale: $locale),
+            'recipient_title' => __('letters.sample.recipient_title', locale: $locale),
+            'recipient_organization' => __('letters.sample.recipient_organization', locale: $locale),
+            'subject' => __('letters.sample.subject', locale: $locale),
+            'sender_name' => __('letters.sample.sender_name', locale: $locale),
+            'sender_title' => __('letters.sample.sender_title', locale: $locale),
+            'department_name' => __('letters.sample.department_name', locale: $locale),
+            'organization_name' => __('letters.sample.organization_name', locale: $locale),
+            'signature_name' => __('letters.sample.signature_name', locale: $locale),
+            'signature_title' => __('letters.sample.signature_title', locale: $locale),
         ];
     }
 

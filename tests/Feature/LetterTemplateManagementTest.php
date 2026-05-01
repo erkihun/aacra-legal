@@ -180,6 +180,23 @@ it('renders the template preview and print pages for authorized users', function
         );
 });
 
+it('uses amharic preview sample data when the template language is amharic', function (): void {
+    $user = createLetterTemplateUser(['letter_templates.view', 'letter_templates.preview']);
+    $template = createLetterTemplate([
+        'language' => 'am',
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('letter-templates.preview', $template))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Admin/LetterTemplates/Preview')
+            ->where('templateItem.language', 'am')
+            ->where('previewData.recipient_name', __('letters.sample.recipient_name', locale: 'am'))
+            ->where('previewData.signature_name', __('letters.sample.signature_name', locale: 'am'))
+        );
+});
+
 it('serves template header and footer assets through the branding asset route', function (): void {
     $template = createLetterTemplate([
         'header_image_path' => 'letter-templates/assets/header.png',

@@ -1,7 +1,7 @@
 import { useI18n } from '@/lib/i18n';
 import { Head } from '@inertiajs/react';
 import { useEffect } from 'react';
-import { buildLetterRenderable, LetterItem, LetterSheet } from '../LetterTemplates/shared';
+import { buildLetterRenderable, LetterItem, LetterSheet, previewDocumentLabels } from '../LetterTemplates/shared';
 
 type Props = {
     letterItem: LetterItem;
@@ -42,13 +42,7 @@ export default function LetterPrint({ letterItem }: Props) {
                     <div className="overflow-x-auto">
                         <LetterSheet
                             document={buildLetterRenderable(letterItem)}
-                            labels={{
-                                subject: t('letters.preview.subject'),
-                                cc: t('letters.preview.cc'),
-                                enclosure: t('letters.preview.enclosure'),
-                                reference: t('letters.preview.reference'),
-                                date: t('letters.preview.date'),
-                            }}
+                            labels={previewDocumentLabels(letterItem.language)}
                         />
                     </div>
                 </div>

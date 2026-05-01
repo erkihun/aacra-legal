@@ -17,6 +17,7 @@ import {
     LetterSheet,
     LetterTemplateItem,
     PlaceholderField,
+    previewDocumentLabels,
     PreviewData,
 } from './shared';
 
@@ -452,13 +453,7 @@ export default function LetterTemplateForm({ templateItem, canDelete, placeholde
                                     ...previewData,
                                     reference_number: previewReferenceNumber,
                                 })}
-                                labels={{
-                                    subject: t('letter_templates.preview.subject'),
-                                    cc: t('letter_templates.preview.cc'),
-                                    enclosure: t('letter_templates.preview.enclosure'),
-                                    reference: t('letter_templates.preview.reference'),
-                                    date: t('letter_templates.preview.date'),
-                                }}
+                                labels={previewDocumentLabels(previewTemplate.language)}
                             />
                         </div>
                     </SurfaceCard>

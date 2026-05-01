@@ -15,6 +15,11 @@ use Symfony\Component\HttpFoundation\Response;
 
 class RenderLetterPdfAction
 {
+    /**
+     * @var array<string, string|null>
+     */
+    private static array $fontDataUriCache = [];
+
     public function __construct(
         private readonly ViewFactory $view,
     ) {}
@@ -44,6 +49,13 @@ class RenderLetterPdfAction
         return ($filename !== '' ? $filename : 'letter').'.pdf';
     }
 
+    public function html(Letter $letter): string
+    {
+        $viewData = $this->viewData($letter);
+
+        return $this->view->make('pdf.letters.document', $viewData)->render();
+    }
+
     public function render(Letter $letter): string
     {
         $previousLocale = App::currentLocale();
@@ -51,10 +63,7 @@ class RenderLetterPdfAction
 
         try {
             $dompdf = new Dompdf($this->options());
-            $dompdf->loadHtml(
-                $this->view->make('pdf.letters.document', $this->viewData($letter))->render(),
-                'UTF-8',
-            );
+            $dompdf->loadHtml($this->html($letter), 'UTF-8');
             $dompdf->setPaper('a4', $letter->orientation === 'landscape' ? 'landscape' : 'portrait');
             $dompdf->render();
 
@@ -83,6 +92,8 @@ class RenderLetterPdfAction
         $letter->loadMissing(['template', 'creator']);
 
         $layout = is_array($letter->layout_config) ? $letter->layout_config : [];
+        $locale = $this->resolvedLocale($letter);
+        $isAmharicDocument = $locale === 'am';
         $leftMargin = (int) ($layout['margin_left_mm'] ?? 18);
         $rightMargin = (int) ($layout['margin_right_mm'] ?? 18);
         $contentTopMargin = (int) ($layout['content_top_margin_mm'] ?? $layout['margin_top_mm'] ?? 20);
@@ -114,12 +125,23 @@ class RenderLetterPdfAction
 
         return [
             'letter' => $letter,
+            'documentLanguage' => $locale,
+            'isAmharicDocument' => $isAmharicDocument,
             'documentTitle' => $letter->reference_number ?: __('letters.detail_title'),
             'referenceLabel' => $letter->template?->reference_label ?: __('letters.preview.reference'),
             'dateLabel' => __('letters.preview.date'),
             'ccLabel' => __('letters.preview.cc'),
             'enclosureLabel' => __('letters.preview.enclosure'),
             'subjectLabel' => __('letters.preview.subject'),
+            'embeddedFontCss' => $this->embeddedFontCss(),
+            'pdfBodyClass' => $isAmharicDocument ? 'pdf-amharic' : 'pdf-latin',
+            'bodyFontSizePx' => $isAmharicDocument ? 12.5 : 12,
+            'bodyLineHeight' => $isAmharicDocument ? 1.85 : 1.65,
+            'bodyWordSpacingEm' => $isAmharicDocument ? 0.03 : 0,
+            'bodyLetterSpacingEm' => $isAmharicDocument ? 0.01 : 0,
+            'subjectLabelLetterSpacingEm' => $isAmharicDocument ? 0.03 : 0.12,
+            'sectionLabelLetterSpacingEm' => $isAmharicDocument ? 0.04 : 0.18,
+            'labelTextTransform' => $isAmharicDocument ? 'none' : 'uppercase',
             'orientation' => $letter->orientation === 'landscape' ? 'landscape' : 'portrait',
             'pageTopMarginMm' => $pageTopMargin,
             'pageBottomMarginMm' => $pageBottomMargin,
@@ -162,6 +184,7 @@ class RenderLetterPdfAction
         $options->set('isRemoteEnabled', false);
         $options->set('defaultFont', 'DejaVu Sans');
         $options->set('dpi', 96);
+        $options->set('isFontSubsettingEnabled', true);
 
         return $options;
     }
@@ -173,6 +196,65 @@ class RenderLetterPdfAction
         return in_array($locale, ['en', 'am'], true)
             ? $locale
             : (string) config('app.locale', 'en');
+    }
+
+    private function embeddedFontCss(): string
+    {
+        $regularFont = $this->fontDataUri('NotoSansEthiopic-Regular.ttf');
+        $boldFont = $this->fontDataUri('NotoSansEthiopic-Bold.ttf');
+
+        if ($regularFont === null || $boldFont === null) {
+            return '';
+        }
+
+        return <<<CSS
+@font-face {
+    font-family: 'LDMSPdfEthiopic';
+    font-style: normal;
+    font-weight: 400;
+    src: url('{$regularFont}') format('truetype');
+}
+
+@font-face {
+    font-family: 'LDMSPdfEthiopic';
+    font-style: normal;
+    font-weight: 700;
+    src: url('{$boldFont}') format('truetype');
+}
+CSS;
+    }
+
+    private function fontDataUri(string $fileName): ?string
+    {
+        if (array_key_exists($fileName, self::$fontDataUriCache)) {
+            return self::$fontDataUriCache[$fileName];
+        }
+
+        $path = resource_path('fonts/pdf/'.$fileName);
+
+        if (! is_file($path)) {
+            self::$fontDataUriCache[$fileName] = null;
+
+            return null;
+        }
+
+        $contents = file_get_contents($path);
+
+        if ($contents === false) {
+            self::$fontDataUriCache[$fileName] = null;
+
+            return null;
+        }
+
+        $mimeType = match (strtolower(pathinfo($path, PATHINFO_EXTENSION))) {
+            'ttf' => 'font/ttf',
+            'otf' => 'font/otf',
+            'woff' => 'font/woff',
+            default => mime_content_type($path) ?: 'application/octet-stream',
+        };
+        self::$fontDataUriCache[$fileName] = sprintf('data:%s;base64,%s', $mimeType, base64_encode($contents));
+
+        return self::$fontDataUriCache[$fileName];
     }
 
     private function assetDataUri(?string $path): ?string

@@ -5,7 +5,7 @@ import SurfaceCard from '@/Components/Ui/SurfaceCard';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useI18n } from '@/lib/i18n';
 import { Head, Link } from '@inertiajs/react';
-import { buildTemplateRenderable, defaultPreviewData, LetterSheet, LetterTemplateItem, PreviewData } from './shared';
+import { buildTemplateRenderable, defaultPreviewData, LetterSheet, LetterTemplateItem, previewDocumentLabels, PreviewData } from './shared';
 
 type Props = {
     templateItem: LetterTemplateItem;
@@ -45,13 +45,7 @@ export default function LetterTemplatePreview({ templateItem, previewData = defa
                     <div className="overflow-x-auto rounded-3xl bg-slate-100 p-4 dark:bg-slate-900">
                         <LetterSheet
                             document={buildTemplateRenderable(templateItem, previewData)}
-                            labels={{
-                                subject: t('letter_templates.preview.subject'),
-                                cc: t('letter_templates.preview.cc'),
-                                enclosure: t('letter_templates.preview.enclosure'),
-                                reference: t('letter_templates.preview.reference'),
-                                date: t('letter_templates.preview.date'),
-                            }}
+                            labels={previewDocumentLabels(templateItem.language)}
                         />
                     </div>
                 </SurfaceCard>

@@ -1,7 +1,7 @@
 import { useI18n } from '@/lib/i18n';
 import { Head } from '@inertiajs/react';
 import { useEffect } from 'react';
-import { buildTemplateRenderable, defaultPreviewData, LetterSheet, LetterTemplateItem, PreviewData } from './shared';
+import { buildTemplateRenderable, defaultPreviewData, LetterSheet, LetterTemplateItem, previewDocumentLabels, PreviewData } from './shared';
 
 type Props = {
     templateItem: LetterTemplateItem;
@@ -43,13 +43,7 @@ export default function LetterTemplatePrint({ templateItem, previewData = defaul
                     <div className="overflow-x-auto">
                         <LetterSheet
                             document={buildTemplateRenderable(templateItem, previewData)}
-                            labels={{
-                                subject: t('letter_templates.preview.subject'),
-                                cc: t('letter_templates.preview.cc'),
-                                enclosure: t('letter_templates.preview.enclosure'),
-                                reference: t('letter_templates.preview.reference'),
-                                date: t('letter_templates.preview.date'),
-                            }}
+                            labels={previewDocumentLabels(templateItem.language)}
                         />
                     </div>
                 </div>

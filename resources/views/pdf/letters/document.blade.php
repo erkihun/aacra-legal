@@ -1,21 +1,26 @@
 <!DOCTYPE html>
-<html lang="{{ $letter->language }}">
+<html lang="{{ $documentLanguage }}">
 <head>
     <meta charset="utf-8">
     <title>{{ $documentTitle }}</title>
     <style>
+        {!! $embeddedFontCss !!}
+
         @page {
             size: A4 {{ $orientation }};
             margin: {{ $pageTopMarginMm }}mm {{ $rightMarginMm }}mm {{ $pageBottomMarginMm }}mm {{ $leftMarginMm }}mm;
         }
 
         body {
-            font-family: DejaVu Sans, sans-serif;
-            font-size: 12px;
-            line-height: 1.65;
+            font-family: 'LDMSPdfEthiopic', 'DejaVu Sans', sans-serif;
+            font-size: {{ $bodyFontSizePx }}px;
+            line-height: {{ $bodyLineHeight }};
+            word-spacing: {{ $bodyWordSpacingEm }}em;
+            letter-spacing: {{ $bodyLetterSpacingEm }}em;
             color: #0f172a;
             margin: 0;
             padding: 0;
+            -dompdf-font-family: 'LDMSPdfEthiopic';
         }
 
         header {
@@ -122,8 +127,8 @@
             margin: 0;
             font-size: 11px;
             font-weight: 700;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
+            letter-spacing: {{ $subjectLabelLetterSpacingEm }}em;
+            text-transform: {{ $labelTextTransform }};
             color: #64748b;
         }
 
@@ -186,8 +191,8 @@
             margin: 0 0 8px;
             font-size: 11px;
             font-weight: 700;
-            letter-spacing: 0.18em;
-            text-transform: uppercase;
+            letter-spacing: {{ $sectionLabelLetterSpacingEm }}em;
+            text-transform: {{ $labelTextTransform }};
             color: #64748b;
         }
 
@@ -199,9 +204,29 @@
         .cc-list li {
             margin-bottom: 6px;
         }
+
+        body.pdf-amharic .meta-label,
+        body.pdf-amharic .subject-label,
+        body.pdf-amharic .section-label {
+            font-family: 'LDMSPdfEthiopic', 'DejaVu Sans', sans-serif;
+        }
+
+        body.pdf-amharic .meta-value,
+        body.pdf-amharic .recipient-block,
+        body.pdf-amharic .salutation-block,
+        body.pdf-amharic .body-block,
+        body.pdf-amharic .closing-block,
+        body.pdf-amharic .signature-note,
+        body.pdf-amharic .signer-name,
+        body.pdf-amharic .signer-title,
+        body.pdf-amharic .cc-list,
+        body.pdf-amharic .enclosure-block {
+            font-family: 'LDMSPdfEthiopic', 'DejaVu Sans', sans-serif;
+            line-height: {{ $bodyLineHeight }};
+        }
     </style>
 </head>
-<body>
+<body class="{{ $pdfBodyClass }}">
 @if ($headerImage)
     <header>
         <div class="header-inner">

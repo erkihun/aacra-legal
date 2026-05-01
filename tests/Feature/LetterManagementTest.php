@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Actions\RenderLetterPdfAction;
 use App\Actions\GenerateLetterReferenceNumberAction;
 use App\Enums\LocaleCode;
 use App\Models\Letter;
@@ -337,6 +338,53 @@ it('renders the letter preview page and exposes real PDF endpoints for authorize
             ->where('letterItem.layout_config.footer_right_margin_mm', 14)
             ->where('letterItem.layout_config.footer_bottom_margin_mm', 7)
         );
+});
+
+it('renders amharic letter pdf html with embedded ethiopic fonts', function (): void {
+    $user = createLetterUser(['letters.preview'], LocaleCode::AMHARIC, [
+        'name' => 'መሰረት ከበደ',
+        'job_title' => 'የሕግ ጉዳይ ኃላፊ',
+    ]);
+    $template = createLetterTemplateForLetters([
+        'language' => 'am',
+        'reference_label' => 'መ/ቁ',
+        'subject_template' => 'ጉዳይ: አስፈላጊ ጉዳይ',
+        'salutation_template' => 'ክቡር ተቀባይ፣',
+        'body_content' => '<p>ይህ የአማርኛ ደብዳቤ የሙከራ ይዘት ነው።</p>',
+        'closing_content' => 'ከአክብሮት ጋር፣',
+        'signature_block_content' => 'የሕግ ጉዳይ ክፍል',
+        'cc_content' => "ግልባጭ: መዝገብ ቤት\nግልባጭ: አስተዳደር",
+    ]);
+    $letter = createLetterForTesting($template, [
+        'language' => 'am',
+        'recipient_name' => 'አስቴር ታደሰ',
+        'recipient_title' => 'ዳይሬክተር',
+        'recipient_organization' => 'የህዝብ አገልግሎት ቢሮ',
+        'recipient_address' => 'አዲስ አበባ',
+        'subject' => 'ጉዳይ: አስፈላጊ ጉዳይ',
+        'salutation' => 'ክቡር አስቴር ታደሰ፣',
+        'body_content' => '<p>ይህ የአማርኛ ፒዲኤፍ ሙከራ ይዘት ነው።</p>',
+        'closing_content' => 'ከአክብሮት ጋር፣',
+        'signature_block_content' => 'የሕግ ጉዳይ ክፍል',
+        'cc_content' => "ግልባጭ: መዝገብ ቤት\nግልባጭ: አስተዳደር",
+        'signer_full_name_snapshot' => 'መሰረት ከበደ',
+        'signer_title_snapshot' => 'የሕግ ጉዳይ ኃላፊ',
+    ]);
+
+    $html = app(RenderLetterPdfAction::class)->html($letter);
+
+    expect($html)
+        ->toContain('<html lang="am">')
+        ->toContain('class="pdf-amharic"')
+        ->toContain("font-family: 'LDMSPdfEthiopic', 'DejaVu Sans', sans-serif;")
+        ->toContain('data:font/ttf;base64,')
+        ->toContain('ይህ የአማርኛ ፒዲኤፍ ሙከራ ይዘት ነው።')
+        ->toContain('መሰረት ከበደ');
+
+    $this->actingAs($user)
+        ->get(route('letters.pdf', $letter))
+        ->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
 });
 
 it('allows editing and previewing letters whose template was soft deleted later', function (): void {

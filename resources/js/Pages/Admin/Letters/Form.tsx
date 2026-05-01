@@ -10,7 +10,7 @@ import { useI18n } from '@/lib/i18n';
 import { PageProps } from '@/types';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
-import { buildLetterRenderable, LetterItem, LetterSheet, LetterTemplateSelection } from '../LetterTemplates/shared';
+import { buildLetterRenderable, LetterItem, LetterSheet, LetterTemplateSelection, previewDocumentLabels } from '../LetterTemplates/shared';
 
 type TemplateOption = {
     id: string;
@@ -297,13 +297,7 @@ export default function LetterForm({ letterItem, selectedTemplate, templateOptio
                             <div className="overflow-x-auto rounded-3xl bg-slate-100 p-4 dark:bg-slate-900">
                                 <LetterSheet
                                     document={buildLetterRenderable(previewLetter)}
-                                    labels={{
-                                        subject: t('letters.preview.subject'),
-                                        cc: t('letters.preview.cc'),
-                                        enclosure: t('letters.preview.enclosure'),
-                                        reference: t('letters.preview.reference'),
-                                        date: t('letters.preview.date'),
-                                    }}
+                                    labels={previewDocumentLabels(previewLetter.language)}
                                 />
                             </div>
                         </SurfaceCard>

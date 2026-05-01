@@ -7,7 +7,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useDateFormatter } from '@/lib/dates';
 import { useI18n } from '@/lib/i18n';
 import { Head, Link } from '@inertiajs/react';
-import { buildLetterRenderable, LetterItem, LetterSheet } from '../LetterTemplates/shared';
+import { buildLetterRenderable, LetterItem, LetterSheet, previewDocumentLabels } from '../LetterTemplates/shared';
 
 type Props = {
     letterItem: LetterItem;
@@ -109,13 +109,7 @@ export default function LetterShow({ letterItem, can }: Props) {
                     <div className="overflow-x-auto rounded-3xl bg-slate-100 p-4 dark:bg-slate-900">
                         <LetterSheet
                             document={buildLetterRenderable(letterItem)}
-                            labels={{
-                                subject: t('letters.preview.subject'),
-                                cc: t('letters.preview.cc'),
-                                enclosure: t('letters.preview.enclosure'),
-                                reference: t('letters.preview.reference'),
-                                date: t('letters.preview.date'),
-                            }}
+                            labels={previewDocumentLabels(letterItem.language)}
                         />
                     </div>
                 </SurfaceCard>
