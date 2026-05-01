@@ -446,7 +446,8 @@ it('renders amharic letter pdf html with embedded ethiopic fonts', function (): 
         ->toContain('class="pdf-nyala"')
         ->toContain("font-family: 'Nyala', serif;")
         ->toContain("font-family: 'Nyala';")
-        ->toContain('data:font/ttf;base64,')
+        ->toContain("src: url('file:///")
+        ->not->toContain('data:font/ttf;base64,')
         ->toContain('ይህ የአማርኛ ፒዲኤፍ ሙከራ ይዘት ነው።')
         ->toContain('መሰረት ከበደ');
 

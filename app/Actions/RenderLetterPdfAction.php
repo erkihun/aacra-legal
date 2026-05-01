@@ -18,7 +18,12 @@ class RenderLetterPdfAction
     /**
      * @var array<string, string|null>
      */
-    private static array $fontDataUriCache = [];
+    private static array $fontSourceCache = [];
+
+    /**
+     * @var array<string, string|null>
+     */
+    private static array $assetSourceCache = [];
 
     public function __construct(
         private readonly ViewFactory $view,
@@ -59,9 +64,12 @@ class RenderLetterPdfAction
     public function render(Letter $letter): string
     {
         $previousLocale = App::currentLocale();
+        $previousMemoryLimit = ini_get('memory_limit');
         App::setLocale($this->resolvedLocale($letter));
 
         try {
+            $this->increaseMemoryLimit('512M');
+
             $dompdf = new Dompdf($this->options());
             $dompdf->loadHtml($this->html($letter), 'UTF-8');
             $dompdf->setPaper('a4', $letter->orientation === 'landscape' ? 'landscape' : 'portrait');
@@ -70,6 +78,10 @@ class RenderLetterPdfAction
             return $dompdf->output();
         } finally {
             App::setLocale($previousLocale);
+
+            if (is_string($previousMemoryLimit) && $previousMemoryLimit !== '') {
+                @ini_set('memory_limit', $previousMemoryLimit);
+            }
         }
     }
 
@@ -106,9 +118,9 @@ class RenderLetterPdfAction
         $footerRightMargin = (int) ($layout['footer_right_margin_mm'] ?? $layout['margin_right_mm'] ?? 18);
         $footerBottomMargin = (int) ($layout['footer_bottom_margin_mm'] ?? 0);
 
-        $headerImage = $this->assetDataUri($letter->header_image_path_snapshot ?: $letter->template?->header_image_path);
-        $footerImage = $this->assetDataUri($letter->footer_image_path_snapshot ?: $letter->template?->footer_image_path);
-        $signatureImage = $this->assetDataUri($letter->signature_image_path_snapshot ?: $letter->creator?->signature_path);
+        $headerImage = $this->assetSource($letter->header_image_path_snapshot ?: $letter->template?->header_image_path);
+        $footerImage = $this->assetSource($letter->footer_image_path_snapshot ?: $letter->template?->footer_image_path);
+        $signatureImage = $this->assetSource($letter->signature_image_path_snapshot ?: $letter->creator?->signature_path);
 
         $headerHeight = $headerImage ? 30 : 0;
         $footerHeight = $footerImage ? 22 : 0;
@@ -200,7 +212,7 @@ class RenderLetterPdfAction
 
     private function embeddedFontCss(): string
     {
-        $regularFont = $this->fontDataUri('Nyala.ttf');
+        $regularFont = $this->fontSource('Nyala.ttf');
 
         if ($regularFont === null) {
             return '';
@@ -248,40 +260,26 @@ CSS;
         ])->contains(static fn (mixed $value): bool => is_string($value) && preg_match('/[\x{1200}-\x{137F}\x{1380}-\x{139F}\x{2D80}-\x{2DDF}\x{AB00}-\x{AB2F}]/u', $value) === 1);
     }
 
-    private function fontDataUri(string $fileName): ?string
+    private function fontSource(string $fileName): ?string
     {
-        if (array_key_exists($fileName, self::$fontDataUriCache)) {
-            return self::$fontDataUriCache[$fileName];
+        if (array_key_exists($fileName, self::$fontSourceCache)) {
+            return self::$fontSourceCache[$fileName];
         }
 
         $path = resource_path('fonts/pdf/'.$fileName);
 
         if (! is_file($path)) {
-            self::$fontDataUriCache[$fileName] = null;
+            self::$fontSourceCache[$fileName] = null;
 
             return null;
         }
 
-        $contents = file_get_contents($path);
+        self::$fontSourceCache[$fileName] = $this->localFileUri($path);
 
-        if ($contents === false) {
-            self::$fontDataUriCache[$fileName] = null;
-
-            return null;
-        }
-
-        $mimeType = match (strtolower(pathinfo($path, PATHINFO_EXTENSION))) {
-            'ttf' => 'font/ttf',
-            'otf' => 'font/otf',
-            'woff' => 'font/woff',
-            default => mime_content_type($path) ?: 'application/octet-stream',
-        };
-        self::$fontDataUriCache[$fileName] = sprintf('data:%s;base64,%s', $mimeType, base64_encode($contents));
-
-        return self::$fontDataUriCache[$fileName];
+        return self::$fontSourceCache[$fileName];
     }
 
-    private function assetDataUri(?string $path): ?string
+    private function assetSource(?string $path): ?string
     {
         if (! is_string($path) || trim($path) === '') {
             return null;
@@ -289,28 +287,70 @@ CSS;
 
         $normalizedPath = ltrim(trim($path), '/');
 
-        if (Storage::disk('public')->exists($normalizedPath)) {
-            $contents = Storage::disk('public')->get($normalizedPath);
-            $mimeType = Storage::disk('public')->mimeType($normalizedPath) ?: 'application/octet-stream';
+        if (array_key_exists($normalizedPath, self::$assetSourceCache)) {
+            return self::$assetSourceCache[$normalizedPath];
+        }
 
-            return sprintf('data:%s;base64,%s', $mimeType, base64_encode($contents));
+        if (Storage::disk('public')->exists($normalizedPath)) {
+            $resolvedPath = Storage::disk('public')->path($normalizedPath);
+
+            if (is_file($resolvedPath)) {
+                self::$assetSourceCache[$normalizedPath] = $this->localFileUri($resolvedPath);
+
+                return self::$assetSourceCache[$normalizedPath];
+            }
         }
 
         $publicPath = public_path($normalizedPath);
 
         if (is_file($publicPath)) {
-            $contents = file_get_contents($publicPath);
+            self::$assetSourceCache[$normalizedPath] = $this->localFileUri($publicPath);
 
-            if ($contents === false) {
-                return null;
-            }
-
-            $mimeType = mime_content_type($publicPath) ?: 'application/octet-stream';
-
-            return sprintf('data:%s;base64,%s', $mimeType, base64_encode($contents));
+            return self::$assetSourceCache[$normalizedPath];
         }
 
+        self::$assetSourceCache[$normalizedPath] = null;
+
         return null;
+    }
+
+    private function localFileUri(string $path): string
+    {
+        return 'file:///'.str_replace('\\', '/', ltrim($path, '\\/'));
+    }
+
+    private function increaseMemoryLimit(string $target): void
+    {
+        $current = ini_get('memory_limit');
+
+        if (! is_string($current) || $current === '' || $current === '-1') {
+            return;
+        }
+
+        if ($this->bytesFromIni($current) >= $this->bytesFromIni($target)) {
+            return;
+        }
+
+        @ini_set('memory_limit', $target);
+    }
+
+    private function bytesFromIni(string $value): int
+    {
+        $trimmed = trim($value);
+
+        if ($trimmed === '' || $trimmed === '-1') {
+            return PHP_INT_MAX;
+        }
+
+        $unit = strtolower(substr($trimmed, -1));
+        $number = (int) $trimmed;
+
+        return match ($unit) {
+            'g' => $number * 1024 * 1024 * 1024,
+            'm' => $number * 1024 * 1024,
+            'k' => $number * 1024,
+            default => (int) $trimmed,
+        };
     }
 
     private function containsHtml(?string $value): bool
