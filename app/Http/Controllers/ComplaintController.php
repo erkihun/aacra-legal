@@ -31,6 +31,8 @@ use App\Models\Complaint;
 use App\Models\Department;
 use App\Models\User;
 use App\Services\SystemSettingsService;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -97,8 +99,8 @@ class ComplaintController extends Controller
         $derivedComplainantType = $this->derivedComplainantType($request->user());
 
         return Inertia::render('Complaints/Create', [
-            'branches' => Branch::query()->active()->orderBy('name_en')->get(['id', 'name_en', 'name_am']),
-            'departments' => Department::query()->active()->orderBy('name_en')->get(['id', 'name_en', 'name_am']),
+            'branches' => $this->complaintBranchOptions(),
+            'departments' => $this->complaintDepartmentOptions(),
             'priorityOptions' => collect(PriorityLevel::cases())->map(fn (PriorityLevel $priority) => [
                 'value' => $priority->value,
                 'label' => __("status.{$priority->value}"),
@@ -124,8 +126,8 @@ class ComplaintController extends Controller
         return Inertia::render('Complaints/Create', [
             'mode' => 'edit',
             'complaintItem' => ComplaintResource::make($complaint->load(['branch', 'department', 'complainant', 'attachments.uploadedBy']))->resolve(),
-            'branches' => Branch::query()->active()->orderBy('name_en')->get(['id', 'name_en', 'name_am']),
-            'departments' => Department::query()->active()->orderBy('name_en')->get(['id', 'name_en', 'name_am']),
+            'branches' => $this->complaintBranchOptions($complaint),
+            'departments' => $this->complaintDepartmentOptions($complaint),
             'priorityOptions' => collect(PriorityLevel::cases())->map(fn (PriorityLevel $priority) => [
                 'value' => $priority->value,
                 'label' => __("status.{$priority->value}"),
@@ -306,5 +308,38 @@ class ComplaintController extends Controller
         return $user->branch_id !== null
             ? ComplaintComplainantType::BRANCH_EMPLOYEE
             : ComplaintComplainantType::HEAD_OFFICE_EMPLOYEE;
+    }
+
+    private function complaintBranchOptions(?Complaint $complaint = null): Collection
+    {
+        return Branch::query()
+            ->when(
+                $complaint?->branch_id !== null,
+                fn (Builder $query) => $query->where(function (Builder $builder) use ($complaint): void {
+                    $builder
+                        ->where('is_active', true)
+                        ->orWhere('id', $complaint?->branch_id);
+                }),
+                fn (Builder $query) => $query->where('is_active', true),
+            )
+            ->orderBy('name_en')
+            ->get(['id', 'name_en', 'name_am']);
+    }
+
+    private function complaintDepartmentOptions(?Complaint $complaint = null): Collection
+    {
+        return Department::query()
+            ->with('branch')
+            ->when(
+                $complaint?->department_id !== null,
+                fn (Builder $query) => $query->where(function (Builder $builder) use ($complaint): void {
+                    $builder
+                        ->where('is_active', true)
+                        ->orWhere('id', $complaint?->department_id);
+                }),
+                fn (Builder $query) => $query->where('is_active', true),
+            )
+            ->orderBy('name_en')
+            ->get(['id', 'branch_id', 'name_en', 'name_am']);
     }
 }

@@ -61,6 +61,7 @@ class ComplaintResource extends JsonResource
             ] : null),
             'department' => $this->whenLoaded('department', fn (): ?array => $this->department ? [
                 'id' => $this->department->id,
+                'branch_id' => $this->department->branch_id,
                 'code' => $this->department->code,
                 'name_en' => $this->department->name_en,
                 'name_am' => $this->department->name_am,

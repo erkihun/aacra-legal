@@ -10,6 +10,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useI18n } from '@/lib/i18n';
 import { localizeName } from '@/Pages/Complaints/shared';
 import { Head, Link, useForm } from '@inertiajs/react';
+import { useEffect } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 
 type Option = {
@@ -27,7 +28,7 @@ type Attachment = {
 type ComplaintItem = {
     id: string;
     branch?: { id?: string | null; name_en?: string | null; name_am?: string | null } | null;
-    department?: { id?: string | null; name_en?: string | null; name_am?: string | null } | null;
+    department?: { id?: string | null; branch_id?: string | null; name_en?: string | null; name_am?: string | null } | null;
     complainant_name?: string | null;
     complainant_phone?: string | null;
     complainant_city?: string | null;
@@ -53,7 +54,7 @@ type Props = {
     mode?: 'create' | 'edit';
     complaintItem?: ComplaintItem | null;
     branches: Array<{ id: string; name_en: string; name_am?: string | null }>;
-    departments: Array<{ id: string; name_en: string; name_am?: string | null }>;
+    departments: Array<{ id: string; branch_id?: string | null; name_en: string; name_am?: string | null }>;
     authUser: {
         name?: string | null;
         phone?: string | null;
@@ -114,6 +115,22 @@ export default function ComplaintCreate({
     });
 
     const { locale, t } = useI18n();
+    const selectedDepartment = departments.find((department) => department.id === form.data.department_id) ?? null;
+    const filteredDepartments = departments.filter((department) => department.branch_id === form.data.branch_id);
+    const departmentOptions =
+        selectedDepartment !== null && !filteredDepartments.some((department) => department.id === selectedDepartment.id)
+            ? [selectedDepartment, ...filteredDepartments]
+            : filteredDepartments;
+
+    useEffect(() => {
+        if (form.data.branch_id === '' || form.data.department_id === '') {
+            return;
+        }
+
+        if (selectedDepartment === null || selectedDepartment.branch_id !== form.data.branch_id) {
+            form.setData('department_id', '');
+        }
+    }, [form, form.data.branch_id, form.data.department_id, selectedDepartment]);
 
     const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -204,7 +221,7 @@ export default function ComplaintCreate({
                                 <input type="date" className="input-ui" value={form.data.incident_date} onChange={(event) => form.setData('incident_date', event.target.value)} />
                             </FormField>
 
-                            <FormField label={t('complaints.form.labels.branch')} optional error={form.errors.branch_id}>
+                            <FormField label={t('complaints.form.labels.branch')} required error={form.errors.branch_id}>
                                 <select className="select-ui" value={form.data.branch_id} onChange={(event) => form.setData('branch_id', event.target.value)}>
                                     <option value="">{t('complaints.placeholders.select_office')}</option>
                                     {branches.map((branch) => (
@@ -229,15 +246,20 @@ export default function ComplaintCreate({
 
                     <ComplaintSection title={t('complaints.sections.d.title')} description={t('complaints.sections.d.description')}>
                         <FormField label={t('complaints.form.labels.department')} required error={form.errors.department_id}>
-                            <select className="select-ui" value={form.data.department_id} onChange={(event) => form.setData('department_id', event.target.value)}>
-                                <option value="">{t('complaints.placeholders.select_department')}</option>
-                                {departments.map((department) => (
+                            <select
+                                className="select-ui"
+                                value={form.data.department_id}
+                                disabled={form.data.branch_id === '' && form.data.department_id === ''}
+                                onChange={(event) => form.setData('department_id', event.target.value)}
+                            >
+                                <option value="">{form.data.branch_id === '' ? t('complaints.placeholders.select_office_first') : t('complaints.placeholders.select_department')}</option>
+                                {departmentOptions.map((department) => (
                                     <option key={department.id} value={department.id}>
                                         {localizeName(department, locale)}
-                                        </option>
-                                    ))}
-                                </select>
-                            </FormField>
+                                    </option>
+                                ))}
+                            </select>
+                        </FormField>
                     </ComplaintSection>
 
                     <ComplaintSection title={t('complaints.sections.e.title')} description={t('complaints.sections.e.description')}>

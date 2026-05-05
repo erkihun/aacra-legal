@@ -38,6 +38,7 @@ beforeEach(function (): void {
 
 it('loads the complaint create page for authorized complainants', function (): void {
     $complainant = createComplaintUser(SystemRole::DEPARTMENT_REQUESTER, 'HR');
+    $branch = Branch::query()->firstOrFail();
 
     $this->actingAs($complainant)
         ->get(route('complaints.create'))
@@ -47,6 +48,8 @@ it('loads the complaint create page for authorized complainants', function (): v
             ->where('derivedComplainantType', 'branch_employee')
             ->has('branches')
             ->has('departments')
+            ->where('branches.0.id', $branch->id)
+            ->where('departments.0.branch_id', $branch->id)
             ->where('authUser.name', $complainant->name)
         );
 });
@@ -191,9 +194,61 @@ it('loads the complaint edit page with existing institutional intake values', fu
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Complaints/Create')
             ->where('mode', 'edit')
+            ->where('complaintItem.branch.id', $complaint->branch_id)
+            ->where('complaintItem.department.branch_id', $complaint->branch_id)
             ->where('complaintItem.complainant_city', 'Addis Ababa')
             ->where('complaintItem.concerned_employee_name', 'Employee on record')
             ->where('complaintItem.requested_resolution', 'Requested remedy text.')
+        );
+});
+
+it('rejects a responsible department that does not belong to the selected office or institution', function (): void {
+    $complainant = createComplaintUser(SystemRole::DEPARTMENT_REQUESTER, 'HR');
+    $selectedBranch = Branch::query()->firstOrFail();
+    $otherBranch = Branch::query()->create([
+        'code' => 'B02',
+        'name_en' => 'Branch Two',
+        'name_am' => 'ቅርንጫፍ ሁለት',
+        'is_active' => true,
+    ]);
+    $foreignDepartment = Department::query()->create([
+        'code' => 'B02-LEG',
+        'name_en' => 'Branch Two Legal',
+        'name_am' => 'የቅርንጫፍ ሁለት ህግ',
+        'branch_id' => $otherBranch->id,
+        'is_active' => true,
+    ]);
+
+    $this->actingAs($complainant)
+        ->from(route('complaints.create'))
+        ->post(route('complaints.store'), validComplaintSubmissionData($selectedBranch->id, $foreignDepartment->id))
+        ->assertRedirect(route('complaints.create'))
+        ->assertSessionHasErrors([
+            'department_id' => __('complaints.validation.department_branch_mismatch'),
+        ]);
+});
+
+it('loads older complaints safely when the linked department has no branch mapping', function (): void {
+    $complainant = createComplaintUser(SystemRole::DEPARTMENT_REQUESTER, 'HR');
+    $legacyDepartment = Department::query()->create([
+        'code' => 'LEGACY',
+        'name_en' => 'Legacy Department',
+        'name_am' => 'የቆየ የስራ ክፍል',
+        'branch_id' => null,
+        'is_active' => true,
+    ]);
+    $complaint = complaintFixture($complainant, 'LEG', [
+        'branch_id' => null,
+        'department_id' => $legacyDepartment->id,
+    ]);
+
+    $this->actingAs($complainant)
+        ->get(route('complaints.edit', $complaint))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Complaints/Create')
+            ->where('complaintItem.department.id', $legacyDepartment->id)
+            ->where('complaintItem.department.branch_id', null)
         );
 });
 

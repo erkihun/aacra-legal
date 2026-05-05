@@ -10,6 +10,7 @@ use App\Enums\TeamType;
 use App\Enums\WorkflowStage;
 use App\Models\AdvisoryCategory;
 use App\Models\AdvisoryRequest;
+use App\Models\Branch;
 use App\Models\CaseType;
 use App\Models\Court;
 use App\Models\Department;
@@ -33,11 +34,13 @@ beforeEach(function (): void {
 
 it('allows a super admin to manage all master data modules', function (): void {
     $admin = User::query()->where('email', 'admin@ldms.test')->firstOrFail();
+    $branch = Branch::query()->firstOrFail();
 
     $this->actingAs($admin)->post(route('departments.store'), [
         'code' => 'ICTX',
         'name_en' => 'ICT',
         'name_am' => 'አይሲቲ',
+        'branch_id' => $branch->id,
         'is_active' => true,
     ])->assertRedirect();
 
@@ -88,6 +91,7 @@ it('allows a super admin to manage all master data modules', function (): void {
     $this->actingAs($admin)->patch(route('departments.update', $department), [
         'code' => 'ICTX',
         'name_en' => 'Information Technology',
+        'branch_id' => $branch->id,
         'name_am' => 'ኢንፎርሜሽን ቴክኖሎጂ',
         'is_active' => false,
     ])->assertRedirect(route('departments.edit', $department));
@@ -130,7 +134,8 @@ it('allows a super admin to manage all master data modules', function (): void {
         ->and($team->fresh()?->type)->toBe(TeamType::ADVISORY)
         ->and($category->fresh()?->is_active)->toBeFalse()
         ->and($court->fresh()?->city)->toBe('Adama')
-        ->and($caseType->fresh()?->name_en)->toBe('Labour and Employment');
+        ->and($caseType->fresh()?->name_en)->toBe('Labour and Employment')
+        ->and($department->fresh()?->branch_id)->toBe($branch->id);
 
     $this->actingAs($admin)->delete(route('departments.destroy', $department))->assertRedirect(route('departments.index'));
     $this->actingAs($admin)->delete(route('teams.destroy', $team))->assertRedirect(route('teams.index'));
@@ -147,6 +152,7 @@ it('allows a super admin to manage all master data modules', function (): void {
 
 it('allows legal directors to view master data but not manage it', function (): void {
     $director = User::query()->where('email', 'director@ldms.test')->firstOrFail();
+    $branch = Branch::query()->firstOrFail();
     $department = Department::query()->firstOrFail();
     $team = Team::query()->firstOrFail();
     $category = AdvisoryCategory::query()->firstOrFail();
@@ -159,7 +165,8 @@ it('allows legal directors to view master data but not manage it', function (): 
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Admin/Departments/Index')
             ->where('can.create', false)
-            ->where('can.update', false));
+            ->where('can.update', false)
+            ->where('departments.data.0.branch.id', $branch->id));
 
     $this->actingAs($director)->get(route('teams.index'))->assertOk();
     $this->actingAs($director)->get(route('advisory-categories.index'))->assertOk();
@@ -175,9 +182,49 @@ it('allows legal directors to view master data but not manage it', function (): 
     $this->actingAs($director)->post(route('departments.store'), [
         'code' => 'FIN',
         'name_en' => 'Finance',
+        'branch_id' => $branch->id,
         'name_am' => 'ፋይናንስ',
         'is_active' => true,
     ])->assertForbidden();
+});
+
+it('shows the branch dropdown on department create and preloads the selected branch on edit', function (): void {
+    $admin = User::query()->where('email', 'admin@ldms.test')->firstOrFail();
+    $branch = Branch::query()->firstOrFail();
+    $department = Department::query()->firstOrFail();
+
+    $department->update(['branch_id' => $branch->id]);
+
+    $this->actingAs($admin)
+        ->get(route('departments.create'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Admin/Departments/Form')
+            ->has('branches')
+            ->where('branches.0.id', $branch->id));
+
+    $this->actingAs($admin)
+        ->get(route('departments.edit', $department))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Admin/Departments/Form')
+            ->where('departmentItem.branch_id', $branch->id));
+});
+
+it('rejects an invalid branch when creating a department', function (): void {
+    $admin = User::query()->where('email', 'admin@ldms.test')->firstOrFail();
+
+    $this->actingAs($admin)
+        ->from(route('departments.create'))
+        ->post(route('departments.store'), [
+            'code' => 'BAD-BRANCH',
+            'name_en' => 'Broken Department',
+            'name_am' => 'የተሳሳተ የስራ ክፍል',
+            'branch_id' => '00000000-0000-7000-8000-000000000999',
+            'is_active' => true,
+        ])
+        ->assertRedirect(route('departments.create'))
+        ->assertSessionHasErrors('branch_id');
 });
 
 it('prevents deleting master data records that are still linked to active records', function (): void {

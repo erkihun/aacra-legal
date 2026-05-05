@@ -55,6 +55,11 @@ class Branch extends Model
         return $this->hasMany(Complaint::class);
     }
 
+    public function departments(): HasMany
+    {
+        return $this->hasMany(Department::class);
+    }
+
     public static function tableExists(): bool
     {
         try {

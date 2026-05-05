@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Concerns\HasUuidPrimaryKey;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -25,6 +26,7 @@ class Department extends Model
         'code',
         'name_en',
         'name_am',
+        'branch_id',
         'is_active',
     ];
 
@@ -38,6 +40,11 @@ class Department extends Model
     public function users(): HasMany
     {
         return $this->hasMany(User::class);
+    }
+
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class)->withTrashed();
     }
 
     public function advisoryRequests(): HasMany

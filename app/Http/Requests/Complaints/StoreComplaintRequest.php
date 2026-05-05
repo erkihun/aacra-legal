@@ -6,8 +6,10 @@ namespace App\Http\Requests\Complaints;
 
 use App\Enums\PriorityLevel;
 use App\Models\Complaint;
+use App\Models\Department;
 use App\Services\SystemSettingsService;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class StoreComplaintRequest extends FormRequest
 {
@@ -45,6 +47,13 @@ class StoreComplaintRequest extends FormRequest
         ];
     }
 
+    public function after(): array
+    {
+        return [
+            fn (Validator $validator) => $this->validateDepartmentBranchConsistency($validator),
+        ];
+    }
+
     public function attributes(): array
     {
         return [
@@ -66,5 +75,39 @@ class StoreComplaintRequest extends FormRequest
             'attachments' => __('complaints.validation_attributes.attachments'),
             'attachments.*' => __('complaints.validation_attributes.attachment_file'),
         ];
+    }
+
+    private function validateDepartmentBranchConsistency(Validator $validator): void
+    {
+        if ($validator->errors()->hasAny(['branch_id', 'department_id'])) {
+            return;
+        }
+
+        $departmentId = (string) $this->input('department_id');
+
+        if ($departmentId === '') {
+            return;
+        }
+
+        $department = Department::query()
+            ->withTrashed()
+            ->select(['id', 'branch_id'])
+            ->find($departmentId);
+
+        if ($department === null) {
+            return;
+        }
+
+        $branchId = (string) $this->input('branch_id');
+
+        if ($branchId === '') {
+            $validator->errors()->add('branch_id', __('complaints.validation.branch_required_for_department'));
+
+            return;
+        }
+
+        if ($department->branch_id !== $branchId) {
+            $validator->errors()->add('department_id', __('complaints.validation.department_branch_mismatch'));
+        }
     }
 }

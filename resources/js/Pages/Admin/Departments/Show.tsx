@@ -52,6 +52,10 @@ export default function DepartmentShow({ departmentItem, can }: any) {
                             <Detail label={t('common.status')} value={departmentItem.is_active ? t('common.active') : t('common.inactive')} />
                             <Detail label={t('departments.name_en')} value={departmentItem.name_en} />
                             <Detail label={t('departments.name_am')} value={departmentItem.name_am} />
+                            <Detail
+                                label={t('departments.branch')}
+                                value={departmentItem.branch ? (locale === 'am' ? departmentItem.branch.name_am : departmentItem.branch.name_en) ?? departmentItem.branch.name_en : null}
+                            />
                             <Detail label={t('common.name')} value={departmentName} />
                             <Detail label={t('common.description')} value={alternateName} />
                         </div>

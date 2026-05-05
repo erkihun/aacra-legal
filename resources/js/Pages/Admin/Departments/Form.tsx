@@ -9,13 +9,20 @@ import { useI18n } from '@/lib/i18n';
 import { Head, router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 
-export default function DepartmentForm({ departmentItem, canDelete }: any) {
+type BranchOption = {
+    id: string;
+    name_en: string;
+    name_am?: string | null;
+};
+
+export default function DepartmentForm({ departmentItem, branches, canDelete }: { departmentItem?: any; branches: BranchOption[]; canDelete: boolean }) {
     const { t } = useI18n();
     const [confirmOpen, setConfirmOpen] = useState(false);
     const form = useForm({
         code: departmentItem?.code ?? '',
         name_en: departmentItem?.name_en ?? '',
         name_am: departmentItem?.name_am ?? '',
+        branch_id: departmentItem?.branch_id ?? '',
         is_active: departmentItem?.is_active ?? true,
     });
 
@@ -62,6 +69,17 @@ export default function DepartmentForm({ departmentItem, canDelete }: any) {
                             </FormField>
                             <FormField label={t('departments.name_am')} required error={form.errors.name_am}>
                                 <input value={form.data.name_am} onChange={(event) => form.setData('name_am', event.target.value)} className="input-ui" />
+                            </FormField>
+                            <FormField label={t('departments.branch')} required error={form.errors.branch_id}>
+                                <select value={form.data.branch_id} onChange={(event) => form.setData('branch_id', event.target.value)} className="select-ui">
+                                    <option value="">{t('departments.branch_placeholder')}</option>
+                                    {branches.map((branch) => (
+                                        <option key={branch.id} value={branch.id}>
+                                            {branch.name_en}
+                                            {branch.name_am ? ` / ${branch.name_am}` : ''}
+                                        </option>
+                                    ))}
+                                </select>
                             </FormField>
                             <FormField label={t('common.status')} required error={form.errors.is_active as string | undefined}>
                                 <select value={form.data.is_active ? '1' : '0'} onChange={(event) => form.setData('is_active', event.target.value === '1')} className="select-ui">

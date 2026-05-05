@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Models\Branch;
 use App\Models\Department;
 use Illuminate\Database\Seeder;
 
@@ -11,10 +12,15 @@ class DepartmentSeeder extends Seeder
 {
     public function run(): void
     {
+        $defaultBranchId = Branch::query()
+            ->where('is_head_office', true)
+            ->value('id')
+            ?? Branch::query()->orderBy('created_at')->value('id');
+
         foreach ($this->departments() as $department) {
             Department::query()->updateOrCreate(
                 ['code' => $department['code']],
-                [...$department, 'is_active' => true],
+                [...$department, 'branch_id' => $defaultBranchId, 'is_active' => true],
             );
         }
     }

@@ -42,6 +42,7 @@ it('renders the complaint create page fully in amharic when amharic is active', 
                 'complaints.create_title' => __('complaints.create_title', locale: LocaleCode::AMHARIC->value),
                 'complaints.form.labels.complainant_name' => __('complaints.form.labels.complainant_name', locale: LocaleCode::AMHARIC->value),
                 'complaints.form.hints.requested_resolution' => __('complaints.form.hints.requested_resolution', locale: LocaleCode::AMHARIC->value),
+                'complaints.placeholders.select_office_first' => __('complaints.placeholders.select_office_first', locale: LocaleCode::AMHARIC->value),
                 'complaints.placeholders.select_department' => __('complaints.placeholders.select_department', locale: LocaleCode::AMHARIC->value),
             ]))
         );
@@ -60,6 +61,7 @@ it('renders the complaint create page fully in english when english is active', 
                 'complaints.create_title' => __('complaints.create_title', locale: LocaleCode::ENGLISH->value),
                 'complaints.form.labels.complainant_name' => __('complaints.form.labels.complainant_name', locale: LocaleCode::ENGLISH->value),
                 'complaints.form.hints.requested_resolution' => __('complaints.form.hints.requested_resolution', locale: LocaleCode::ENGLISH->value),
+                'complaints.placeholders.select_office_first' => __('complaints.placeholders.select_office_first', locale: LocaleCode::ENGLISH->value),
                 'complaints.placeholders.select_department' => __('complaints.placeholders.select_department', locale: LocaleCode::ENGLISH->value),
             ]))
         );

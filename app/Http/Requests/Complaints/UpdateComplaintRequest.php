@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Requests\Complaints;
 
 use App\Models\Complaint;
+use App\Models\Department;
 use App\Services\SystemSettingsService;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class UpdateComplaintRequest extends FormRequest
 {
@@ -47,6 +49,13 @@ class UpdateComplaintRequest extends FormRequest
         ];
     }
 
+    public function after(): array
+    {
+        return [
+            fn (Validator $validator) => $this->validateDepartmentBranchConsistency($validator),
+        ];
+    }
+
     public function attributes(): array
     {
         return [
@@ -68,5 +77,60 @@ class UpdateComplaintRequest extends FormRequest
             'attachments' => __('complaints.validation_attributes.attachments'),
             'attachments.*' => __('complaints.validation_attributes.attachment_file'),
         ];
+    }
+
+    private function validateDepartmentBranchConsistency(Validator $validator): void
+    {
+        if ($validator->errors()->hasAny(['branch_id', 'department_id'])) {
+            return;
+        }
+
+        $departmentId = (string) $this->input('department_id');
+
+        if ($departmentId === '') {
+            return;
+        }
+
+        $department = Department::query()
+            ->withTrashed()
+            ->select(['id', 'branch_id'])
+            ->find($departmentId);
+
+        if ($department === null) {
+            return;
+        }
+
+        $branchId = (string) $this->input('branch_id');
+        /** @var Complaint|null $complaint */
+        $complaint = $this->route('complaint');
+        $isLegacySelection = $complaint instanceof Complaint
+            && $complaint->department_id === $department->id
+            && $complaint->branch_id === null
+            && $branchId === ''
+            && $department->branch_id === null;
+
+        if ($branchId === '') {
+            if (! $isLegacySelection) {
+                $validator->errors()->add('branch_id', __('complaints.validation.branch_required_for_department'));
+            }
+
+            return;
+        }
+
+        if ($department->branch_id === null) {
+            $isLegacyRetainedSelection = $complaint instanceof Complaint
+                && $complaint->department_id === $department->id
+                && $complaint->branch_id === $branchId;
+
+            if (! $isLegacyRetainedSelection) {
+                $validator->errors()->add('department_id', __('complaints.validation.department_branch_mismatch'));
+            }
+
+            return;
+        }
+
+        if ($department->branch_id !== $branchId) {
+            $validator->errors()->add('department_id', __('complaints.validation.department_branch_mismatch'));
+        }
     }
 }

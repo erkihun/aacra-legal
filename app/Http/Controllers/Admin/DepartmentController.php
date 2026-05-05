@@ -6,7 +6,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\DepartmentRequest;
+use App\Models\Branch;
 use App\Models\Department;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -24,12 +27,19 @@ class DepartmentController extends Controller
         ]);
 
         $departments = Department::query()
+            ->with('branch')
             ->when($filters['search'] ?? null, function ($query, string $search): void {
                 $query->where(function ($builder) use ($search): void {
                     $builder
                         ->where('code', 'like', "%{$search}%")
                         ->orWhere('name_en', 'like', "%{$search}%")
-                        ->orWhere('name_am', 'like', "%{$search}%");
+                        ->orWhere('name_am', 'like', "%{$search}%")
+                        ->orWhereHas('branch', function (Builder $branchQuery) use ($search): void {
+                            $branchQuery
+                                ->where('name_en', 'like', "%{$search}%")
+                                ->orWhere('name_am', 'like', "%{$search}%")
+                                ->orWhere('code', 'like', "%{$search}%");
+                        });
                 });
             })
             ->when(
@@ -44,6 +54,11 @@ class DepartmentController extends Controller
                 'code' => $department->code,
                 'name_en' => $department->name_en,
                 'name_am' => $department->name_am,
+                'branch' => $department->branch ? [
+                    'id' => $department->branch->id,
+                    'name_en' => $department->branch->name_en,
+                    'name_am' => $department->branch->name_am,
+                ] : null,
                 'is_active' => $department->is_active,
             ]);
 
@@ -63,6 +78,7 @@ class DepartmentController extends Controller
 
         return Inertia::render('Admin/Departments/Form', [
             'departmentItem' => null,
+            'branches' => $this->branchOptions(),
             'canDelete' => false,
         ]);
     }
@@ -71,7 +87,7 @@ class DepartmentController extends Controller
     {
         $this->authorize('view', $department);
 
-        $department->loadCount(['users', 'advisoryRequests']);
+        $department->load(['branch'])->loadCount(['users', 'advisoryRequests']);
 
         return Inertia::render('Admin/Departments/Show', [
             'departmentItem' => [
@@ -79,6 +95,11 @@ class DepartmentController extends Controller
                 'code' => $department->code,
                 'name_en' => $department->name_en,
                 'name_am' => $department->name_am,
+                'branch' => $department->branch ? [
+                    'id' => $department->branch->id,
+                    'name_en' => $department->branch->name_en,
+                    'name_am' => $department->branch->name_am,
+                ] : null,
                 'is_active' => $department->is_active,
                 'stats' => [
                     'users' => $department->users_count,
@@ -111,8 +132,10 @@ class DepartmentController extends Controller
                 'code' => $department->code,
                 'name_en' => $department->name_en,
                 'name_am' => $department->name_am,
+                'branch_id' => $department->branch_id,
                 'is_active' => $department->is_active,
             ],
+            'branches' => $this->branchOptions(),
             'canDelete' => request()->user()?->can('delete', $department) ?? false,
         ]);
     }
@@ -136,5 +159,12 @@ class DepartmentController extends Controller
         $department->delete();
 
         return to_route('departments.index')->with('success', __('Department deleted successfully.'));
+    }
+
+    private function branchOptions(): Collection
+    {
+        return Branch::query()
+            ->orderBy('name_en')
+            ->get(['id', 'name_en', 'name_am']);
     }
 }

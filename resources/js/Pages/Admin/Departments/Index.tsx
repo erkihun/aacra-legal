@@ -15,6 +15,11 @@ type DepartmentRow = {
     code: string;
     name_en: string;
     name_am: string;
+    branch?: {
+        id: string;
+        name_en: string;
+        name_am?: string | null;
+    } | null;
     is_active: boolean;
 };
 
@@ -111,6 +116,11 @@ export default function DepartmentsIndex({ filters, departments, can }: any) {
                                             <p className="mt-1 text-sm text-[color:var(--muted)]">{locale === 'am' ? row.name_en : row.name_am}</p>
                                         </div>
                                     ),
+                                },
+                                {
+                                    key: 'branch',
+                                    header: t('departments.branch'),
+                                    cell: (row) => row.branch ? (locale === 'am' ? row.branch.name_am : row.branch.name_en) ?? row.branch.name_en : '—',
                                 },
                                 {
                                     key: 'status',
