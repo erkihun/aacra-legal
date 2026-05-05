@@ -10,7 +10,7 @@ import { useI18n } from '@/lib/i18n';
 import { PageProps } from '@/types';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
-import { buildLetterRenderable, LetterItem, LetterSheet, LetterTemplateSelection, previewDocumentLabels } from '../LetterTemplates/shared';
+import { buildLetterRenderable, LetterItem, LetterRecipient, LetterSheet, LetterTemplateSelection, previewDocumentLabels } from '../LetterTemplates/shared';
 import nyalaFontUrl from '../../../../fonts/pdf/Nyala.ttf?url';
 
 type TemplateOption = {
@@ -27,11 +27,6 @@ type DepartmentOption = {
     name_en: string;
     name_am: string;
     is_active: boolean;
-};
-
-type RecipientFormRow = {
-    recipient_name: string;
-    recipient_department_id: string;
 };
 
 type Props = {
@@ -80,6 +75,7 @@ export default function LetterForm({ letterItem, selectedTemplate, templateOptio
     const isEditing = !!letterItem;
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [selectedTemplateId, setSelectedTemplateId] = useState<string>(selectedTemplate?.id ?? '');
+    const [departmentMenuOpen, setDepartmentMenuOpen] = useState(false);
     const sessionSigner = {
         name: props.auth.user?.name ?? '',
         jobTitle: props.auth.user?.job_title ?? '',
@@ -92,13 +88,13 @@ export default function LetterForm({ letterItem, selectedTemplate, templateOptio
             signatureUrl: letterItem.signature_image_url ?? null,
         }
         : sessionSigner;
-    const initialRecipients = normalizeRecipientsForForm(letterItem);
     const form = useForm({
         template_id: selectedTemplate?.id ?? letterItem?.template_id ?? '',
         reference_number: letterItem?.reference_number ?? selectedTemplate?.reference_number_preview ?? '',
         reference_number_preview: selectedTemplate?.reference_number_preview ?? letterItem?.reference_number ?? '',
         letter_date: letterItem?.letter_date ?? new Date().toISOString().slice(0, 10),
-        recipients: initialRecipients,
+        recipient_names_text: normalizeRecipientNamesTextForForm(letterItem),
+        recipient_department_ids: normalizeRecipientDepartmentIdsForForm(letterItem),
         subject: letterItem?.subject ?? selectedTemplate?.subject_template ?? '',
         salutation: letterItem?.salutation ?? selectedTemplate?.salutation_template ?? '',
         body_content: letterItem?.body_content ?? selectedTemplate?.body_content ?? '',
@@ -125,26 +121,19 @@ export default function LetterForm({ letterItem, selectedTemplate, templateOptio
         notes: letterItem?.notes ?? '',
     });
 
+    const previewRecipients = useMemo(
+        () => buildPreviewRecipientsFromSources(form.data.recipient_names_text, form.data.recipient_department_ids, departments),
+        [departments, form.data.recipient_department_ids, form.data.recipient_names_text],
+    );
+    const recipientGroupError = (form.errors as Record<string, string | undefined>).recipients;
+
     const previewLetter = useMemo<LetterItem>(() => ({
         template_id: form.data.template_id,
         reference_number: form.data.reference_number,
         letter_date: form.data.letter_date,
-        recipient_name: form.data.recipients[0]?.recipient_name ?? '',
-        recipient_organization: resolveDepartmentDisplayName(
-            departments,
-            form.data.recipients[0]?.recipient_department_id ?? '',
-            form.data.language as 'en' | 'am',
-        ),
-        recipients: form.data.recipients.map((recipient) => {
-            const department = departments.find((item) => item.id === recipient.recipient_department_id);
-
-            return {
-                recipient_name: recipient.recipient_name,
-                recipient_department_id: recipient.recipient_department_id || null,
-                recipient_department_name_en: department?.name_en ?? null,
-                recipient_department_name_am: department?.name_am ?? null,
-            };
-        }),
+        recipient_name: previewRecipients[0]?.recipient_name ?? resolvePreviewRecipientName(previewRecipients, form.data.language as 'en' | 'am'),
+        recipient_organization: resolvePreviewRecipientOrganization(previewRecipients, form.data.language as 'en' | 'am'),
+        recipients: previewRecipients,
         subject: form.data.subject,
         salutation: form.data.salutation,
         body_content: form.data.body_content,
@@ -178,7 +167,7 @@ export default function LetterForm({ letterItem, selectedTemplate, templateOptio
         },
         notes: form.data.notes,
         template: letterItem?.template ?? (selectedTemplate ? { id: selectedTemplate.id, name: selectedTemplate.name, code: selectedTemplate.code } : null),
-    }), [departments, effectiveSigner.jobTitle, effectiveSigner.name, effectiveSigner.signatureUrl, form.data.body_content, form.data.cc_content, form.data.closing_content, form.data.content_bottom_margin_mm, form.data.content_top_margin_mm, form.data.enclosure_content, form.data.footer_bottom_margin_mm, form.data.footer_left_margin_mm, form.data.footer_right_margin_mm, form.data.footer_top_spacing_mm, form.data.header_bottom_spacing_mm, form.data.header_top_margin_mm, form.data.language, form.data.letter_date, form.data.margin_bottom_mm, form.data.margin_left_mm, form.data.margin_right_mm, form.data.margin_top_mm, form.data.notes, form.data.orientation, form.data.recipients, form.data.reference_number, form.data.salutation, form.data.signature_block_content, form.data.status, form.data.subject, form.data.template_id, letterItem?.approval_status, letterItem?.footer_image_url, letterItem?.header_image_url, letterItem?.signature_image_url, letterItem?.signer_full_name, letterItem?.signer_title, letterItem?.template, selectedTemplate]);
+    }), [effectiveSigner.jobTitle, effectiveSigner.name, effectiveSigner.signatureUrl, form.data.body_content, form.data.cc_content, form.data.closing_content, form.data.content_bottom_margin_mm, form.data.content_top_margin_mm, form.data.enclosure_content, form.data.footer_bottom_margin_mm, form.data.footer_left_margin_mm, form.data.footer_right_margin_mm, form.data.footer_top_spacing_mm, form.data.header_bottom_spacing_mm, form.data.header_top_margin_mm, form.data.language, form.data.letter_date, form.data.margin_bottom_mm, form.data.margin_left_mm, form.data.margin_right_mm, form.data.margin_top_mm, form.data.notes, form.data.orientation, form.data.reference_number, form.data.salutation, form.data.signature_block_content, form.data.status, form.data.subject, form.data.template_id, letterItem?.approval_status, letterItem?.footer_image_url, letterItem?.header_image_url, letterItem?.signature_image_url, letterItem?.signer_full_name, letterItem?.signer_title, letterItem?.template, previewRecipients, selectedTemplate]);
 
     return (
         <AuthenticatedLayout
@@ -283,58 +272,67 @@ export default function LetterForm({ letterItem, selectedTemplate, templateOptio
 
                         <SurfaceCard className="space-y-4">
                             <h2 className="text-lg font-semibold text-[color:var(--text)]">{t('letters.sections.recipient_information')}</h2>
-                            <div className="space-y-4">
-                                {form.data.recipients.map((recipient, index) => (
-                                    <div key={`recipient-${index}`} className="rounded-3xl border border-[color:var(--border)] p-4">
-                                        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr),minmax(0,1fr),auto]">
-                                            <FormField label={t('letters.fields.recipient_name')} optional error={form.errors[`recipients.${index}.recipient_name`] as string | undefined}>
-                                                <input
-                                                    value={recipient.recipient_name}
-                                                    onChange={(event) => updateRecipient(form.data.recipients, index, 'recipient_name', event.target.value, form.setData)}
-                                                    className="input-ui"
-                                                />
-                                            </FormField>
-                                            <FormField label={t('letters.fields.recipient_department')} optional error={form.errors[`recipients.${index}.recipient_department_id`] as string | undefined}>
-                                                <select
-                                                    value={recipient.recipient_department_id}
-                                                    onChange={(event) => updateRecipient(form.data.recipients, index, 'recipient_department_id', event.target.value, form.setData)}
-                                                    className="select-ui"
-                                                >
-                                                    <option value="">{t('letters.recipient_department_placeholder')}</option>
-                                                    {departments.map((department) => (
-                                                        <option key={department.id} value={department.id}>
-                                                            {departmentLabel(department, form.data.language as 'en' | 'am')}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            </FormField>
-                                            <div className="flex items-end">
-                                                <button
-                                                    type="button"
-                                                    className="btn-base btn-secondary focus-ring"
-                                                    onClick={() => removeRecipientRow(form.data.recipients, index, form.setData)}
-                                                    disabled={form.data.recipients.length === 1}
-                                                >
-                                                    {t('letters.actions.remove_recipient')}
-                                                </button>
+                            <div className="grid gap-4 xl:grid-cols-2">
+                                <FormField
+                                    label={t('letters.fields.recipient_name')}
+                                    optional
+                                    error={form.errors.recipient_names_text ?? recipientGroupError}
+                                    hint={t('letters.recipient_names_help')}
+                                >
+                                    <textarea
+                                        value={form.data.recipient_names_text}
+                                        onChange={(event) => form.setData('recipient_names_text', event.target.value)}
+                                        className="textarea-ui min-h-36"
+                                        placeholder={t('letters.recipient_names_placeholder')}
+                                    />
+                                </FormField>
+                                <FormField
+                                    label={t('letters.fields.recipient_department')}
+                                    optional
+                                    error={form.errors.recipient_department_ids ?? recipientGroupError}
+                                    hint={t('letters.recipient_department_help')}
+                                >
+                                    <div className="relative">
+                                        <button
+                                            type="button"
+                                            className="select-ui flex min-h-11 w-full items-center justify-between text-left"
+                                            onClick={() => setDepartmentMenuOpen((current) => ! current)}
+                                        >
+                                            <span className={form.data.recipient_department_ids.length === 0 ? 'text-[color:var(--muted)]' : ''}>
+                                                {selectedDepartmentSummary(form.data.recipient_department_ids, departments, form.data.language as 'en' | 'am', t('letters.recipient_department_placeholder'))}
+                                            </span>
+                                            <span className="ml-3 text-xs text-[color:var(--muted)]">{departmentMenuOpen ? '▲' : '▼'}</span>
+                                        </button>
+                                        {departmentMenuOpen ? (
+                                            <div className="absolute z-20 mt-2 max-h-72 w-full overflow-y-auto rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] p-2 shadow-xl">
+                                                {departments.length === 0 ? (
+                                                    <p className="px-3 py-2 text-sm text-[color:var(--muted)]">{t('common.no_results')}</p>
+                                                ) : (
+                                                    departments.map((department) => {
+                                                        const checked = form.data.recipient_department_ids.includes(department.id);
+
+                                                        return (
+                                                            <label
+                                                                key={department.id}
+                                                                className="flex cursor-pointer items-start gap-3 rounded-xl px-3 py-2 hover:bg-[color:var(--surface-muted)]"
+                                                            >
+                                                                <input
+                                                                    type="checkbox"
+                                                                    className="mt-1 h-4 w-4 rounded border-[color:var(--border)] text-[color:var(--primary)] focus:ring-[color:var(--primary)]"
+                                                                    checked={checked}
+                                                                    onChange={() => toggleDepartmentSelection(department.id, form.data.recipient_department_ids, form.setData)}
+                                                                />
+                                                                <span className="text-sm text-[color:var(--text)]">
+                                                                    {departmentLabel(department, form.data.language as 'en' | 'am')}
+                                                                </span>
+                                                            </label>
+                                                        );
+                                                    })
+                                                )}
                                             </div>
-                                        </div>
-                                        {form.errors[`recipients.${index}`] ? (
-                                            <p className="mt-3 text-sm text-red-600 dark:text-red-300">
-                                                {form.errors[`recipients.${index}`] as string}
-                                            </p>
                                         ) : null}
                                     </div>
-                                ))}
-                                <div>
-                                    <button
-                                        type="button"
-                                        className="btn-base btn-secondary focus-ring"
-                                        onClick={() => form.setData('recipients', [...form.data.recipients, emptyRecipient()])}
-                                    >
-                                        {t('letters.actions.add_recipient')}
-                                    </button>
-                                </div>
+                                </FormField>
                             </div>
                         </SurfaceCard>
 
@@ -471,57 +469,6 @@ function numericOrNull(value: string) {
     return Number.isFinite(numeric) ? numeric : null;
 }
 
-function emptyRecipient(): RecipientFormRow {
-    return {
-        recipient_name: '',
-        recipient_department_id: '',
-    };
-}
-
-function normalizeRecipientsForForm(letterItem?: LetterItem | null): RecipientFormRow[] {
-    if (Array.isArray(letterItem?.recipients) && letterItem.recipients.length > 0) {
-        return letterItem.recipients.map((recipient) => ({
-            recipient_name: recipient.recipient_name ?? '',
-            recipient_department_id: recipient.recipient_department_id ?? '',
-        }));
-    }
-
-    if (letterItem?.recipient_name) {
-        return [{
-            recipient_name: letterItem.recipient_name,
-            recipient_department_id: '',
-        }];
-    }
-
-    return [emptyRecipient()];
-}
-
-function updateRecipient(
-    recipients: RecipientFormRow[],
-    index: number,
-    key: keyof RecipientFormRow,
-    value: string,
-    setData: (key: 'recipients', value: RecipientFormRow[]) => void,
-) {
-    const nextRecipients = recipients.map((recipient, recipientIndex) => (
-        recipientIndex === index ? { ...recipient, [key]: value } : recipient
-    ));
-
-    setData('recipients', nextRecipients);
-}
-
-function removeRecipientRow(
-    recipients: RecipientFormRow[],
-    index: number,
-    setData: (key: 'recipients', value: RecipientFormRow[]) => void,
-) {
-    if (recipients.length <= 1) {
-        return;
-    }
-
-    setData('recipients', recipients.filter((_, recipientIndex) => recipientIndex !== index));
-}
-
 function departmentLabel(department: DepartmentOption, language: 'en' | 'am') {
     return language === 'am'
         ? (department.name_am || department.name_en)
@@ -542,6 +489,132 @@ function resolveDepartmentDisplayName(
     return language === 'am'
         ? (department.name_am || department.name_en)
         : (department.name_en || department.name_am);
+}
+
+function splitRecipientNameLines(value?: string | null): string[] {
+    if (! value) {
+        return [];
+    }
+
+    return value
+        .split(/\r\n|\r|\n/)
+        .map((line) => line.trim())
+        .filter((line, index, lines) => line !== '' && lines.indexOf(line) === index);
+}
+
+function normalizeRecipientNamesTextForForm(letterItem?: LetterItem | null): string {
+    if (Array.isArray(letterItem?.recipients) && letterItem.recipients.length > 0) {
+        const lines = letterItem.recipients.flatMap((recipient) => {
+            if (recipient?.recipient_type === 'department' && ! recipient.recipient_department_id) {
+                const fallbackDepartmentName = recipient.recipient_department_name_en ?? recipient.recipient_department_name_am ?? '';
+
+                return fallbackDepartmentName.trim() !== '' ? [fallbackDepartmentName.trim()] : [];
+            }
+
+            const name = recipient?.recipient_name ?? '';
+
+            return name.trim() !== '' ? [name.trim()] : [];
+        });
+
+        return lines.filter((line, index, all) => all.indexOf(line) === index).join('\n');
+    }
+
+    return (letterItem?.recipient_name ?? '').trim();
+}
+
+function normalizeRecipientDepartmentIdsForForm(letterItem?: LetterItem | null): string[] {
+    if (! Array.isArray(letterItem?.recipients)) {
+        return [];
+    }
+
+    return letterItem.recipients
+        .map((recipient) => recipient?.recipient_department_id?.trim() ?? '')
+        .filter((departmentId, index, all) => departmentId !== '' && all.indexOf(departmentId) === index);
+}
+
+function buildPreviewRecipientsFromSources(
+    recipientNamesText: string,
+    recipientDepartmentIds: string[],
+    departments: DepartmentOption[],
+): LetterRecipient[] {
+    const nameRecipients: LetterRecipient[] = splitRecipientNameLines(recipientNamesText).map((recipientName) => ({
+        recipient_type: 'text',
+        recipient_name: recipientName,
+        recipient_department_id: null,
+        recipient_department_name_en: null,
+        recipient_department_name_am: null,
+    }));
+
+    const departmentRecipients: LetterRecipient[] = recipientDepartmentIds
+        .map((departmentId) => departments.find((department) => department.id === departmentId))
+        .filter((department): department is DepartmentOption => department !== undefined)
+        .map((department) => ({
+            recipient_type: 'department',
+            recipient_name: null,
+            recipient_department_id: department.id,
+            recipient_department_name_en: department.name_en,
+            recipient_department_name_am: department.name_am,
+        }));
+
+    return [...nameRecipients, ...departmentRecipients];
+}
+
+function resolvePreviewRecipientName(recipients: LetterRecipient[], language: 'en' | 'am'): string {
+    const firstTextRecipient = recipients.find((recipient) => (recipient.recipient_name ?? '').trim() !== '');
+
+    if (firstTextRecipient?.recipient_name) {
+        return firstTextRecipient.recipient_name;
+    }
+
+    return resolvePreviewRecipientOrganization(recipients, language);
+}
+
+function resolvePreviewRecipientOrganization(recipients: LetterRecipient[], language: 'en' | 'am'): string {
+    const firstDepartmentRecipient = recipients.find((recipient) => {
+        const name = language === 'am'
+            ? (recipient.recipient_department_name_am ?? recipient.recipient_department_name_en)
+            : (recipient.recipient_department_name_en ?? recipient.recipient_department_name_am);
+
+        return (name ?? '').trim() !== '';
+    });
+
+    if (! firstDepartmentRecipient) {
+        return '';
+    }
+
+    return language === 'am'
+        ? (firstDepartmentRecipient.recipient_department_name_am ?? firstDepartmentRecipient.recipient_department_name_en ?? '')
+        : (firstDepartmentRecipient.recipient_department_name_en ?? firstDepartmentRecipient.recipient_department_name_am ?? '');
+}
+
+function toggleDepartmentSelection(
+    departmentId: string,
+    selectedDepartmentIds: string[],
+    setData: (key: 'recipient_department_ids', value: string[]) => void,
+) {
+    setData(
+        'recipient_department_ids',
+        selectedDepartmentIds.includes(departmentId)
+            ? selectedDepartmentIds.filter((value) => value !== departmentId)
+            : [...selectedDepartmentIds, departmentId],
+    );
+}
+
+function selectedDepartmentSummary(
+    selectedDepartmentIds: string[],
+    departments: DepartmentOption[],
+    language: 'en' | 'am',
+    placeholder: string,
+): string {
+    if (selectedDepartmentIds.length === 0) {
+        return placeholder;
+    }
+
+    return selectedDepartmentIds
+        .map((departmentId) => departments.find((department) => department.id === departmentId))
+        .filter((department): department is DepartmentOption => department !== undefined)
+        .map((department) => departmentLabel(department, language))
+        .join(', ');
 }
 
 function InfoPill({ label, value }: { label: string; value: string }) {

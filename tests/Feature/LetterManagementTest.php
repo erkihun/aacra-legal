@@ -54,6 +54,16 @@ it('loads the letter create page for authorized users', function (): void {
         );
 });
 
+it('removes the add recipient button from the letter form ui', function (): void {
+    $source = file_get_contents(resource_path('js/Pages/Admin/Letters/Form.tsx'));
+
+    expect($source)
+        ->not->toContain("letters.actions.add_recipient")
+        ->toContain("recipient_names_text")
+        ->toContain("recipient_department_ids")
+        ->toContain("textarea-ui min-h-36");
+});
+
 it('allows an authorized user to create a letter from a selected template', function (): void {
     $user = createLetterUser(['letters.view', 'letters.create', 'letter_templates.view']);
     $template = createLetterTemplateForLetters([
@@ -139,7 +149,7 @@ it('allows an authorized user to create a letter from a selected template', func
     Storage::disk('public')->assertExists((string) $letter->signature_image_path_snapshot);
 });
 
-it('supports creating a letter with one free-text recipient', function (): void {
+it('supports creating a letter with multiple recipient names entered line by line in the textarea', function (): void {
     $user = createLetterUser(['letters.view', 'letters.create']);
     $template = createLetterTemplateForLetters();
     $preview = app(GenerateLetterReferenceNumberAction::class)->preview($template);
@@ -148,19 +158,19 @@ it('supports creating a letter with one free-text recipient', function (): void 
         ->post(route('letters.store'), letterPayload($template, [
             'reference_number' => $preview,
             'reference_number_preview' => $preview,
-            'recipients' => [
-                ['recipient_name' => 'Ato Abebe Kebede'],
-            ],
+            'recipient_name' => '',
+            'recipient_names_text' => "Ato Abebe Kebede\nW/ro Hana Tadesse",
+            'recipient_department_ids' => [],
         ]))
         ->assertRedirect();
 
     $letter = Letter::query()->latest('created_at')->firstOrFail();
 
-    expect($letter->recipientDisplayLines())->toBe(['Ato Abebe Kebede'])
+    expect($letter->recipientDisplayLines())->toBe(['Ato Abebe Kebede', 'W/ro Hana Tadesse'])
         ->and($letter->recipient_name)->toBe('Ato Abebe Kebede');
 });
 
-it('supports creating a letter with one department recipient', function (): void {
+it('supports creating a letter with multiple selected departments', function (): void {
     $user = createLetterUser(['letters.view', 'letters.create']);
     $template = createLetterTemplateForLetters();
     $department = createLetterDepartment([
@@ -168,25 +178,29 @@ it('supports creating a letter with one department recipient', function (): void
         'name_am' => 'የህግ ዳይሬክቶሬት',
     ]);
     $preview = app(GenerateLetterReferenceNumberAction::class)->preview($template);
+    $departmentTwo = createLetterDepartment([
+        'name_en' => 'Finance Department',
+    ]);
 
     $this->actingAs($user)
         ->post(route('letters.store'), letterPayload($template, [
             'reference_number' => $preview,
             'reference_number_preview' => $preview,
-            'recipients' => [
-                ['recipient_department_id' => $department->id],
-            ],
+            'recipient_name' => '',
+            'recipient_names_text' => '',
+            'recipient_department_ids' => [$department->id, $departmentTwo->id],
         ]))
         ->assertRedirect();
 
     $letter = Letter::query()->latest('created_at')->firstOrFail();
 
-    expect($letter->recipientDisplayLines())->toBe(['Legal Directorate'])
+    expect($letter->recipientDisplayLines())->toBe(['Legal Directorate', 'Finance Department'])
         ->and($letter->recipient_name)->toBe('Legal Directorate')
-        ->and($letter->resolvedRecipients()[0]['recipient_department_id'])->toBe($department->id);
+        ->and($letter->resolvedRecipients()[0]['recipient_department_id'])->toBe($department->id)
+        ->and($letter->resolvedRecipients()[1]['recipient_department_id'])->toBe($departmentTwo->id);
 });
 
-it('supports creating a letter with multiple mixed recipients', function (): void {
+it('supports creating a letter with both names and departments together', function (): void {
     $user = createLetterUser(['letters.view', 'letters.create', 'letters.preview']);
     $template = createLetterTemplateForLetters();
     $legal = createLetterDepartment([
@@ -205,11 +219,9 @@ it('supports creating a letter with multiple mixed recipients', function (): voi
         ->post(route('letters.store'), letterPayload($template, [
             'reference_number' => $preview,
             'reference_number_preview' => $preview,
-            'recipients' => [
-                ['recipient_name' => 'Ato Abebe Kebede'],
-                ['recipient_department_id' => $legal->id],
-                ['recipient_department_id' => $finance->id],
-            ],
+            'recipient_name' => '',
+            'recipient_names_text' => "Ato Abebe Kebede\nW/ro Hana Tadesse",
+            'recipient_department_ids' => [$legal->id, $finance->id],
         ]))
         ->assertRedirect();
 
@@ -217,6 +229,7 @@ it('supports creating a letter with multiple mixed recipients', function (): voi
 
     expect($letter->recipientDisplayLines())->toBe([
         'Ato Abebe Kebede',
+        'W/ro Hana Tadesse',
         'Legal Directorate',
         'Finance Department',
     ]);
@@ -226,8 +239,9 @@ it('supports creating a letter with multiple mixed recipients', function (): voi
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('letterItem.recipients.0.recipient_name', 'Ato Abebe Kebede')
-            ->where('letterItem.recipients.1.recipient_department_name_en', 'Legal Directorate')
-            ->where('letterItem.recipients.2.recipient_department_name_en', 'Finance Department')
+            ->where('letterItem.recipients.1.recipient_name', 'W/ro Hana Tadesse')
+            ->where('letterItem.recipients.2.recipient_department_name_en', 'Legal Directorate')
+            ->where('letterItem.recipients.3.recipient_department_name_en', 'Finance Department')
         );
 
     $html = app(RenderLetterPdfAction::class)->html($letter);
@@ -235,21 +249,45 @@ it('supports creating a letter with multiple mixed recipients', function (): voi
     expect($html)
         ->toContain('<ul class="recipient-list">')
         ->toContain('<li>Ato Abebe Kebede</li>')
+        ->toContain('<li>W/ro Hana Tadesse</li>')
         ->toContain('<li>Legal Directorate</li>')
         ->toContain('<li>Finance Department</li>');
 });
 
-it('rejects recipient rows when both name and department are missing', function (): void {
+it('fails validation when recipient input is required and both sources are empty', function (): void {
     $user = createLetterUser(['letters.create']);
     $template = createLetterTemplateForLetters();
 
     $this->actingAs($user)
         ->post(route('letters.store'), letterPayload($template, [
-            'recipients' => [
-                ['recipient_name' => '', 'recipient_department_id' => ''],
-            ],
+            'recipient_name' => '',
+            'recipient_names_text' => " \n\n ",
+            'recipient_department_ids' => [],
         ]))
-        ->assertSessionHasErrors(['recipients.0']);
+        ->assertSessionHasErrors(['recipients']);
+});
+
+it('ignores blank lines in the recipient textarea safely', function (): void {
+    $user = createLetterUser(['letters.view', 'letters.create']);
+    $template = createLetterTemplateForLetters();
+    $preview = app(GenerateLetterReferenceNumberAction::class)->preview($template);
+
+    $this->actingAs($user)
+        ->post(route('letters.store'), letterPayload($template, [
+            'reference_number' => $preview,
+            'reference_number_preview' => $preview,
+            'recipient_name' => '',
+            'recipient_names_text' => "Ato Abebe Kebede\n\n  \nW/ro Hana Tadesse\n",
+            'recipient_department_ids' => [],
+        ]))
+        ->assertRedirect();
+
+    $letter = Letter::query()->latest('created_at')->firstOrFail();
+
+    expect($letter->recipientDisplayLines())->toBe([
+        'Ato Abebe Kebede',
+        'W/ro Hana Tadesse',
+    ]);
 });
 
 it('inherits low template margin values into saved letters and pdf rendering', function (): void {
@@ -603,6 +641,40 @@ it('renders letter pdf safely when the subject is empty', function (): void {
     expect($html)
         ->not->toContain('class="subject-block"')
         ->toContain('Saved letter body.');
+});
+
+it('reloads saved textarea recipients and selected departments on the edit form', function (): void {
+    $user = createLetterUser(['letters.update']);
+    $template = createLetterTemplateForLetters();
+    $department = createLetterDepartment(['name_en' => 'Legal Directorate']);
+    $letter = createLetterForTesting($template, [
+        'recipient_name' => 'Ato Abebe Kebede',
+        'recipients' => [
+            [
+                'recipient_type' => 'text',
+                'recipient_name' => 'Ato Abebe Kebede',
+                'recipient_department_id' => null,
+                'recipient_department_name_en' => null,
+                'recipient_department_name_am' => null,
+            ],
+            [
+                'recipient_type' => 'department',
+                'recipient_name' => null,
+                'recipient_department_id' => $department->id,
+                'recipient_department_name_en' => 'Legal Directorate',
+                'recipient_department_name_am' => null,
+            ],
+        ],
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('letters.edit', $letter))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Admin/Letters/Form')
+            ->where('letterItem.recipients.0.recipient_name', 'Ato Abebe Kebede')
+            ->where('letterItem.recipients.1.recipient_department_id', $department->id)
+        );
 });
 
 it('allows editing and previewing letters whose template was soft deleted later', function (): void {

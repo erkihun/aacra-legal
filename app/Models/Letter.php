@@ -210,6 +210,7 @@ class Letter extends Model
                 return (string) ($departmentName ?? '');
             })
             ->filter(static fn (string $value): bool => $value !== '')
+            ->unique()
             ->values()
             ->all();
     }

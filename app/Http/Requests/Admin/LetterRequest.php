@@ -32,6 +32,8 @@ class LetterRequest extends FormRequest
             'recipient_title' => $this->filled('recipient_title') ? trim((string) $this->input('recipient_title')) : null,
             'recipient_organization' => $this->filled('recipient_organization') ? trim((string) $this->input('recipient_organization')) : null,
             'recipient_address' => $this->filled('recipient_address') ? trim((string) $this->input('recipient_address')) : null,
+            'recipient_names_text' => $this->normalizeRecipientNamesText(),
+            'recipient_department_ids' => $this->normalizeRecipientDepartmentIds(),
             'recipients' => $this->normalizeRecipients(),
             'subject' => $this->filled('subject') ? trim((string) $this->input('subject')) : null,
             'salutation' => $this->filled('salutation') ? trim((string) $this->input('salutation')) : null,
@@ -181,7 +183,23 @@ class LetterRequest extends FormRequest
             'recipient_title' => ['nullable', 'string', 'max:255'],
             'recipient_organization' => ['nullable', 'string', 'max:255'],
             'recipient_address' => ['nullable', 'string'],
-            'recipients' => ['required', 'array', 'min:1'],
+            'recipient_names_text' => ['nullable', 'string'],
+            'recipient_department_ids' => ['nullable', 'array'],
+            'recipient_department_ids.*' => [
+                'required',
+                'uuid',
+                Rule::exists(Department::class, 'id')->where(fn ($query) => $query->whereNull('deleted_at')),
+            ],
+            'recipients' => [
+                'required',
+                'array',
+                'min:1',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (! is_array($value) || $value === []) {
+                        $fail(__('letters.validation.recipient_source_required'));
+                    }
+                },
+            ],
             'recipients.*' => [
                 'required',
                 'array',
@@ -238,9 +256,11 @@ class LetterRequest extends FormRequest
             'reference_number' => __('letters.fields.reference_number'),
             'letter_date' => __('letters.fields.letter_date'),
             'recipient_name' => __('letters.fields.recipient_name'),
+            'recipient_names_text' => __('letters.fields.recipient_name'),
             'recipient_title' => __('letters.fields.recipient_title'),
             'recipient_organization' => __('letters.fields.recipient_organization'),
             'recipient_address' => __('letters.fields.recipient_address'),
+            'recipient_department_ids' => __('letters.fields.recipient_department'),
             'recipients' => __('letters.fields.recipients'),
             'recipients.*.recipient_name' => __('letters.fields.recipient_name'),
             'recipients.*.recipient_department_id' => __('letters.fields.recipient_department'),
@@ -280,11 +300,62 @@ class LetterRequest extends FormRequest
         return (int) $value;
     }
 
+    private function normalizeRecipientNamesText(): string
+    {
+        if (! is_string($this->input('recipient_names_text'))) {
+            return '';
+        }
+
+        return trim(str_replace(["\r\n", "\r"], "\n", (string) $this->input('recipient_names_text')));
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function normalizeRecipientDepartmentIds(): array
+    {
+        return collect($this->input('recipient_department_ids', []))
+            ->filter(static fn (mixed $value): bool => is_scalar($value))
+            ->map(static fn (mixed $value): string => trim((string) $value))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
     /**
      * @return array<int, array<string, string|null>>
      */
     private function normalizeRecipients(): array
     {
+        if ($this->has('recipient_names_text') || $this->has('recipient_department_ids')) {
+            $textRecipients = collect(preg_split('/\r\n|\r|\n/', $this->normalizeRecipientNamesText()) ?: [])
+                ->map(static fn (string $line): string => trim($line))
+                ->filter()
+                ->unique()
+                ->map(static fn (string $line): array => [
+                    'recipient_type' => 'text',
+                    'recipient_name' => $line,
+                    'recipient_department_id' => null,
+                    'recipient_department_name_en' => null,
+                    'recipient_department_name_am' => null,
+                ]);
+
+            $departmentRecipients = collect($this->normalizeRecipientDepartmentIds())
+                ->map(static fn (string $departmentId): array => [
+                    'recipient_type' => 'department',
+                    'recipient_name' => null,
+                    'recipient_department_id' => $departmentId,
+                    'recipient_department_name_en' => null,
+                    'recipient_department_name_am' => null,
+                ]);
+
+            return $textRecipients
+                ->concat($departmentRecipients)
+                ->values()
+                ->all();
+        }
+
         $recipients = $this->input('recipients');
 
         if (is_array($recipients)) {
@@ -298,10 +369,14 @@ class LetterRequest extends FormRequest
                     $departmentId = trim((string) Arr::get($recipient, 'recipient_department_id', ''));
 
                     return [
+                        'recipient_type' => $name === '' ? 'department' : 'text',
                         'recipient_name' => $name !== '' ? $name : null,
                         'recipient_department_id' => $departmentId !== '' ? $departmentId : null,
+                        'recipient_department_name_en' => null,
+                        'recipient_department_name_am' => null,
                     ];
                 })
+                ->filter()
                 ->values()
                 ->all();
         }
@@ -314,8 +389,11 @@ class LetterRequest extends FormRequest
         }
 
         return [[
+            'recipient_type' => $recipientName === '' ? 'department' : 'text',
             'recipient_name' => $recipientName !== '' ? $recipientName : null,
             'recipient_department_id' => $legacyDepartmentId !== '' ? $legacyDepartmentId : null,
+            'recipient_department_name_en' => null,
+            'recipient_department_name_am' => null,
         ]];
     }
 }
