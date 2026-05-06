@@ -9,6 +9,7 @@ use App\Models\AdvisoryRequest;
 use App\Models\AdvisoryResponse;
 use App\Models\Attachment;
 use App\Models\CaseType;
+use App\Models\CaseHearing;
 use App\Models\Comment;
 use App\Models\Complaint;
 use App\Models\ComplaintCategory;
@@ -89,6 +90,7 @@ class AppServiceProvider extends ServiceProvider
             'complaint_committee_decision' => ComplaintCommitteeDecision::class,
             'complaint_status_history' => ComplaintStatusHistory::class,
             'legal_case' => LegalCase::class,
+            'case_hearing' => CaseHearing::class,
             'attachment' => Attachment::class,
             'comment' => Comment::class,
             'system_setting' => SystemSetting::class,
