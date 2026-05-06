@@ -156,6 +156,7 @@ class LegalCaseController extends Controller
             'assignments.assignedBy',
             'assignments.assignedTo',
             'hearings.recordedBy',
+            'hearings.comments.user',
             'comments.user',
             'attachments.uploadedBy',
             'activities.causer',
@@ -169,6 +170,10 @@ class LegalCaseController extends Controller
                 ->get(['id', 'name']),
             'experts' => User::query()
                 ->eligibleLitigationExperts()
+                ->when(
+                    $legalCase->assignedTeamLeader?->team_id ?? $user?->team_id,
+                    fn ($query, string $teamId) => $query->where('team_id', $teamId),
+                )
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'can' => [
@@ -243,6 +248,56 @@ class LegalCaseController extends Controller
         $hearing->delete();
 
         return back()->with('success', __('Case hearing deleted.'));
+    }
+
+    public function addHearingComment(
+        StoreCommentRequest $request,
+        LegalCase $legalCase,
+        CaseHearing $hearing,
+        AddCommentAction $action,
+    ): RedirectResponse {
+        abort_unless($hearing->legal_case_id === $legalCase->id, 404);
+        $this->authorize('comment', $hearing);
+
+        $action->execute(
+            $hearing,
+            $request->user(),
+            $request->string('body')->trim()->toString(),
+            (bool) $request->boolean('is_internal', true),
+        );
+
+        return back()->with('success', __('Comment added.'));
+    }
+
+    public function updateHearingComment(
+        UpdateCommentRequest $request,
+        LegalCase $legalCase,
+        CaseHearing $hearing,
+        Comment $comment,
+    ): RedirectResponse {
+        abort_unless($hearing->legal_case_id === $legalCase->id, 404);
+        abort_unless($comment->commentable instanceof CaseHearing && $comment->commentable->is($hearing), 404);
+        $this->authorize('update', $comment);
+
+        $comment->update([
+            'body' => $request->string('body')->trim()->toString(),
+        ]);
+
+        return back()->with('success', __('Comment updated.'));
+    }
+
+    public function destroyHearingComment(
+        LegalCase $legalCase,
+        CaseHearing $hearing,
+        Comment $comment,
+    ): RedirectResponse {
+        abort_unless($hearing->legal_case_id === $legalCase->id, 404);
+        abort_unless($comment->commentable instanceof CaseHearing && $comment->commentable->is($hearing), 404);
+        $this->authorize('delete', $comment);
+
+        $comment->delete();
+
+        return back()->with('success', __('Comment deleted.'));
     }
 
     public function close(CloseLegalCaseRequest $request, LegalCase $legalCase, CloseCaseAction $action): RedirectResponse

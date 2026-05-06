@@ -85,8 +85,7 @@ it('moves a court case through registrar director team leader expert and closure
 
     $this->actingAs($teamLeader)->patch(route('cases.close', $legalCase), [
         'outcome' => 'Case closed after negotiated settlement.',
-        'decision_date' => now()->toDateString(),
-        'appeal_deadline' => now()->addDays(30)->toDateString(),
+        'closing_date' => now()->toDateString(),
     ])->assertSessionHasNoErrors();
 
     $legalCase->refresh();
@@ -569,6 +568,7 @@ function createCaseUserWithRole(SystemRole $role, Department $department, ?Team 
     ]);
 
     $user->assignRole($role->value);
+    syncTestTeamLeadership($user, $team, $role);
 
     return $user;
 }

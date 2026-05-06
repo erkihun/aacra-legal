@@ -151,7 +151,11 @@ class LegalCase extends Model
         }
 
         if ($user->canLeadLitigationWorkflow()) {
-            return $query->where('assigned_team_leader_id', $user->getKey());
+            return $query->where(function ($builder) use ($user): void {
+                $builder
+                    ->whereHas('assignedTeamLeader', fn ($leaderQuery) => $leaderQuery->where('team_id', $user->team_id))
+                    ->orWhereHas('assignedLegalExpert', fn ($expertQuery) => $expertQuery->where('team_id', $user->team_id));
+            });
         }
 
         if ($user->canHandleAssignedCases()) {

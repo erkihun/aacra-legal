@@ -32,4 +32,13 @@ class CaseHearingPolicy
     {
         return $this->update($user, $hearing);
     }
+
+    public function comment(User $user, CaseHearing $hearing): bool
+    {
+        if ($hearing->legalCase->isClosed()) {
+            return false;
+        }
+
+        return $user->can('comments.create') && $this->view($user, $hearing);
+    }
 }

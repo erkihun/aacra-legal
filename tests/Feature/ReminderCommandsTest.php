@@ -225,6 +225,7 @@ function createReminderUser(
     ]);
 
     $user->assignRole($role->value);
+    syncTestTeamLeadership($user, $team, $role);
 
     return $user;
 }

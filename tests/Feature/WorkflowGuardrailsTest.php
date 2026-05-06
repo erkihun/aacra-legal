@@ -286,6 +286,7 @@ it('prevents closing a case before it reaches an expert-handling stage', functio
     $this->actingAs($teamLeader)
         ->patch(route('cases.close', $legalCase), [
             'outcome' => 'Improper closure attempt.',
+            'closing_date' => now()->toDateString(),
         ])
         ->assertSessionHasErrors('status');
 
@@ -355,6 +356,7 @@ function createGuardrailUser(
     ]);
 
     $user->assignRole($role->value);
+    syncTestTeamLeadership($user, $team, $role);
 
     return $user;
 }

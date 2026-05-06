@@ -28,7 +28,8 @@ class LegalCasePolicy
         }
 
         if ($user->canLeadLitigationWorkflow()) {
-            return $legalCase->assigned_team_leader_id === $user->getKey();
+            return $legalCase->assignedTeamLeader?->team_id === $user->team_id
+                || $legalCase->assignedLegalExpert?->team_id === $user->team_id;
         }
 
         if ($user->canHandleAssignedCases()) {

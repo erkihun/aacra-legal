@@ -94,6 +94,10 @@ class LegalCaseResource extends JsonResource
                 'court_decision' => $hearing->court_decision,
                 'outcome' => $hearing->outcome,
                 'recorded_by' => $hearing->recordedBy?->name,
+                'comments' => $hearing->relationLoaded('comments')
+                    ? $hearing->comments->map(fn ($comment) => CommentResource::make($comment)->resolve($request))->values()->all()
+                    : [],
+                'can_comment' => $request->user()?->can('comment', $hearing) ?? false,
                 'can_update' => $request->user()?->can('update', $hearing) ?? false,
                 'can_delete' => $request->user()?->can('delete', $hearing) ?? false,
             ])),
@@ -128,6 +132,7 @@ class LegalCaseResource extends JsonResource
             $this->optionalField('team_leader', __('cases.team_leader'), $this->assignedTeamLeader?->name ?? __('common.unassigned')),
             $this->optionalField('expert', __('cases.expert'), $this->assignedLegalExpert?->name ?? __('common.unassigned')),
             $this->optionalField('next_hearing', __('cases.next_hearing'), $this->next_hearing_date?->toDateString()),
+            $this->optionalField('closing_date', __('cases.closing_date'), $this->decision_date?->toDateString()),
         ];
 
         $fields = [

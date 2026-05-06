@@ -19,8 +19,14 @@ class CloseLegalCaseRequest extends FormRequest
     {
         return [
             'outcome' => ['required', 'string'],
-            'decision_date' => ['nullable', 'date'],
-            'appeal_deadline' => ['nullable', 'date', 'after_or_equal:decision_date'],
+            'closing_date' => ['required', 'date'],
+        ];
+    }
+
+    public function attributes(): array
+    {
+        return [
+            'closing_date' => __('cases.closing_date'),
         ];
     }
 }

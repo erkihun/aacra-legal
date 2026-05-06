@@ -42,8 +42,7 @@ class CloseCaseAction
 
         $legalCase->update([
             'outcome' => $attributes['outcome'] ?? $legalCase->outcome,
-            'decision_date' => $attributes['decision_date'] ?? $legalCase->decision_date,
-            'appeal_deadline' => $attributes['appeal_deadline'] ?? $legalCase->appeal_deadline,
+            'decision_date' => $attributes['closing_date'],
             'status' => CaseStatus::CLOSED,
             'workflow_stage' => WorkflowStage::COMPLETED,
             'completed_at' => now(),

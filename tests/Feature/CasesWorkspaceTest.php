@@ -96,8 +96,7 @@ it('executes the full legal case workspace actions', function (): void {
 
     $this->actingAs($director)->patch(route('cases.close', ['legalCase' => $legalCase]), [
         'outcome' => 'Settled',
-        'decision_date' => now()->toDateString(),
-        'appeal_deadline' => now()->addDays(30)->toDateString(),
+        'closing_date' => now()->toDateString(),
     ])->assertSessionHasNoErrors();
 
     $legalCase->refresh();
@@ -445,6 +444,155 @@ it('updates and deletes case hearings comments and attachments through the works
     expect(Attachment::query()->whereKey($attachment->id)->exists())->toBeFalse();
 });
 
+it('creates edits and deletes hearing-specific comments without affecting case comments', function (): void {
+    $registrar = createCaseUser(SystemRole::REGISTRAR, 'leg', 'ADM');
+    $teamLeader = createCaseUser(SystemRole::LITIGATION_TEAM_LEADER, 'leg', 'LIT');
+    $expert = createCaseUser(SystemRole::LEGAL_EXPERT, 'leg', 'LIT');
+
+    $expert->givePermissionTo('comments.create');
+
+    $legalCase = LegalCase::query()->create([
+        'case_number' => 'CASE-2026-HEARING-COMMENT-1',
+        'court_id' => Court::query()->firstOrFail()->id,
+        'case_type_id' => CaseType::query()->firstOrFail()->id,
+        'registered_by_id' => $registrar->id,
+        'assigned_team_leader_id' => $teamLeader->id,
+        'assigned_legal_expert_id' => $expert->id,
+        'plaintiff' => 'Hearing Comment Plaintiff',
+        'defendant' => 'Institution',
+        'status' => CaseStatus::ASSIGNED_TO_EXPERT,
+        'workflow_stage' => WorkflowStage::EXPERT,
+        'priority' => PriorityLevel::HIGH,
+        'director_decision' => 'approved',
+        'claim_summary' => 'Hearing comments should stay scoped to each hearing.',
+        'filing_date' => now()->toDateString(),
+    ]);
+
+    $this->actingAs($expert)->post(route('cases.hearings.store', ['legalCase' => $legalCase]), [
+        'hearing_date' => now()->toDateString(),
+        'summary' => 'First hearing summary.',
+    ])->assertSessionHasNoErrors();
+
+    $this->actingAs($expert)->post(route('cases.hearings.store', ['legalCase' => $legalCase]), [
+        'hearing_date' => now()->addDay()->toDateString(),
+        'summary' => 'Second hearing summary.',
+    ])->assertSessionHasNoErrors();
+
+    [$firstHearing, $secondHearing] = $legalCase->fresh()->hearings()->orderBy('hearing_date')->get()->all();
+
+    $this->actingAs($expert)->post(route('cases.hearings.comments.store', [
+        'legalCase' => $legalCase,
+        'hearing' => $firstHearing,
+    ]), [
+        'body' => 'First hearing internal note.',
+        'is_internal' => true,
+    ])->assertSessionHasNoErrors();
+
+    $this->actingAs($expert)->post(route('cases.hearings.comments.store', [
+        'legalCase' => $legalCase,
+        'hearing' => $secondHearing,
+    ]), [
+        'body' => 'Second hearing internal note.',
+        'is_internal' => true,
+    ])->assertSessionHasNoErrors();
+
+    $firstComment = $firstHearing->comments()->firstOrFail();
+    $secondComment = $secondHearing->comments()->firstOrFail();
+
+    $this->actingAs($expert)->patch(route('cases.hearings.comments.update', [
+        'legalCase' => $legalCase,
+        'hearing' => $firstHearing,
+        'comment' => $firstComment,
+    ]), [
+        'body' => 'First hearing internal note updated.',
+    ])->assertSessionHasNoErrors();
+
+    $this->actingAs($expert)->post(route('cases.comments.store', ['legalCase' => $legalCase]), [
+        'body' => 'Case-level internal note remains separate.',
+        'is_internal' => true,
+    ])->assertSessionHasNoErrors();
+
+    $caseComment = $legalCase->comments()->firstOrFail();
+
+    $this->actingAs($expert)
+        ->get(route('cases.show', ['legalCase' => $legalCase]))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Cases/Show')
+            ->where('caseItem.comments', fn ($comments) => count($comments) === 1 && $comments[0]['id'] === $caseComment->id)
+            ->where('caseItem.hearings', fn ($hearings) => collect($hearings)->contains(
+                fn ($hearing) => $hearing['id'] === $firstHearing->id
+                    && count($hearing['comments']) === 1
+                    && $hearing['comments'][0]['body'] === 'First hearing internal note updated.'
+            ) && collect($hearings)->contains(
+                fn ($hearing) => $hearing['id'] === $secondHearing->id
+                    && count($hearing['comments']) === 1
+                    && $hearing['comments'][0]['body'] === 'Second hearing internal note.'
+            ))
+        );
+
+    $this->actingAs($expert)->delete(route('cases.hearings.comments.destroy', [
+        'legalCase' => $legalCase,
+        'hearing' => $firstHearing,
+        'comment' => $firstComment,
+    ]))->assertSessionHasNoErrors();
+
+    expect(Comment::query()->whereKey($firstComment->id)->exists())->toBeFalse();
+    expect(Comment::query()->whereKey($secondComment->id)->exists())->toBeTrue();
+    expect(Comment::query()->whereKey($caseComment->id)->exists())->toBeTrue();
+});
+
+it('requires a closing date and stores it when closing a case', function (): void {
+    $registrar = createCaseUser(SystemRole::REGISTRAR, 'leg', 'ADM');
+    $teamLeader = createCaseUser(SystemRole::LITIGATION_TEAM_LEADER, 'leg', 'LIT');
+    $expert = createCaseUser(SystemRole::LEGAL_EXPERT, 'leg', 'LIT');
+
+    $legalCase = LegalCase::query()->create([
+        'case_number' => 'CASE-2026-CLOSE-1',
+        'court_id' => Court::query()->firstOrFail()->id,
+        'case_type_id' => CaseType::query()->firstOrFail()->id,
+        'registered_by_id' => $registrar->id,
+        'assigned_team_leader_id' => $teamLeader->id,
+        'assigned_legal_expert_id' => $expert->id,
+        'plaintiff' => 'Closing Date Plaintiff',
+        'defendant' => 'Institution',
+        'status' => CaseStatus::IN_PROGRESS,
+        'workflow_stage' => WorkflowStage::EXPERT,
+        'priority' => PriorityLevel::HIGH,
+        'director_decision' => 'approved',
+        'claim_summary' => 'Closing should require one closing date field.',
+        'filing_date' => now()->subWeek()->toDateString(),
+    ]);
+
+    $this->actingAs($teamLeader)
+        ->patch(route('cases.close', ['legalCase' => $legalCase]), [
+            'outcome' => 'Attempt without closing date.',
+        ])
+        ->assertSessionHasErrors('closing_date');
+
+    $closingDate = now()->toDateString();
+
+    $this->actingAs($teamLeader)
+        ->patch(route('cases.close', ['legalCase' => $legalCase]), [
+            'outcome' => 'Closed with one required closing date.',
+            'closing_date' => $closingDate,
+        ])
+        ->assertSessionHasNoErrors();
+
+    $legalCase->refresh();
+
+    expect($legalCase->status)->toBe(CaseStatus::CLOSED);
+    expect($legalCase->decision_date?->toDateString())->toBe($closingDate);
+    expect($legalCase->completed_at)->not->toBeNull();
+
+    $this->actingAs($teamLeader)
+        ->get(route('cases.show', ['legalCase' => $legalCase]))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Cases/Show')
+            ->where('caseItem.decision_date', $closingDate)
+            ->where('caseItem.overview_fields', overviewFieldsMatch(['closing_date'], ['appeal_deadline']))
+        );
+});
+
 it('rejects normal case workspace actions once a case is closed', function (): void {
     Storage::fake('public');
 
@@ -617,6 +765,7 @@ function createCaseUser(SystemRole $role, string $departmentCode, ?string $teamC
     ]);
 
     $user->assignRole($role->value);
+    syncTestTeamLeadership($user, $team, $role);
 
     return $user;
 }

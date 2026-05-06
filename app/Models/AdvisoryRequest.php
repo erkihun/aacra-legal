@@ -131,7 +131,7 @@ class AdvisoryRequest extends Model
         if ($user->canLeadAdvisoryWorkflow()) {
             return $query->where(function ($builder) use ($user): void {
                 $builder
-                    ->where('assigned_team_leader_id', $user->getKey())
+                    ->whereHas('assignedTeamLeader', fn ($leaderQuery) => $leaderQuery->where('team_id', $user->team_id))
                     ->orWhereHas('assignedLegalExpert', fn ($expertQuery) => $expertQuery->where('team_id', $user->team_id));
             });
         }

@@ -24,7 +24,7 @@ class AdvisoryRequestPolicy
         }
 
         if ($user->canLeadAdvisoryWorkflow()) {
-            return $advisoryRequest->assigned_team_leader_id === $user->getKey()
+            return $advisoryRequest->assignedTeamLeader?->team_id === $user->team_id
                 || $advisoryRequest->assignedLegalExpert?->team_id === $user->team_id;
         }
 

@@ -135,6 +135,7 @@ function createAdvisoryUserWithRole(SystemRole $role, string $departmentCode, ?s
     ]);
 
     $user->assignRole($role->value);
+    syncTestTeamLeadership($user, $team, $role);
 
     return $user;
 }

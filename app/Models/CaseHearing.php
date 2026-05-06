@@ -8,6 +8,7 @@ use App\Concerns\HasUuidPrimaryKey;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class CaseHearing extends Model
 {
@@ -42,5 +43,10 @@ class CaseHearing extends Model
     public function recordedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'recorded_by_id');
+    }
+
+    public function comments(): MorphMany
+    {
+        return $this->morphMany(Comment::class, 'commentable');
     }
 }

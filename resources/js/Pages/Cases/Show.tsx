@@ -89,6 +89,9 @@ export default function CasesShow({
     const [hearingModalMode, setHearingModalMode] = useState<'create' | 'view' | 'edit' | null>(null);
     const [selectedHearing, setSelectedHearing] = useState<any | null>(null);
     const [hearingToDelete, setHearingToDelete] = useState<any | null>(null);
+    const [hearingCommentMode, setHearingCommentMode] = useState<'create' | 'edit' | null>(null);
+    const [selectedHearingComment, setSelectedHearingComment] = useState<any | null>(null);
+    const [hearingCommentToDelete, setHearingCommentToDelete] = useState<any | null>(null);
     const [commentModalMode, setCommentModalMode] = useState<'create' | 'view' | 'edit' | null>(null);
     const [selectedComment, setSelectedComment] = useState<any | null>(null);
     const [commentToDelete, setCommentToDelete] = useState<any | null>(null);
@@ -120,14 +123,17 @@ export default function CasesShow({
 
     const closeForm = useForm({
         outcome: caseItem.outcome ?? '',
-        decision_date: caseItem.decision_date ?? '',
-        appeal_deadline: caseItem.appeal_deadline ?? '',
+        closing_date: caseItem.decision_date ?? '',
     });
     const reopenForm = useForm({
         reopen_reason: '',
     });
 
     const commentForm = useForm({
+        body: '',
+        is_internal: true,
+    });
+    const hearingCommentForm = useForm({
         body: '',
         is_internal: true,
     });
@@ -140,6 +146,7 @@ export default function CasesShow({
     });
     const deleteHearingForm = useForm({});
     const deleteCommentForm = useForm({});
+    const deleteHearingCommentForm = useForm({});
     const deleteAttachmentForm = useForm({});
 
     const latestHearing = hearings[0] ?? null;
@@ -167,6 +174,8 @@ export default function CasesShow({
             outcome: '',
         });
         setSelectedHearing(null);
+        setHearingCommentMode(null);
+        setSelectedHearingComment(null);
         setHearingModalMode('create');
     };
 
@@ -182,7 +191,32 @@ export default function CasesShow({
             outcome: hearing.outcome ?? '',
         });
         setSelectedHearing(hearing);
+        setHearingCommentMode(null);
+        setSelectedHearingComment(null);
         setHearingModalMode('edit');
+    };
+
+    const openCreateHearingComment = (hearing: any) => {
+        hearingCommentForm.reset();
+        hearingCommentForm.clearErrors();
+        hearingCommentForm.setData({
+            body: '',
+            is_internal: true,
+        });
+        setSelectedHearing(hearing);
+        setSelectedHearingComment(null);
+        setHearingCommentMode('create');
+    };
+
+    const openEditHearingComment = (hearing: any, comment: any) => {
+        hearingCommentForm.clearErrors();
+        hearingCommentForm.setData({
+            body: comment.body ?? '',
+            is_internal: true,
+        });
+        setSelectedHearing(hearing);
+        setSelectedHearingComment(comment);
+        setHearingCommentMode('edit');
     };
 
     const openCreateComment = () => {
@@ -567,26 +601,14 @@ export default function CasesShow({
                             </FormField>
                             <div className="grid gap-4">
                                 <FormField
-                                    label={t('reports.completed_at')}
-                                    optional
-                                    error={closeForm.errors.decision_date}
+                                    label={t('cases.closing_date')}
+                                    required
+                                    error={closeForm.errors.closing_date}
                                 >
                                     <input
                                         type="date"
-                                        value={closeForm.data.decision_date}
-                                        onChange={(event) => closeForm.setData('decision_date', event.target.value)}
-                                        className="input-ui"
-                                    />
-                                </FormField>
-                                <FormField
-                                    label={t('reports.due_date')}
-                                    optional
-                                    error={closeForm.errors.appeal_deadline}
-                                >
-                                    <input
-                                        type="date"
-                                        value={closeForm.data.appeal_deadline}
-                                        onChange={(event) => closeForm.setData('appeal_deadline', event.target.value)}
+                                        value={closeForm.data.closing_date}
+                                        onChange={(event) => closeForm.setData('closing_date', event.target.value)}
                                         className="input-ui"
                                     />
                                 </FormField>
@@ -1223,6 +1245,8 @@ export default function CasesShow({
                                                 <div className="flex flex-wrap gap-2">
                                                     <InlineActionButton label={t('common.view')} onClick={() => {
                                                         setSelectedHearing(hearing);
+                                                        setHearingCommentMode(null);
+                                                        setSelectedHearingComment(null);
                                                         setHearingModalMode('view');
                                                     }} />
                                                     {hearing.can_update ? (
@@ -1277,26 +1301,14 @@ export default function CasesShow({
                         </FormField>
                         <div className="grid gap-4">
                             <FormField
-                                label={t('reports.completed_at')}
-                                optional
-                                error={closeForm.errors.decision_date}
+                                label={t('cases.closing_date')}
+                                required
+                                error={closeForm.errors.closing_date}
                             >
                                 <input
                                     type="date"
-                                    value={closeForm.data.decision_date}
-                                    onChange={(event) => closeForm.setData('decision_date', event.target.value)}
-                                    className="input-ui"
-                                />
-                            </FormField>
-                            <FormField
-                                label={t('reports.due_date')}
-                                optional
-                                error={closeForm.errors.appeal_deadline}
-                            >
-                                <input
-                                    type="date"
-                                    value={closeForm.data.appeal_deadline}
-                                    onChange={(event) => closeForm.setData('appeal_deadline', event.target.value)}
+                                    value={closeForm.data.closing_date}
+                                    onChange={(event) => closeForm.setData('closing_date', event.target.value)}
                                     className="input-ui"
                                 />
                             </FormField>
@@ -1532,6 +1544,8 @@ export default function CasesShow({
                 onClose={() => {
                     setHearingModalMode(null);
                     setSelectedHearing(null);
+                    setHearingCommentMode(null);
+                    setSelectedHearingComment(null);
                 }}
             >
                 <div className="space-y-6 p-6">
@@ -1546,14 +1560,140 @@ export default function CasesShow({
                     </div>
 
                     {hearingModalMode === 'view' ? (
-                        <dl className="grid gap-4 md:grid-cols-2">
-                            <OverviewItem label={t('cases.hearing_on')} value={selectedHearing?.hearing_date} />
-                            <OverviewItem label={t('cases.next_hearing')} value={selectedHearing?.next_hearing_date} />
-                            <OverviewItem label={t('common.status')} value={selectedHearing?.appearance_status} />
-                            <OverviewItem label={t('common.actor')} value={selectedHearing?.recorded_by} />
-                            <OverviewItem label={t('cases.hearing_summary')} value={selectedHearing?.summary} />
-                            <OverviewItem label={t('cases.court_decision')} value={selectedHearing?.court_decision} />
-                        </dl>
+                        <div className="space-y-6">
+                            <dl className="grid gap-4 md:grid-cols-2">
+                                <OverviewItem label={t('cases.hearing_on')} value={selectedHearing?.hearing_date} />
+                                <OverviewItem label={t('cases.next_hearing')} value={selectedHearing?.next_hearing_date} />
+                                <OverviewItem label={t('common.status')} value={selectedHearing?.appearance_status} />
+                                <OverviewItem label={t('common.actor')} value={selectedHearing?.recorded_by} />
+                                <OverviewItem label={t('cases.hearing_summary')} value={selectedHearing?.summary} />
+                                <OverviewItem label={t('cases.court_decision')} value={selectedHearing?.court_decision} />
+                            </dl>
+
+                            <div className="space-y-4 border-t border-[color:var(--border)] pt-4">
+                                <div className="flex flex-wrap items-center justify-between gap-3">
+                                    <div className="space-y-1">
+                                        <h4 className="text-base font-semibold text-[color:var(--text)]">
+                                            {t('cases.hearing_comments')}
+                                        </h4>
+                                        <p className="text-sm text-[color:var(--muted-strong)]">
+                                            {selectedHearing?.comments?.length ?? 0} {t('common.internal_comment')}
+                                        </p>
+                                    </div>
+                                    {selectedHearing?.can_comment ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => openCreateHearingComment(selectedHearing)}
+                                            className="btn-base btn-primary focus-ring"
+                                        >
+                                            {t('common.add_comment')}
+                                        </button>
+                                    ) : null}
+                                </div>
+
+                                {hearingCommentMode !== null ? (
+                                    <div className="space-y-3 rounded-2xl border border-[color:var(--border)] p-4">
+                                        <FormField label={t('common.add_internal_note')} required error={hearingCommentForm.errors.body}>
+                                            <textarea
+                                                value={hearingCommentForm.data.body}
+                                                onChange={(event) => hearingCommentForm.setData('body', event.target.value)}
+                                                rows={5}
+                                                className="textarea-ui"
+                                            />
+                                        </FormField>
+                                        <div className="flex flex-wrap justify-end gap-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setHearingCommentMode(null);
+                                                    setSelectedHearingComment(null);
+                                                    hearingCommentForm.reset();
+                                                }}
+                                                className="btn-base btn-secondary focus-ring"
+                                            >
+                                                {t('common.cancel')}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    if (!selectedHearing?.id) {
+                                                        return;
+                                                    }
+
+                                                    const options = {
+                                                        preserveScroll: true,
+                                                        onSuccess: () => {
+                                                            finishSuccessfulSubmission(hearingCommentForm, {
+                                                                reset: true,
+                                                                afterSuccess: () => {
+                                                                    setHearingCommentMode(null);
+                                                                    setSelectedHearingComment(null);
+                                                                },
+                                                            });
+                                                        },
+                                                    };
+
+                                                    if (hearingCommentMode === 'edit' && selectedHearingComment?.id) {
+                                                        hearingCommentForm.patch(route('cases.hearings.comments.update', {
+                                                            legalCase: caseItem.id,
+                                                            hearing: selectedHearing.id,
+                                                            comment: selectedHearingComment.id,
+                                                        }), options);
+
+                                                        return;
+                                                    }
+
+                                                    hearingCommentForm.post(route('cases.hearings.comments.store', {
+                                                        legalCase: caseItem.id,
+                                                        hearing: selectedHearing.id,
+                                                    }), options);
+                                                }}
+                                                className="btn-base btn-primary focus-ring"
+                                                disabled={hearingCommentForm.processing}
+                                            >
+                                                {hearingCommentMode === 'edit' ? t('common.save_changes') : t('common.add_comment')}
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : null}
+
+                                {selectedHearing?.comments?.length ? (
+                                    <div className="space-y-3">
+                                        {selectedHearing.comments.map((comment: any) => (
+                                            <div key={comment.id} className="space-y-2">
+                                                <CommentItem
+                                                    author={comment.user?.name}
+                                                    date={formatDateTime(comment.created_at)}
+                                                    body={comment.body}
+                                                />
+                                                {comment.can_update || comment.can_delete ? (
+                                                    <div className="flex flex-wrap justify-end gap-2">
+                                                        {comment.can_update ? (
+                                                            <InlineActionButton
+                                                                label={t('common.edit')}
+                                                                onClick={() => openEditHearingComment(selectedHearing, comment)}
+                                                            />
+                                                        ) : null}
+                                                        {comment.can_delete ? (
+                                                            <InlineActionButton
+                                                                label={t('common.delete')}
+                                                                tone="danger"
+                                                                onClick={() => setHearingCommentToDelete(comment)}
+                                                            />
+                                                        ) : null}
+                                                    </div>
+                                                ) : null}
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <EmptyState
+                                        title={t('cases.hearing_comments')}
+                                        description={t('common.no_comments')}
+                                    />
+                                )}
+                            </div>
+                        </div>
                     ) : (
                         <>
                             <div className="space-y-4">
@@ -1607,6 +1747,8 @@ export default function CasesShow({
                             onClick={() => {
                                 setHearingModalMode(null);
                                 setSelectedHearing(null);
+                                setHearingCommentMode(null);
+                                setSelectedHearingComment(null);
                             }}
                             className="btn-base btn-secondary focus-ring"
                         >
@@ -1935,6 +2077,32 @@ export default function CasesShow({
                     });
                 }}
                 processing={deleteCommentForm.processing}
+            />
+
+            <ConfirmationDialog
+                open={hearingCommentToDelete !== null}
+                title={t('common.delete')}
+                description={t('comments.delete_description')}
+                confirmLabel={t('common.delete')}
+                onCancel={() => setHearingCommentToDelete(null)}
+                onConfirm={() => {
+                    if (!hearingCommentToDelete?.id || !selectedHearing?.id) {
+                        return;
+                    }
+
+                    deleteHearingCommentForm.delete(route('cases.hearings.comments.destroy', {
+                        legalCase: caseItem.id,
+                        hearing: selectedHearing.id,
+                        comment: hearingCommentToDelete.id,
+                    }), {
+                        onSuccess: () => {
+                            finishSuccessfulSubmission(deleteHearingCommentForm, {
+                                afterSuccess: () => setHearingCommentToDelete(null),
+                            });
+                        },
+                    });
+                }}
+                processing={deleteHearingCommentForm.processing}
             />
 
             <ConfirmationDialog

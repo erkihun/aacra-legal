@@ -443,6 +443,136 @@ it('shows advisory response edit and delete capabilities and allows deleting a r
     expect($advisoryRequest->completed_at)->toBeNull();
 });
 
+it('runs verbal advisory through the normal advisory assignment and response workflow', function (): void {
+    $requester = createUserWithRole(
+        SystemRole::DEPARTMENT_REQUESTER,
+        Department::query()->where('code', 'HR')->firstOrFail(),
+    );
+    $director = createUserWithRole(
+        SystemRole::LEGAL_DIRECTOR,
+        Department::query()->where('code', 'LEG')->firstOrFail(),
+        Team::query()->where('code', 'ADM')->firstOrFail(),
+    );
+    $teamLeader = createUserWithRole(
+        SystemRole::ADVISORY_TEAM_LEADER,
+        Department::query()->where('code', 'LEG')->firstOrFail(),
+        Team::query()->where('code', 'ADV')->firstOrFail(),
+    );
+    $expert = createUserWithRole(
+        SystemRole::LEGAL_EXPERT,
+        Department::query()->where('code', 'LEG')->firstOrFail(),
+        Team::query()->where('code', 'ADV')->firstOrFail(),
+    );
+
+    $this->actingAs($requester)->post(route('advisory.store'), [
+        'department_id' => $requester->department_id,
+        'category_id' => AdvisoryCategory::query()->firstOrFail()->id,
+        'subject' => 'Need immediate verbal advisory',
+        'request_type' => 'verbal',
+        'priority' => 'high',
+        'description' => 'A verbal advisory request should still go through the normal workflow.',
+        'due_date' => now()->addDay()->toDateString(),
+    ])->assertRedirect();
+
+    $advisoryRequest = AdvisoryRequest::query()->where('request_type', 'verbal')->firstOrFail();
+
+    expect($advisoryRequest->status)->toBe(AdvisoryRequestStatus::UNDER_DIRECTOR_REVIEW);
+    expect($advisoryRequest->workflow_stage)->toBe(\App\Enums\WorkflowStage::DIRECTOR);
+
+    $this->actingAs($director)->patch(route('advisory.review', $advisoryRequest), [
+        'director_decision' => 'approved',
+        'director_notes' => 'Route the verbal advisory through the advisory team.',
+        'assigned_team_leader_id' => $teamLeader->id,
+    ])->assertSessionHasNoErrors();
+
+    $this->actingAs($teamLeader)->patch(route('advisory.assign', $advisoryRequest), [
+        'assigned_legal_expert_id' => $expert->id,
+        'notes' => 'Respond as verbal advisory.',
+    ])->assertSessionHasNoErrors();
+
+    $this->actingAs($expert)->post(route('advisory.respond', $advisoryRequest), [
+        'subject' => 'Verbal advisory response',
+        'response' => '<p>Verbal advisory response recorded through the regular advisory response path.</p>',
+    ])->assertRedirect(route('advisory.show', $advisoryRequest))
+        ->assertSessionHasNoErrors();
+
+    $advisoryRequest->refresh();
+
+    expect($advisoryRequest->status)->toBe(AdvisoryRequestStatus::RESPONDED);
+    expect($advisoryRequest->request_type->value)->toBe('verbal');
+
+    $this->actingAs($expert)
+        ->get(route('advisory.show', $advisoryRequest))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Advisory/Show')
+            ->where('requestItem.request_type', 'verbal')
+            ->where('requestItem.responses.0.subject', 'Verbal advisory response')
+        );
+});
+
+it('denies verbal advisory creation to users without advisory create permission', function (): void {
+    $user = User::factory()->create([
+        'department_id' => Department::query()->where('code', 'HR')->firstOrFail()->id,
+    ]);
+
+    $this->actingAs($user)->get(route('advisory.create'))->assertForbidden();
+
+    $this->actingAs($user)->post(route('advisory.store'), [
+        'department_id' => $user->department_id,
+        'category_id' => AdvisoryCategory::query()->firstOrFail()->id,
+        'subject' => 'Unauthorized verbal advisory',
+        'request_type' => 'verbal',
+        'priority' => 'medium',
+        'description' => 'This should be rejected.',
+    ])->assertForbidden();
+});
+
+it('denies verbal advisory responses to users outside the authorized advisory response scope', function (): void {
+    $requester = createUserWithRole(
+        SystemRole::DEPARTMENT_REQUESTER,
+        Department::query()->where('code', 'HR')->firstOrFail(),
+    );
+    $teamLeader = createUserWithRole(
+        SystemRole::ADVISORY_TEAM_LEADER,
+        Department::query()->where('code', 'LEG')->firstOrFail(),
+        Team::query()->where('code', 'ADV')->firstOrFail(),
+    );
+    $expert = createUserWithRole(
+        SystemRole::LEGAL_EXPERT,
+        Department::query()->where('code', 'LEG')->firstOrFail(),
+        Team::query()->where('code', 'ADV')->firstOrFail(),
+    );
+    $otherUser = createUserWithRole(
+        SystemRole::LEGAL_EXPERT,
+        Department::query()->where('code', 'LEG')->firstOrFail(),
+        Team::query()->where('code', 'ADV')->firstOrFail(),
+    );
+
+    $advisoryRequest = AdvisoryRequest::query()->create([
+        'request_number' => 'ADV-VERBAL-DENY-001',
+        'department_id' => $requester->department_id,
+        'category_id' => AdvisoryCategory::query()->firstOrFail()->id,
+        'requester_user_id' => $requester->id,
+        'assigned_team_leader_id' => $teamLeader->id,
+        'assigned_legal_expert_id' => $expert->id,
+        'subject' => 'Protected verbal advisory response',
+        'request_type' => 'verbal',
+        'status' => AdvisoryRequestStatus::ASSIGNED_TO_EXPERT,
+        'workflow_stage' => 'expert',
+        'priority' => 'medium',
+        'director_decision' => 'approved',
+        'description' => 'Only the assigned expert should be able to respond.',
+        'date_submitted' => now()->toDateString(),
+    ]);
+
+    $this->actingAs($otherUser)->post(route('advisory.respond', $advisoryRequest), [
+        'subject' => 'Unauthorized response',
+        'response' => '<p>This response should be blocked.</p>',
+    ])->assertForbidden();
+
+    expect($advisoryRequest->responses()->count())->toBe(0);
+});
+
 function createUserWithRole(SystemRole $role, Department $department, ?Team $team = null): User
 {
     $user = User::factory()->create([
@@ -452,6 +582,7 @@ function createUserWithRole(SystemRole $role, Department $department, ?Team $tea
     ]);
 
     $user->assignRole($role->value);
+    syncTestTeamLeadership($user, $team, $role);
 
     return $user;
 }

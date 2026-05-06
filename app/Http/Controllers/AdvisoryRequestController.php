@@ -137,6 +137,10 @@ class AdvisoryRequestController extends Controller
                 ->get(['id', 'name']),
             'experts' => User::query()
                 ->eligibleAdvisoryExperts()
+                ->when(
+                    $advisoryRequest->assignedTeamLeader?->team_id ?? $user?->team_id,
+                    fn ($query, string $teamId) => $query->where('team_id', $teamId),
+                )
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'can' => [

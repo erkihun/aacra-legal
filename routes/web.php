@@ -155,6 +155,9 @@ Route::middleware('auth')->group(function () {
         Route::post('/cases/{legalCase}/hearings', [LegalCaseController::class, 'recordHearing'])->name('cases.hearings.store');
         Route::patch('/cases/{legalCase}/hearings/{hearing}', [LegalCaseController::class, 'updateHearing'])->name('cases.hearings.update');
         Route::delete('/cases/{legalCase}/hearings/{hearing}', [LegalCaseController::class, 'destroyHearing'])->name('cases.hearings.destroy');
+        Route::post('/cases/{legalCase}/hearings/{hearing}/comments', [LegalCaseController::class, 'addHearingComment'])->name('cases.hearings.comments.store');
+        Route::patch('/cases/{legalCase}/hearings/{hearing}/comments/{comment}', [LegalCaseController::class, 'updateHearingComment'])->name('cases.hearings.comments.update');
+        Route::delete('/cases/{legalCase}/hearings/{hearing}/comments/{comment}', [LegalCaseController::class, 'destroyHearingComment'])->name('cases.hearings.comments.destroy');
         Route::patch('/cases/{legalCase}/close', [LegalCaseController::class, 'close'])->name('cases.close');
         Route::patch('/cases/{legalCase}/reopen', [LegalCaseController::class, 'reopen'])->name('cases.reopen');
         Route::post('/cases/{legalCase}/comments', [LegalCaseController::class, 'addComment'])->name('cases.comments.store');

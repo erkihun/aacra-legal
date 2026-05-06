@@ -1,5 +1,8 @@
 <?php
 
+use App\Enums\SystemRole;
+use App\Models\Team;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -47,4 +50,15 @@ expect()->extend('toBeOne', function () {
 function something()
 {
     // ..
+}
+
+function syncTestTeamLeadership(User $user, ?Team $team, SystemRole $role): void
+{
+    if ($team === null) {
+        return;
+    }
+
+    if (in_array($role, [SystemRole::ADVISORY_TEAM_LEADER, SystemRole::LITIGATION_TEAM_LEADER], true)) {
+        $team->forceFill(['leader_user_id' => $user->getKey()])->save();
+    }
 }
