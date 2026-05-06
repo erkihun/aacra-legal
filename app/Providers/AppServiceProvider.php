@@ -47,6 +47,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 use Spatie\Permission\Models\Role as PermissionRole;
+use Spatie\Permission\Models\Permission as PermissionModel;
 use Throwable;
 
 class AppServiceProvider extends ServiceProvider
@@ -96,6 +97,7 @@ class AppServiceProvider extends ServiceProvider
             'system_setting' => SystemSetting::class,
             'public_post' => PublicPost::class,
             'role' => PermissionRole::class,
+            'permission' => PermissionModel::class,
         ]);
 
         $this->app->make(SystemSettingsService::class)->applyRuntimeConfiguration();

@@ -132,7 +132,11 @@ class AdvisoryRequest extends Model
             return $query->where(function ($builder) use ($user): void {
                 $builder
                     ->whereHas('assignedTeamLeader', fn ($leaderQuery) => $leaderQuery->where('team_id', $user->team_id))
-                    ->orWhereHas('assignedLegalExpert', fn ($expertQuery) => $expertQuery->where('team_id', $user->team_id));
+                    ->orWhere(function ($fallbackQuery) use ($user): void {
+                        $fallbackQuery
+                            ->whereNull('assigned_team_leader_id')
+                            ->whereHas('assignedLegalExpert', fn ($expertQuery) => $expertQuery->where('team_id', $user->team_id));
+                    });
             });
         }
 
@@ -141,6 +145,24 @@ class AdvisoryRequest extends Model
         }
 
         return $query->where('requester_user_id', $user->getKey());
+    }
+
+    public function assignedTeamId(): ?string
+    {
+        return $this->assignedTeamLeader?->team_id ?? $this->assignedLegalExpert?->team_id;
+    }
+
+    public function isVisibleToTeamLeader(User $user): bool
+    {
+        return $user->canLeadAdvisoryWorkflow()
+            && $user->team_id !== null
+            && $this->assignedTeamId() === $user->team_id;
+    }
+
+    public function isVisibleToAssignedExpert(User $user): bool
+    {
+        return $user->canRespondToAdvisories()
+            && $this->assigned_legal_expert_id === $user->getKey();
     }
 
     public function getActivitylogOptions(): LogOptions

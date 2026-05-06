@@ -10,6 +10,7 @@ use App\Enums\TeamType;
 use App\Enums\WorkflowStage;
 use App\Models\AdvisoryCategory;
 use App\Models\AdvisoryRequest;
+use App\Models\CaseHearing;
 use App\Models\CaseType;
 use App\Models\Court;
 use App\Models\Department;
@@ -64,6 +65,27 @@ it('limits advisory team leaders to records from their own team only', function 
         );
 
     $this->actingAs($leaderA)->get(route('advisory.show', $ownRequest))->assertOk();
+    $this->actingAs($leaderA)->get(route('advisory.show', $otherRequest))->assertForbidden();
+});
+
+it('does not widen advisory visibility for team leaders through audit permission', function (): void {
+    [$leaderA, $expertA] = createAdvisoryTeamMembers('ADV', 'advisory-audit-a');
+    [$leaderB, $expertB] = createAdvisoryTeamMembers('ADV2', 'advisory-audit-b');
+    $requester = createScopedUser(SystemRole::DEPARTMENT_REQUESTER, 'HR');
+
+    $leaderA->givePermissionTo('audit.view');
+
+    $ownRequest = createAssignedAdvisory('ADV-AUDIT-001', $requester, $leaderA, $expertA);
+    $otherRequest = createAssignedAdvisory('ADV-AUDIT-002', $requester, $leaderB, $expertB);
+
+    $this->actingAs($leaderA)
+        ->get(route('advisory.index'))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Advisory/Index')
+            ->has('requests.data', 1)
+            ->where('requests.data.0.id', $ownRequest->id)
+        );
+
     $this->actingAs($leaderA)->get(route('advisory.show', $otherRequest))->assertForbidden();
 });
 
@@ -127,6 +149,27 @@ it('limits litigation team leaders to records from their own team only', functio
     $this->actingAs($leaderA)->get(route('cases.show', $otherCase))->assertForbidden();
 });
 
+it('does not widen litigation visibility for team leaders through audit permission', function (): void {
+    [$leaderA, $expertA] = createLitigationTeamMembers('LIT', 'litigation-audit-a');
+    [$leaderB, $expertB] = createLitigationTeamMembers('LIT2', 'litigation-audit-b');
+    $registrar = createScopedUser(SystemRole::REGISTRAR, 'LEG', 'ADM', 'audit-litigation-registrar@ldms.test');
+
+    $leaderA->givePermissionTo('audit.view');
+
+    $ownCase = createAssignedCase('CASE-AUDIT-001', $registrar, $leaderA, $expertA);
+    $otherCase = createAssignedCase('CASE-AUDIT-002', $registrar, $leaderB, $expertB);
+
+    $this->actingAs($leaderA)
+        ->get(route('cases.index'))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Cases/Index')
+            ->has('cases.data', 1)
+            ->where('cases.data.0.id', $ownCase->id)
+        );
+
+    $this->actingAs($leaderA)->get(route('cases.show', $otherCase))->assertForbidden();
+});
+
 it('limits litigation experts to their own assigned records only', function (): void {
     [$leader, $expertA] = createLitigationTeamMembers('LIT', 'litigation-member-a');
     $expertB = createScopedUser(SystemRole::LEGAL_EXPERT, 'LEG', 'LIT', 'litigation-member-b@ldms.test');
@@ -145,6 +188,123 @@ it('limits litigation experts to their own assigned records only', function (): 
 
     $this->actingAs($expertA)->get(route('cases.show', $ownCase))->assertOk();
     $this->actingAs($expertA)->get(route('cases.show', $otherCase))->assertForbidden();
+});
+
+it('forbids members from acting on another members advisory and case records', function (): void {
+    [$advisoryLeader, $advisoryExpertA] = createAdvisoryTeamMembers('ADV', 'advisory-act-own');
+    $advisoryExpertB = createScopedUser(SystemRole::LEGAL_EXPERT, 'LEG', 'ADV', 'advisory-act-other@ldms.test');
+    [$litigationLeader, $litigationExpertA] = createLitigationTeamMembers('LIT', 'litigation-act-own');
+    $litigationExpertB = createScopedUser(SystemRole::LEGAL_EXPERT, 'LEG', 'LIT', 'litigation-act-other@ldms.test');
+    $requester = createScopedUser(SystemRole::DEPARTMENT_REQUESTER, 'HR');
+    $registrar = createScopedUser(SystemRole::REGISTRAR, 'LEG', 'ADM', 'action-registrar@ldms.test');
+
+    $otherAdvisory = createAssignedAdvisory('ADV-ACT-001', $requester, $advisoryLeader, $advisoryExpertB);
+    $otherCase = createAssignedCase('CASE-ACT-001', $registrar, $litigationLeader, $litigationExpertB);
+
+    $this->actingAs($advisoryExpertA)
+        ->post(route('advisory.respond', $otherAdvisory), [
+            'subject' => 'Unauthorized response',
+            'response' => 'This response should be rejected because it is outside scope.',
+        ])
+        ->assertForbidden();
+
+    $this->actingAs($litigationExpertA)
+        ->post(route('cases.hearings.store', $otherCase), [
+            'hearing_date' => now()->toDateString(),
+            'summary' => 'This hearing should be rejected because it is outside scope.',
+        ])
+        ->assertForbidden();
+});
+
+it('forbids team leaders from acting on another teams advisory and case records', function (): void {
+    [$advisoryLeaderA] = createAdvisoryTeamMembers('ADV', 'advisory-leader-act-own');
+    [$advisoryLeaderB, $advisoryExpertB] = createAdvisoryTeamMembers('ADV2', 'advisory-leader-act-other');
+    [$litigationLeaderA] = createLitigationTeamMembers('LIT', 'litigation-leader-act-own');
+    [$litigationLeaderB, $litigationExpertB] = createLitigationTeamMembers('LIT2', 'litigation-leader-act-other');
+    $requester = createScopedUser(SystemRole::DEPARTMENT_REQUESTER, 'HR');
+    $registrar = createScopedUser(SystemRole::REGISTRAR, 'LEG', 'ADM', 'leader-action-registrar@ldms.test');
+
+    $foreignAdvisory = createTeamLeaderStageAdvisory('ADV-LEADER-ACT-001', $requester, $advisoryLeaderB);
+    $foreignCase = createTeamLeaderStageCase('CASE-LEADER-ACT-001', $registrar, $litigationLeaderB);
+
+    $this->actingAs($advisoryLeaderA)
+        ->patch(route('advisory.assign', $foreignAdvisory), [
+            'assigned_legal_expert_id' => $advisoryExpertB->id,
+        ])
+        ->assertForbidden();
+
+    $this->actingAs($litigationLeaderA)
+        ->patch(route('cases.assign', $foreignCase), [
+            'assigned_legal_expert_id' => $litigationExpertB->id,
+        ])
+        ->assertForbidden();
+});
+
+it('inherits parent case access rules for hearing comment actions', function (): void {
+    [$leaderA] = createLitigationTeamMembers('LIT', 'litigation-hearing-own');
+    [$leaderB, $expertB] = createLitigationTeamMembers('LIT2', 'litigation-hearing-other');
+    $registrar = createScopedUser(SystemRole::REGISTRAR, 'LEG', 'ADM', 'hearing-comment-registrar@ldms.test');
+
+    $otherCase = createAssignedCase('CASE-HEARING-001', $registrar, $leaderB, $expertB);
+    $hearing = CaseHearing::query()->create([
+        'legal_case_id' => $otherCase->id,
+        'recorded_by_id' => $expertB->id,
+        'hearing_date' => now()->toDateString(),
+        'summary' => 'Foreign team hearing summary.',
+    ]);
+
+    $this->actingAs($leaderA)
+        ->post(route('cases.hearings.comments.store', [$otherCase, $hearing]), [
+            'body' => 'This comment must be denied.',
+            'is_internal' => true,
+        ])
+        ->assertForbidden();
+});
+
+it('keeps legacy unassigned advisory and case records from leaking or crashing scoped lists', function (): void {
+    [$advisoryLeader, $advisoryExpert] = createAdvisoryTeamMembers('ADV', 'legacy-advisory');
+    [$litigationLeader, $litigationExpert] = createLitigationTeamMembers('LIT', 'legacy-litigation');
+    $requester = createScopedUser(SystemRole::DEPARTMENT_REQUESTER, 'HR');
+    $registrar = createScopedUser(SystemRole::REGISTRAR, 'LEG', 'ADM', 'legacy-registrar@ldms.test');
+
+    $unassignedAdvisory = AdvisoryRequest::query()->create([
+        'request_number' => 'ADV-LEGACY-001',
+        'department_id' => $requester->department_id,
+        'category_id' => AdvisoryCategory::query()->firstOrFail()->id,
+        'requester_user_id' => $requester->id,
+        'subject' => 'Legacy advisory',
+        'request_type' => 'written',
+        'status' => AdvisoryRequestStatus::UNDER_DIRECTOR_REVIEW,
+        'workflow_stage' => WorkflowStage::DIRECTOR,
+        'priority' => PriorityLevel::MEDIUM,
+        'director_decision' => 'pending',
+        'description' => 'Legacy advisory without assignments.',
+        'date_submitted' => now()->toDateString(),
+    ]);
+
+    $unassignedCase = LegalCase::query()->create([
+        'case_number' => 'CASE-LEGACY-001',
+        'court_id' => Court::query()->firstOrFail()->id,
+        'case_type_id' => CaseType::query()->firstOrFail()->id,
+        'registered_by_id' => $registrar->id,
+        'plaintiff' => 'Legacy Plaintiff',
+        'defendant' => 'Legacy Defendant',
+        'status' => CaseStatus::UNDER_DIRECTOR_REVIEW,
+        'workflow_stage' => WorkflowStage::DIRECTOR,
+        'priority' => PriorityLevel::MEDIUM,
+        'director_decision' => 'pending',
+        'claim_summary' => 'Legacy case without assignments.',
+    ]);
+
+    $this->actingAs($advisoryLeader)->get(route('advisory.index'))->assertOk();
+    $this->actingAs($advisoryExpert)->get(route('advisory.index'))->assertOk();
+    $this->actingAs($litigationLeader)->get(route('cases.index'))->assertOk();
+    $this->actingAs($litigationExpert)->get(route('cases.index'))->assertOk();
+
+    $this->actingAs($advisoryLeader)->get(route('advisory.show', $unassignedAdvisory))->assertForbidden();
+    $this->actingAs($advisoryExpert)->get(route('advisory.show', $unassignedAdvisory))->assertForbidden();
+    $this->actingAs($litigationLeader)->get(route('cases.show', $unassignedCase))->assertForbidden();
+    $this->actingAs($litigationExpert)->get(route('cases.show', $unassignedCase))->assertForbidden();
 });
 
 it('shows only actual team leaders in the director assignment dropdowns', function (): void {

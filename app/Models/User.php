@@ -193,7 +193,6 @@ class User extends Authenticatable implements MustVerifyEmail, HasLocalePreferen
             'advisory.review',
             'advisory-requests.review',
             'advisory.assign_team_leader',
-            'audit.view',
         ]);
     }
 
@@ -249,7 +248,6 @@ class User extends Authenticatable implements MustVerifyEmail, HasLocalePreferen
             'cases.review',
             'legal-cases.review',
             'cases.assign_team_leader',
-            'audit.view',
         ]);
     }
 

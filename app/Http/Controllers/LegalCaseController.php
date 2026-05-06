@@ -144,6 +144,22 @@ class LegalCaseController extends Controller
         $user = request()->user();
         $canReview = $user?->can('review', $legalCase) ?? false;
         $canAssign = $user?->can('assign', $legalCase) ?? false;
+        $teamLeaders = $canReview
+            ? User::query()
+                ->eligibleLitigationTeamLeaders()
+                ->orderBy('name')
+                ->get(['id', 'name'])
+            : collect();
+        $experts = $canAssign
+            ? User::query()
+                ->eligibleLitigationExperts()
+                ->when(
+                    $legalCase->assignedTeamLeader?->team_id ?? $user?->team_id,
+                    fn ($query, string $teamId) => $query->where('team_id', $teamId),
+                )
+                ->orderBy('name')
+                ->get(['id', 'name'])
+            : collect();
 
         $legalCase->load([
             'court',
@@ -164,18 +180,8 @@ class LegalCaseController extends Controller
 
         return Inertia::render('Cases/Show', [
             'caseItem' => LegalCaseResource::make($legalCase)->resolve(),
-            'teamLeaders' => User::query()
-                ->eligibleLitigationTeamLeaders()
-                ->orderBy('name')
-                ->get(['id', 'name']),
-            'experts' => User::query()
-                ->eligibleLitigationExperts()
-                ->when(
-                    $legalCase->assignedTeamLeader?->team_id ?? $user?->team_id,
-                    fn ($query, string $teamId) => $query->where('team_id', $teamId),
-                )
-                ->orderBy('name')
-                ->get(['id', 'name']),
+            'teamLeaders' => $teamLeaders,
+            'experts' => $experts,
             'can' => [
                 'review' => $canReview,
                 'assign' => $canAssign,

@@ -27,13 +27,12 @@ class LegalCasePolicy
             return true;
         }
 
-        if ($user->canLeadLitigationWorkflow()) {
-            return $legalCase->assignedTeamLeader?->team_id === $user->team_id
-                || $legalCase->assignedLegalExpert?->team_id === $user->team_id;
+        if ($legalCase->isVisibleToTeamLeader($user)) {
+            return true;
         }
 
-        if ($user->canHandleAssignedCases()) {
-            return $legalCase->assigned_legal_expert_id === $user->getKey();
+        if ($legalCase->isVisibleToAssignedExpert($user)) {
+            return true;
         }
 
         return $legalCase->registered_by_id === $user->getKey();

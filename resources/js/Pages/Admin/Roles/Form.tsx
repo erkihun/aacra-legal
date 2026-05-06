@@ -10,6 +10,8 @@ import { useDeferredValue, useMemo, useState } from 'react';
 type PermissionItem = {
     name: string;
     label: string;
+    description_en: string;
+    description_am: string;
 };
 
 type PermissionGroup = {
@@ -50,8 +52,15 @@ export default function RoleForm({ roleItem, permissionGroups, submit }: RoleFor
                 items: group.items.filter((item: PermissionItem) => {
                     const label = item.label.toLowerCase();
                     const name = item.name.toLowerCase();
+                    const descriptionEn = item.description_en.toLowerCase();
+                    const descriptionAm = item.description_am.toLowerCase();
 
-                    return label.includes(deferredPermissionSearch) || name.includes(deferredPermissionSearch);
+                    return (
+                        label.includes(deferredPermissionSearch)
+                        || name.includes(deferredPermissionSearch)
+                        || descriptionEn.includes(deferredPermissionSearch)
+                        || descriptionAm.includes(deferredPermissionSearch)
+                    );
                 }),
             }))
             .filter((group) => group.items.length > 0);
@@ -211,11 +220,15 @@ export default function RoleForm({ roleItem, permissionGroups, submit }: RoleFor
                                                         className="mt-1 h-4 w-4 rounded border-[color:var(--border)] text-[var(--primary)] focus:ring-[var(--primary)]"
                                                     />
                                                     <div>
-                                                        <p className="text-sm font-medium text-[color:var(--text)]">
+                                                        <p className="text-sm font-semibold text-[color:var(--text)]">{item.name}</p>
+                                                        <p className="mt-1 text-xs font-medium text-[color:var(--primary)]">
                                                             {item.label}
                                                         </p>
+                                                        <p className="mt-2 text-xs text-[color:var(--muted-strong)]">
+                                                            {item.description_en}
+                                                        </p>
                                                         <p className="mt-1 text-xs text-[color:var(--muted)]">
-                                                            {item.name}
+                                                            {item.description_am}
                                                         </p>
                                                     </div>
                                                 </label>

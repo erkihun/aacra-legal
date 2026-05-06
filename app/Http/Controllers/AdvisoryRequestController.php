@@ -117,6 +117,22 @@ class AdvisoryRequestController extends Controller
         $user = request()->user();
         $canReview = $user?->can('review', $advisoryRequest) ?? false;
         $canAssign = $user?->can('assign', $advisoryRequest) ?? false;
+        $teamLeaders = $canReview
+            ? User::query()
+                ->eligibleAdvisoryTeamLeaders()
+                ->orderBy('name')
+                ->get(['id', 'name'])
+            : collect();
+        $experts = $canAssign
+            ? User::query()
+                ->eligibleAdvisoryExperts()
+                ->when(
+                    $advisoryRequest->assignedTeamLeader?->team_id ?? $user?->team_id,
+                    fn ($query, string $teamId) => $query->where('team_id', $teamId),
+                )
+                ->orderBy('name')
+                ->get(['id', 'name'])
+            : collect();
 
         $advisoryRequest->load([
             'department',
@@ -131,18 +147,8 @@ class AdvisoryRequestController extends Controller
 
         return Inertia::render('Advisory/Show', [
             'requestItem' => AdvisoryRequestResource::make($advisoryRequest)->resolve(),
-            'teamLeaders' => User::query()
-                ->eligibleAdvisoryTeamLeaders()
-                ->orderBy('name')
-                ->get(['id', 'name']),
-            'experts' => User::query()
-                ->eligibleAdvisoryExperts()
-                ->when(
-                    $advisoryRequest->assignedTeamLeader?->team_id ?? $user?->team_id,
-                    fn ($query, string $teamId) => $query->where('team_id', $teamId),
-                )
-                ->orderBy('name')
-                ->get(['id', 'name']),
+            'teamLeaders' => $teamLeaders,
+            'experts' => $experts,
             'can' => [
                 'review' => $canReview,
                 'assign' => $canAssign,

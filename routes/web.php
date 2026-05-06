@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\LegalCaseTypeController as AdminLegalCaseTypeCont
 use App\Http\Controllers\Admin\LetterController as AdminLetterController;
 use App\Http\Controllers\Admin\LetterTemplateController as AdminLetterTemplateController;
 use App\Http\Controllers\Admin\PublicPostController as AdminPublicPostController;
+use App\Http\Controllers\Admin\PermissionManagementController;
 use App\Http\Controllers\Admin\RoleManagementController;
 use App\Http\Controllers\Admin\SystemSettingsController;
 use App\Http\Controllers\Admin\TeamController as AdminTeamController;
@@ -94,6 +95,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/roles/create', [RoleManagementController::class, 'create'])->name('roles.create');
     Route::get('/roles/{role}/edit', [RoleManagementController::class, 'edit'])->name('roles.edit');
     Route::patch('/roles/{role}', [RoleManagementController::class, 'update'])->name('roles.update');
+    Route::get('/permissions', [PermissionManagementController::class, 'index'])->name('permissions.index');
+    Route::get('/permissions/{permission}/edit', [PermissionManagementController::class, 'edit'])->name('permissions.edit');
     Route::get('/settings', [SystemSettingsController::class, 'index'])->name('settings.index');
 
     Route::resource('departments', AdminDepartmentController::class)->except([]);
@@ -172,6 +175,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/settings/telegram/test', TelegramTestMessageController::class)->name('settings.telegram.test');
         Route::post('/roles', [RoleManagementController::class, 'store'])->name('roles.store');
         Route::delete('/roles/{role}', [RoleManagementController::class, 'destroy'])->name('roles.destroy');
+        Route::patch('/permissions/{permission}', [PermissionManagementController::class, 'update'])->name('permissions.update');
         Route::patch('/users/{user}/ban', [UserManagementController::class, 'ban'])->name('users.ban');
         Route::patch('/users/{user}/activate', [UserManagementController::class, 'activate'])->name('users.activate');
     });

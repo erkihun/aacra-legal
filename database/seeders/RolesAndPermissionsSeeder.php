@@ -124,8 +124,21 @@ class RolesAndPermissionsSeeder extends Seeder
     {
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
+        /** @var array<string, array{en: string, am: string}> $descriptions */
+        $descriptions = config('permission_descriptions', []);
+
         foreach (self::permissions() as $permission) {
-            Permission::findOrCreate($permission, 'web');
+            $record = Permission::query()->firstOrNew([
+                'name' => $permission,
+                'guard_name' => 'web',
+            ]);
+
+            $record->forceFill([
+                'description_en' => filled($record->description_en) ? $record->description_en : ($descriptions[$permission]['en'] ?? null),
+                'description_am' => filled($record->description_am) ? $record->description_am : ($descriptions[$permission]['am'] ?? null),
+            ]);
+
+            $record->save();
         }
 
         foreach (self::rolePermissions() as $roleName => $permissions) {

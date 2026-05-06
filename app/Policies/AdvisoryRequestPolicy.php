@@ -23,13 +23,12 @@ class AdvisoryRequestPolicy
             return true;
         }
 
-        if ($user->canLeadAdvisoryWorkflow()) {
-            return $advisoryRequest->assignedTeamLeader?->team_id === $user->team_id
-                || $advisoryRequest->assignedLegalExpert?->team_id === $user->team_id;
+        if ($advisoryRequest->isVisibleToTeamLeader($user)) {
+            return true;
         }
 
-        if ($user->canRespondToAdvisories()) {
-            return $advisoryRequest->assigned_legal_expert_id === $user->getKey();
+        if ($advisoryRequest->isVisibleToAssignedExpert($user)) {
+            return true;
         }
 
         return $advisoryRequest->requester_user_id === $user->getKey();

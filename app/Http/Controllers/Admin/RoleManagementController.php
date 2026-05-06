@@ -189,10 +189,26 @@ class RoleManagementController extends Controller
                 'items' => $group->map(fn (Permission $permission): array => [
                     'name' => $permission->name,
                     'label' => $this->translatedPermissionLabel($permission->name),
+                    'description_en' => $permission->description_en ?: $this->permissionDescriptions($permission->name)['en'],
+                    'description_am' => $permission->description_am ?: $this->permissionDescriptions($permission->name)['am'],
                 ])->values()->all(),
             ])
             ->values()
             ->all();
+    }
+
+    /**
+     * @return array{en: string, am: string}
+     */
+    private function permissionDescriptions(string $permission): array
+    {
+        /** @var array<string, array{en: string, am: string}> $catalog */
+        $catalog = config('permission_descriptions', []);
+
+        return $catalog[$permission] ?? [
+            'en' => 'Description not configured.',
+            'am' => 'መግለጫው አልተዋቀረም።',
+        ];
     }
 
     private function roleIndexPayload(Role $role): array

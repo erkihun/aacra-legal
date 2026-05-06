@@ -39,9 +39,14 @@ export default function RolesIndex({ roles }: { roles: RoleRow[] }) {
                     title={t('roles.index_title')}
                     description={t('roles.index_description')}
                     action={
-                        <Link href={route('roles.create')} className="btn-base btn-primary focus-ring">
-                            {t('roles.create_action')}
-                        </Link>
+                        <div className="flex flex-wrap gap-3">
+                            <Link href={route('permissions.index')} className="btn-base btn-secondary focus-ring">
+                                {t('permissions.open_directory')}
+                            </Link>
+                            <Link href={route('roles.create')} className="btn-base btn-primary focus-ring">
+                                {t('roles.create_action')}
+                            </Link>
+                        </div>
                     }
                 />
 
