@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Enums\LegalCaseMainType;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -11,6 +12,8 @@ class LegalCaseResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $overview = $this->buildOverviewFields();
+
         return [
             'id' => $this->id,
             'case_number' => $this->case_number,
@@ -40,6 +43,9 @@ class LegalCaseResource extends JsonResource
             'completed_at' => $this->completed_at?->toIso8601String(),
             'reopened_at' => $this->reopened_at?->toIso8601String(),
             'reopen_reason' => $this->reopen_reason,
+            'overview_fields' => $overview['fields'],
+            'overview_description_label' => $overview['description_label'],
+            'overview_description_html' => $overview['description_html'],
             'court' => $this->whenLoaded('court', fn () => [
                 'id' => $this->court?->id,
                 'name_en' => $this->court?->name_en,
@@ -102,5 +108,163 @@ class LegalCaseResource extends JsonResource
             'can_update' => $request->user()?->can('update', $this->resource) ?? false,
             'can_delete' => $request->user()?->can('delete', $this->resource) ?? false,
         ];
+    }
+
+    /**
+     * @return array{fields: array<int, array{key: string, label: string, value: string}>, description_label: string, description_html: string|null}
+     */
+    private function buildOverviewFields(): array
+    {
+        $fields = [
+            $this->alwaysField('case_number', __('cases.case_number'), $this->case_number),
+            $this->alwaysField(
+                'main_case_type',
+                __('cases.main_case_type_label'),
+                $this->main_case_type ? __("cases.main_case_type.{$this->main_case_type->value}") : null,
+            ),
+            $this->optionalField('status', __('common.status'), $this->status ? __("status.{$this->status->value}") : null),
+            $this->optionalField('registrar', __('cases.registrar'), $this->registeredBy?->name),
+            $this->optionalField('court_file_number', __('cases.court_file_number'), $this->external_court_file_number),
+            $this->optionalField('team_leader', __('cases.team_leader'), $this->assignedTeamLeader?->name ?? __('common.unassigned')),
+            $this->optionalField('expert', __('cases.expert'), $this->assignedLegalExpert?->name ?? __('common.unassigned')),
+            $this->optionalField('next_hearing', __('cases.next_hearing'), $this->next_hearing_date?->toDateString()),
+        ];
+
+        $fields = [
+            ...$fields,
+            ...match ($this->main_case_type) {
+                LegalCaseMainType::CRIME => $this->crimeOverviewFields(),
+                LegalCaseMainType::LABOUR_DISPUTE => $this->labourOverviewFields(),
+                LegalCaseMainType::CIVIL_LAW => $this->civilOverviewFields(),
+                default => $this->fallbackOverviewFields(),
+            },
+        ];
+
+        return [
+            'fields' => array_values(array_filter($fields)),
+            'description_label' => $this->main_case_type === LegalCaseMainType::CRIME
+                ? __('cases.crime_details')
+                : __('cases.detailed_description'),
+            'description_html' => filled($this->claim_summary) ? $this->claim_summary : null,
+        ];
+    }
+
+    /**
+     * @return array<int, array{key: string, label: string, value: string}>
+     */
+    private function civilOverviewFields(): array
+    {
+        return array_values(array_filter([
+            $this->optionalField('court', __('cases.court'), $this->localizedRelatedName($this->court)),
+            $this->optionalField('civil_law_type', __('cases.civil_law_type'), $this->localizedRelatedName($this->caseType)),
+            $this->optionalField('plaintiff', __('cases.plaintiff'), $this->plaintiff),
+            $this->optionalField('defendant', __('cases.defendant'), $this->defendant),
+            $this->optionalField('amount', __('cases.amount'), $this->formattedDecimal($this->amount)),
+        ]));
+    }
+
+    /**
+     * @return array<int, array{key: string, label: string, value: string}>
+     */
+    private function labourOverviewFields(): array
+    {
+        return array_values(array_filter([
+            $this->optionalField('court', __('cases.court'), $this->localizedRelatedName($this->court)),
+            $this->optionalField('plaintiff', __('cases.plaintiff'), $this->plaintiff),
+            $this->optionalField('defendant', __('cases.defendant'), $this->defendant),
+            $this->optionalField('amount', __('cases.amount'), $this->formattedDecimal($this->amount)),
+        ]));
+    }
+
+    /**
+     * @return array<int, array{key: string, label: string, value: string}>
+     */
+    private function crimeOverviewFields(): array
+    {
+        return array_values(array_filter([
+            $this->optionalField('court', __('cases.court'), $this->localizedRelatedName($this->court)),
+            $this->optionalField('crime_scene', __('cases.crime_scene'), $this->crime_scene),
+            $this->optionalField('police_station', __('cases.police_station'), $this->police_station),
+            $this->optionalField('stolen_property_type', __('cases.stolen_property_type'), $this->stolen_property_type),
+            $this->optionalField('stolen_property_estimated_value', __('cases.stolen_property_estimated_value'), $this->formattedDecimal($this->stolen_property_estimated_value)),
+            $this->optionalField('suspect_names', __('cases.suspect_names'), $this->suspect_names),
+            $this->optionalField('statement_date', __('cases.statement_date'), $this->statement_date?->toDateString()),
+        ]));
+    }
+
+    /**
+     * @return array<int, array{key: string, label: string, value: string}>
+     */
+    private function fallbackOverviewFields(): array
+    {
+        return array_values(array_filter([
+            $this->optionalField('court', __('cases.court'), $this->localizedRelatedName($this->court)),
+            $this->optionalField('case_type', __('cases.case_type'), $this->localizedRelatedName($this->caseType)),
+            $this->optionalField('plaintiff', __('cases.plaintiff'), $this->plaintiff),
+            $this->optionalField('defendant', __('cases.defendant'), $this->defendant),
+            $this->optionalField('amount', __('cases.amount'), $this->formattedDecimal($this->amount)),
+            $this->optionalField('crime_scene', __('cases.crime_scene'), $this->crime_scene),
+            $this->optionalField('police_station', __('cases.police_station'), $this->police_station),
+            $this->optionalField('stolen_property_type', __('cases.stolen_property_type'), $this->stolen_property_type),
+            $this->optionalField('stolen_property_estimated_value', __('cases.stolen_property_estimated_value'), $this->formattedDecimal($this->stolen_property_estimated_value)),
+            $this->optionalField('suspect_names', __('cases.suspect_names'), $this->suspect_names),
+            $this->optionalField('statement_date', __('cases.statement_date'), $this->statement_date?->toDateString()),
+        ]));
+    }
+
+    /**
+     * @return array{key: string, label: string, value: string}|null
+     */
+    private function alwaysField(string $key, string $label, ?string $value): ?array
+    {
+        if (! filled($value)) {
+            return null;
+        }
+
+        return [
+            'key' => $key,
+            'label' => $label,
+            'value' => $value,
+        ];
+    }
+
+    /**
+     * @return array{key: string, label: string, value: string}|null
+     */
+    private function optionalField(string $key, string $label, ?string $value): ?array
+    {
+        if (! filled($value)) {
+            return null;
+        }
+
+        return [
+            'key' => $key,
+            'label' => $label,
+            'value' => $value,
+        ];
+    }
+
+    private function localizedRelatedName(?object $related): ?string
+    {
+        if ($related === null) {
+            return null;
+        }
+
+        $locale = app()->getLocale();
+        $amharicName = $related->name_am ?? null;
+        $englishName = $related->name_en ?? null;
+
+        return $locale === 'am'
+            ? ($amharicName ?: $englishName)
+            : ($englishName ?: $amharicName);
+    }
+
+    private function formattedDecimal(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return is_numeric($value) ? number_format((float) $value, 2, '.', ',') : (string) $value;
     }
 }

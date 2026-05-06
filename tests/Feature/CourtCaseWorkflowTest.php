@@ -243,6 +243,176 @@ it('loads the edit page with the correct conditional case fields', function (): 
         );
 });
 
+it('shows only civil-law relevant overview fields on the case show page', function (): void {
+    $registrar = createCaseUserWithRole(SystemRole::REGISTRAR, Department::query()->where('code', 'LEG')->firstOrFail(), Team::query()->where('code', 'ADM')->firstOrFail());
+    $legalCase = LegalCase::query()->create([
+        'case_number' => 'CASE-SHOW-CIV-1',
+        'external_court_file_number' => 'FHC-CIV-7788',
+        'main_case_type' => 'civil-law',
+        'court_id' => Court::query()->firstOrFail()->id,
+        'case_type_id' => CaseType::query()->where('code', '!=', 'LAB')->firstOrFail()->id,
+        'registered_by_id' => $registrar->id,
+        'plaintiff' => 'Civil Plaintiff',
+        'defendant' => 'Civil Defendant',
+        'amount' => '75000',
+        'status' => CaseStatus::UNDER_DIRECTOR_REVIEW,
+        'workflow_stage' => WorkflowStage::DIRECTOR,
+        'priority' => PriorityLevel::MEDIUM,
+        'director_decision' => 'pending',
+        'claim_summary' => '<p>Civil overview description.</p>',
+    ]);
+
+    $this->actingAs($registrar)
+        ->get(route('cases.show', $legalCase))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Cases/Show')
+            ->where('caseItem.overview_fields', overviewFieldsMatch([
+                'case_number',
+                'main_case_type',
+                'status',
+                'registrar',
+                'court_file_number',
+                'team_leader',
+                'expert',
+                'court',
+                'civil_law_type',
+                'plaintiff',
+                'defendant',
+                'amount',
+            ], [
+                'crime_scene',
+                'police_station',
+                'stolen_property_type',
+                'stolen_property_estimated_value',
+                'suspect_names',
+                'statement_date',
+            ]))
+            ->where('caseItem.overview_description_label', __('cases.detailed_description'))
+            ->where('caseItem.overview_description_html', '<p>Civil overview description.</p>')
+        );
+});
+
+it('shows only crime relevant overview fields on the case show page', function (): void {
+    $registrar = createCaseUserWithRole(SystemRole::REGISTRAR, Department::query()->where('code', 'LEG')->firstOrFail(), Team::query()->where('code', 'ADM')->firstOrFail());
+    $legalCase = LegalCase::query()->create([
+        'case_number' => 'CASE-SHOW-CRM-1',
+        'external_court_file_number' => 'CRM-42',
+        'main_case_type' => 'crime',
+        'registered_by_id' => $registrar->id,
+        'crime_scene' => 'Piassa',
+        'police_station' => 'Central Station',
+        'stolen_property_type' => 'Mobile Phones',
+        'stolen_property_estimated_value' => '125000',
+        'suspect_names' => 'Suspect A, Suspect B',
+        'statement_date' => now()->subDay()->toDateString(),
+        'status' => CaseStatus::INTAKE,
+        'workflow_stage' => WorkflowStage::DIRECTOR,
+        'priority' => PriorityLevel::HIGH,
+        'director_decision' => 'pending',
+        'claim_summary' => '<p>Crime overview description.</p>',
+    ]);
+
+    $this->actingAs($registrar)
+        ->get(route('cases.show', $legalCase))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Cases/Show')
+            ->where('caseItem.overview_fields', overviewFieldsMatch([
+                'case_number',
+                'main_case_type',
+                'status',
+                'registrar',
+                'court_file_number',
+                'team_leader',
+                'expert',
+                'crime_scene',
+                'police_station',
+                'stolen_property_type',
+                'stolen_property_estimated_value',
+                'suspect_names',
+                'statement_date',
+            ], [
+                'plaintiff',
+                'defendant',
+                'amount',
+                'civil_law_type',
+            ]))
+            ->where('caseItem.overview_description_label', __('cases.crime_details'))
+            ->where('caseItem.overview_description_html', '<p>Crime overview description.</p>')
+        );
+});
+
+it('shows only labour-dispute relevant overview fields and hides empty optional values', function (): void {
+    $registrar = createCaseUserWithRole(SystemRole::REGISTRAR, Department::query()->where('code', 'LEG')->firstOrFail(), Team::query()->where('code', 'ADM')->firstOrFail());
+    $legalCase = LegalCase::query()->create([
+        'case_number' => 'CASE-SHOW-LAB-1',
+        'main_case_type' => 'labour-dispute',
+        'court_id' => Court::query()->firstOrFail()->id,
+        'case_type_id' => CaseType::query()->where('code', 'LAB')->firstOrFail()->id,
+        'registered_by_id' => $registrar->id,
+        'plaintiff' => 'Former Employee',
+        'defendant' => 'Institution',
+        'status' => CaseStatus::UNDER_DIRECTOR_REVIEW,
+        'workflow_stage' => WorkflowStage::DIRECTOR,
+        'priority' => PriorityLevel::MEDIUM,
+        'director_decision' => 'pending',
+        'amount' => null,
+        'claim_summary' => '',
+    ]);
+
+    $this->actingAs($registrar)
+        ->get(route('cases.show', $legalCase))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Cases/Show')
+            ->where('caseItem.overview_fields', overviewFieldsMatch([
+                'case_number',
+                'main_case_type',
+                'status',
+                'registrar',
+                'team_leader',
+                'expert',
+                'court',
+                'plaintiff',
+                'defendant',
+            ], [
+                'amount',
+                'civil_law_type',
+                'crime_scene',
+                'police_station',
+                'stolen_property_type',
+                'stolen_property_estimated_value',
+                'suspect_names',
+                'statement_date',
+            ]))
+            ->where('caseItem.overview_description_html', null)
+        );
+});
+
+it('renders old incomplete case records safely without non-applicable not-set overview rows', function (): void {
+    $registrar = createCaseUserWithRole(SystemRole::REGISTRAR, Department::query()->where('code', 'LEG')->firstOrFail(), Team::query()->where('code', 'ADM')->firstOrFail());
+    $legalCase = LegalCase::query()->create([
+        'case_number' => 'CASE-SHOW-OLD-1',
+        'main_case_type' => 'crime',
+        'registered_by_id' => $registrar->id,
+        'status' => CaseStatus::INTAKE,
+        'workflow_stage' => WorkflowStage::DIRECTOR,
+        'priority' => PriorityLevel::LOW,
+        'director_decision' => 'pending',
+        'claim_summary' => '',
+    ]);
+
+    $this->actingAs($registrar)
+        ->get(route('cases.show', $legalCase))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Cases/Show')
+            ->where('caseItem.overview_fields', overviewFieldsWithoutFallbackPlaceholders())
+            ->where('caseItem.overview_description_html', null)
+        );
+});
+
 it('rejects an incomplete crime submission and keeps the entered case number in old input', function (): void {
     $registrar = createCaseUserWithRole(SystemRole::REGISTRAR, Department::query()->where('code', 'LEG')->firstOrFail(), Team::query()->where('code', 'ADM')->firstOrFail());
 
@@ -401,4 +571,67 @@ function createCaseUserWithRole(SystemRole $role, Department $department, ?Team 
     $user->assignRole($role->value);
 
     return $user;
+}
+
+function overviewFieldsMatch(array $expectedKeys, array $forbiddenKeys): \Closure
+{
+    return function ($fields) use ($expectedKeys, $forbiddenKeys): bool {
+        if ($fields instanceof \Illuminate\Support\Collection) {
+            $fields = $fields->all();
+        } elseif ($fields instanceof \Traversable) {
+            $fields = iterator_to_array($fields);
+        }
+
+        if (! is_array($fields)) {
+            return false;
+        }
+
+        $keys = collect($fields)
+            ->map(fn ($field) => is_array($field) ? ($field['key'] ?? null) : null)
+            ->filter()
+            ->all();
+
+        foreach ($expectedKeys as $key) {
+            if (! in_array($key, $keys, true)) {
+                return false;
+            }
+        }
+
+        foreach ($forbiddenKeys as $key) {
+            if (in_array($key, $keys, true)) {
+                return false;
+            }
+        }
+
+        foreach ($fields as $field) {
+            if (is_array($field) && (($field['value'] ?? null) === __('common.not_set'))) {
+                return false;
+            }
+        }
+
+        return true;
+    };
+}
+
+function overviewFieldsWithoutFallbackPlaceholders(): \Closure
+{
+    return function ($fields): bool {
+        if ($fields instanceof \Illuminate\Support\Collection) {
+            $fields = $fields->all();
+        } elseif ($fields instanceof \Traversable) {
+            $fields = iterator_to_array($fields);
+        }
+
+        if (! is_array($fields)) {
+            return false;
+        }
+
+        foreach ($fields as $field) {
+            if (is_array($field) && (($field['value'] ?? null) === __('common.not_set'))) {
+                return false;
+            }
+        }
+
+        return true;
+    };
 }

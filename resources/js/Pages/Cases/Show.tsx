@@ -79,7 +79,7 @@ export default function CasesShow({
     const comments = normalizeArray(caseItem.comments);
     const attachments = normalizeArray(caseItem.attachments);
 
-    const { t, locale } = useI18n();
+    const { t } = useI18n();
     const { formatDateTime } = useDateFormatter();
     const [activePanel, setActivePanel] = useRemember<CaseWorkspacePanel>(
         'overview',
@@ -142,13 +142,6 @@ export default function CasesShow({
     const deleteCommentForm = useForm({});
     const deleteAttachmentForm = useForm({});
 
-    const courtName =
-        locale === 'am' ? caseItem.court?.name_am ?? caseItem.court?.name_en : caseItem.court?.name_en;
-    const caseTypeName =
-        locale === 'am'
-            ? caseItem.case_type?.name_am ?? caseItem.case_type?.name_en
-            : caseItem.case_type?.name_en;
-
     const latestHearing = hearings[0] ?? null;
     const isClosedCase = caseItem.status === 'closed';
     const availableActionCount = [workspace.canAssignTeamLeader, workspace.canAssignExpert, can.recordHearing, can.close].filter(Boolean).length;
@@ -157,8 +150,8 @@ export default function CasesShow({
             ? `${caseItem.plaintiff ?? t('common.not_set')} ${t('common.versus')} ${caseItem.defendant ?? t('common.not_set')}`
             : caseItem.case_number;
     const sanitizedClaimSummaryHtml = useMemo(
-        () => sanitizeRichTextHtml(caseItem.claim_summary),
-        [caseItem.claim_summary],
+        () => sanitizeRichTextHtml(caseItem.overview_description_html ?? ''),
+        [caseItem.overview_description_html],
     );
 
     const openCreateHearing = () => {
@@ -895,42 +888,22 @@ export default function CasesShow({
                         </div>
 
                         <dl className="grid gap-x-8 gap-y-5 md:grid-cols-2 xl:grid-cols-3">
-                            <OverviewItem label={t('cases.case_number')} value={caseItem.case_number} />
-                            <OverviewItem
-                                label={t('cases.main_case_type_label')}
-                                value={caseItem.main_case_type ? t(`cases.main_case_type.${caseItem.main_case_type}`) : undefined}
-                            />
-                            <OverviewItem label={t('cases.registrar')} value={caseItem.registered_by?.name} />
-                            <OverviewItem label={t('cases.court')} value={courtName} />
-                            <OverviewItem label={t('cases.case_type')} value={caseTypeName} />
-                            <OverviewItem label={t('cases.court_file_number')} value={caseItem.external_court_file_number} />
-                            <OverviewItem label={t('cases.team_leader')} value={caseItem.assigned_team_leader?.name ?? t('common.unassigned')} />
-                            <OverviewItem label={t('cases.expert')} value={caseItem.assigned_legal_expert?.name ?? t('common.unassigned')} />
-                            <OverviewItem label={t('cases.next_hearing')} value={caseItem.next_hearing_date} />
-                            <OverviewItem label={t('cases.plaintiff')} value={caseItem.plaintiff} />
-                            <OverviewItem label={t('cases.defendant')} value={caseItem.defendant} />
-                            <OverviewItem label={t('cases.amount')} value={caseItem.amount} />
-                            <OverviewItem label={t('cases.crime_scene')} value={caseItem.crime_scene} />
-                            <OverviewItem label={t('cases.police_station')} value={caseItem.police_station} />
-                            <OverviewItem label={t('cases.stolen_property_type')} value={caseItem.stolen_property_type} />
-                            <OverviewItem label={t('cases.statement_date')} value={caseItem.statement_date} />
+                            {(Array.isArray(caseItem.overview_fields) ? caseItem.overview_fields : []).map((field: { key: string; label: string; value: ReactNode }) => (
+                                <OverviewItem key={field.key} label={field.label} value={field.value} />
+                            ))}
                         </dl>
 
+                        {sanitizedClaimSummaryHtml ? (
                         <div className="border-t border-[color:var(--border)] pt-5">
                             <p className="text-sm font-semibold text-[color:var(--muted-strong)]">
-                                {t('cases.detailed_description')}
+                                {caseItem.overview_description_label ?? t('cases.detailed_description')}
                             </p>
-                            {sanitizedClaimSummaryHtml ? (
-                                <div
-                                    className="prose prose-sm mt-4 max-w-none text-[color:var(--text)] dark:prose-invert"
-                                    dangerouslySetInnerHTML={{ __html: sanitizedClaimSummaryHtml }}
-                                />
-                            ) : (
-                                <p className="mt-3 text-sm leading-7 text-[color:var(--text)]">
-                                    {t('common.not_available')}
-                                </p>
-                            )}
+                            <div
+                                className="prose prose-sm mt-4 max-w-none text-[color:var(--text)] dark:prose-invert"
+                                dangerouslySetInnerHTML={{ __html: sanitizedClaimSummaryHtml }}
+                            />
                         </div>
+                        ) : null}
                     </SurfaceCard>
                 ) : null}
 
