@@ -30,6 +30,7 @@ type ShowCaseProps = {
         review: boolean;
         assign: boolean;
         recordHearing: boolean;
+        viewHearings: boolean;
         close: boolean;
         reopen: boolean;
         comment: boolean;
@@ -775,7 +776,7 @@ export default function CasesShow({
 
     const reviewActionEnabled = !isClosedCase && workspace.canAssignTeamLeader;
     const assignActionEnabled = !isClosedCase && workspace.canAssignExpert;
-    const hearingActionEnabled = !isClosedCase && can.recordHearing;
+    const hearingActionEnabled = can.viewHearings;
     const closeActionEnabled = !isClosedCase && can.close;
     const commentActionEnabled = !isClosedCase && can.comment;
     const attachmentActionEnabled = !isClosedCase && can.attach;

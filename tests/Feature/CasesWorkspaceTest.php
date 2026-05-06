@@ -589,7 +589,11 @@ it('requires a closing date and stores it when closing a case', function (): voi
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Cases/Show')
             ->where('caseItem.decision_date', $closingDate)
-            ->where('caseItem.overview_fields', overviewFieldsMatch(['closing_date'], ['appeal_deadline']))
+            ->where('caseItem.overview_fields', fn ($fields) => collect($fields)->contains(
+                fn ($field) => ($field['key'] ?? null) === 'closing_date' && ($field['value'] ?? null) === $closingDate
+            ) && ! collect($fields)->contains(
+                fn ($field) => ($field['key'] ?? null) === 'appeal_deadline'
+            ))
         );
 });
 
@@ -718,6 +722,7 @@ it('reopens a closed case with a required reason and restores active case action
             ->where('caseItem.status', 'in_progress')
             ->where('can.reopen', false)
             ->where('can.recordHearing', true)
+            ->where('can.viewHearings', true)
         );
 });
 
@@ -746,10 +751,53 @@ it('shows only the reopen action on the case show page when the case is closed',
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Cases/Show')
             ->where('can.recordHearing', false)
+            ->where('can.viewHearings', false)
             ->where('can.close', false)
             ->where('can.comment', false)
             ->where('can.attach', false)
             ->where('can.reopen', true)
+        );
+});
+
+it('keeps hearing records visible on the case show page for viewers who cannot record new hearings', function (): void {
+    $registrar = createCaseUser(SystemRole::REGISTRAR, 'leg', 'ADM');
+    $teamLeader = createCaseUser(SystemRole::LITIGATION_TEAM_LEADER, 'leg', 'LIT');
+    $expert = createCaseUser(SystemRole::LEGAL_EXPERT, 'leg', 'LIT');
+
+    $legalCase = LegalCase::query()->create([
+        'case_number' => 'CASE-2026-HEARING-VIEW-1',
+        'court_id' => Court::query()->firstOrFail()->id,
+        'case_type_id' => CaseType::query()->firstOrFail()->id,
+        'registered_by_id' => $registrar->id,
+        'assigned_team_leader_id' => $teamLeader->id,
+        'assigned_legal_expert_id' => $expert->id,
+        'plaintiff' => 'Hearing Visibility Plaintiff',
+        'defendant' => 'Institution',
+        'status' => CaseStatus::ASSIGNED_TO_EXPERT,
+        'workflow_stage' => WorkflowStage::EXPERT,
+        'priority' => PriorityLevel::MEDIUM,
+        'director_decision' => 'approved',
+        'claim_summary' => 'Existing hearing records should stay visible to case viewers.',
+        'filing_date' => now()->subDay()->toDateString(),
+    ]);
+
+    $this->actingAs($expert)->post(route('cases.hearings.store', ['legalCase' => $legalCase]), [
+        'hearing_date' => now()->toDateString(),
+        'summary' => 'Visible hearing summary.',
+        'appearance_status' => 'attended',
+    ])->assertSessionHasNoErrors();
+
+    $hearing = $legalCase->fresh()->hearings()->firstOrFail();
+
+    $this->actingAs($registrar)
+        ->get(route('cases.show', ['legalCase' => $legalCase]))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Cases/Show')
+            ->where('can.recordHearing', false)
+            ->where('can.viewHearings', true)
+            ->where('caseItem.hearings', fn ($hearings) => count($hearings) === 1
+                && $hearings[0]['id'] === $hearing->id
+                && $hearings[0]['summary'] === 'Visible hearing summary.')
         );
 });
 

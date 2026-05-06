@@ -144,6 +144,7 @@ class LegalCaseController extends Controller
         $user = request()->user();
         $canReview = $user?->can('review', $legalCase) ?? false;
         $canAssign = $user?->can('assign', $legalCase) ?? false;
+        $canRecordHearing = $user?->can('recordHearing', $legalCase) ?? false;
         $teamLeaders = $canReview
             ? User::query()
                 ->eligibleLitigationTeamLeaders()
@@ -185,7 +186,8 @@ class LegalCaseController extends Controller
             'can' => [
                 'review' => $canReview,
                 'assign' => $canAssign,
-                'recordHearing' => request()->user()?->can('recordHearing', $legalCase) ?? false,
+                'recordHearing' => $canRecordHearing,
+                'viewHearings' => $canRecordHearing || $legalCase->hearings->isNotEmpty(),
                 'close' => request()->user()?->can('close', $legalCase) ?? false,
                 'reopen' => request()->user()?->can('reopen', $legalCase) ?? false,
                 'comment' => request()->user()?->can('comment', $legalCase) ?? false,
