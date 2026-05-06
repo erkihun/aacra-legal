@@ -24,7 +24,7 @@ export default function RolesIndex({
     permissionsIndexUrl,
 }: {
     roles: RoleRow[];
-    permissionsIndexUrl: string;
+    permissionsIndexUrl?: string | null;
 }) {
     const { t } = useI18n();
     const { formatDateTime } = useDateFormatter();
@@ -46,9 +46,11 @@ export default function RolesIndex({
                     description={t('roles.index_description')}
                     action={
                         <div className="flex flex-wrap gap-3">
-                            <Link href={permissionsIndexUrl} className="btn-base btn-secondary focus-ring">
-                                {t('permissions.open_directory')}
-                            </Link>
+                            {permissionsIndexUrl ? (
+                                <Link href={permissionsIndexUrl} className="btn-base btn-secondary focus-ring">
+                                    {t('permissions.open_directory')}
+                                </Link>
+                            ) : null}
                             <Link href={route('roles.create')} className="btn-base btn-primary focus-ring">
                                 {t('roles.create_action')}
                             </Link>

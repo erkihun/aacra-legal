@@ -11,6 +11,7 @@ use App\Http\Requests\Admin\RoleStoreRequest;
 use App\Http\Requests\Admin\RoleUpdateRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\Permission\Models\Permission;
@@ -30,7 +31,7 @@ class RoleManagementController extends Controller
 
         return Inertia::render('Admin/Roles/Index', [
             'roles' => $roles,
-            'permissionsIndexUrl' => route('permissions.index'),
+            'permissionsIndexUrl' => Route::has('permissions.index') ? route('permissions.index') : null,
         ]);
     }
 
