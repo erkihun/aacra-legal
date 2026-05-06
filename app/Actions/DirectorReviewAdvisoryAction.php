@@ -6,7 +6,6 @@ namespace App\Actions;
 
 use App\Enums\AdvisoryRequestStatus;
 use App\Enums\DirectorDecision;
-use App\Enums\TeamType;
 use App\Enums\WorkflowStage;
 use App\Events\AdvisoryAssigned;
 use App\Models\AdvisoryAssignment;
@@ -50,7 +49,7 @@ class DirectorReviewAdvisoryAction
                 if (
                     ! $teamLeader->is_active
                     || ! $teamLeader->canLeadAdvisoryWorkflow()
-                    || $teamLeader->team?->type !== TeamType::ADVISORY
+                    || ! $teamLeader->team?->supportsAdvisory()
                 ) {
                     throw ValidationException::withMessages([
                         'assigned_team_leader_id' => __('The selected advisory team leader is invalid.'),

@@ -8,6 +8,7 @@ use App\Enums\TeamType;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 use Illuminate\Validation\Rule;
 
 class TeamRequest extends FormRequest
@@ -27,6 +28,8 @@ class TeamRequest extends FormRequest
             'code' => str($this->input('code'))->upper()->trim()->toString(),
             'name_en' => trim((string) $this->input('name_en')),
             'name_am' => trim((string) $this->input('name_am')),
+            'supports_advisory' => $this->resolveSupportFlag('supports_advisory', TeamType::ADVISORY),
+            'supports_court_case' => $this->resolveSupportFlag('supports_court_case', TeamType::LITIGATION),
         ]);
     }
 
@@ -50,8 +53,49 @@ class TeamRequest extends FormRequest
             ],
             'name_en' => ['required', 'string', 'max:255'],
             'name_am' => ['required', 'string', 'max:255'],
-            'type' => ['required', Rule::in(array_column(TeamType::cases(), 'value'))],
+            'type' => ['nullable', Rule::in(array_column(TeamType::cases(), 'value'))],
+            'supports_advisory' => ['required', 'boolean'],
+            'supports_court_case' => ['required', 'boolean'],
             'is_active' => ['required', 'boolean'],
         ];
+    }
+
+    public function after(): array
+    {
+        return [
+            function (Validator $validator): void {
+                if ($validator->errors()->isNotEmpty()) {
+                    return;
+                }
+
+                $supportsAdvisory = (bool) $this->validated('supports_advisory');
+                $supportsCourtCase = (bool) $this->validated('supports_court_case');
+
+                if ($supportsAdvisory || $supportsCourtCase || $this->allowsLegacyNonWorkflowTeam()) {
+                    return;
+                }
+
+                $validator->errors()->add('supports_advisory', __('teams.validation.capability_required'));
+            },
+        ];
+    }
+
+    private function allowsLegacyNonWorkflowTeam(): bool
+    {
+        $team = $this->route('team');
+
+        return $team instanceof Team
+            && $team->type === TeamType::ADMINISTRATION
+            && ! $team->supportsAdvisory()
+            && ! $team->supportsCourtCase();
+    }
+
+    private function resolveSupportFlag(string $key, TeamType $legacyType): bool
+    {
+        if ($this->has($key)) {
+            return $this->boolean($key);
+        }
+
+        return $this->input('type') === $legacyType->value;
     }
 }

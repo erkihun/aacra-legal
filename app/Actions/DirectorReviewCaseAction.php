@@ -6,7 +6,6 @@ namespace App\Actions;
 
 use App\Enums\CaseStatus;
 use App\Enums\DirectorDecision;
-use App\Enums\TeamType;
 use App\Enums\WorkflowStage;
 use App\Events\CaseAssigned;
 use App\Models\CaseAssignment;
@@ -56,7 +55,7 @@ class DirectorReviewCaseAction
                 if (
                     ! $teamLeader->is_active
                     || ! $teamLeader->canLeadLitigationWorkflow()
-                    || $teamLeader->team?->type !== TeamType::LITIGATION
+                    || ! $teamLeader->team?->supportsCourtCase()
                 ) {
                     throw ValidationException::withMessages([
                         'assigned_team_leader_id' => __('The selected litigation team leader is invalid.'),

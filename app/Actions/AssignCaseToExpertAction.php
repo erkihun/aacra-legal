@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Actions;
 
 use App\Enums\CaseStatus;
-use App\Enums\TeamType;
 use App\Enums\WorkflowStage;
 use App\Events\CaseAssigned;
 use App\Models\CaseAssignment;
@@ -50,7 +49,7 @@ class AssignCaseToExpertAction
         if (
             ! $expert->is_active
             || ! $expert->canHandleAssignedCases()
-            || $expert->team?->type !== TeamType::LITIGATION
+            || ! $expert->team?->supportsCourtCase()
             || ($expectedTeamId !== null && $expert->team_id !== $expectedTeamId)
         ) {
             throw ValidationException::withMessages([

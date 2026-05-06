@@ -7,7 +7,6 @@ namespace App\Models;
 use App\Concerns\HasUuidPrimaryKey;
 use App\Enums\LocaleCode;
 use App\Enums\SystemRole;
-use App\Enums\TeamType;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Contracts\Translation\HasLocalePreference;
@@ -209,7 +208,7 @@ class User extends Authenticatable implements MustVerifyEmail, HasLocalePreferen
 
     public function canLeadAdvisoryWorkflow(): bool
     {
-        return $this->team?->type === TeamType::ADVISORY
+        return $this->team?->supportsAdvisory()
             && $this->canAnyPermissions([
                 'advisory.assign_expert',
                 'advisory-requests.assign',
@@ -218,7 +217,7 @@ class User extends Authenticatable implements MustVerifyEmail, HasLocalePreferen
 
     public function canRespondToAdvisories(): bool
     {
-        return $this->team?->type === TeamType::ADVISORY
+        return $this->team?->supportsAdvisory()
             && $this->canAnyPermissions([
                 'advisory.respond',
                 'advisory-requests.respond',
@@ -258,7 +257,7 @@ class User extends Authenticatable implements MustVerifyEmail, HasLocalePreferen
 
     public function canLeadLitigationWorkflow(): bool
     {
-        return $this->team?->type === TeamType::LITIGATION
+        return $this->team?->supportsCourtCase()
             && $this->canAnyPermissions([
                 'cases.assign_expert',
                 'legal-cases.assign',
@@ -267,7 +266,7 @@ class User extends Authenticatable implements MustVerifyEmail, HasLocalePreferen
 
     public function canHandleAssignedCases(): bool
     {
-        return $this->team?->type === TeamType::LITIGATION
+        return $this->team?->supportsCourtCase()
             && $this->canAnyPermissions([
                 'cases.record_hearing',
                 'legal-cases.update',
@@ -314,7 +313,7 @@ class User extends Authenticatable implements MustVerifyEmail, HasLocalePreferen
     {
         return $query
             ->where('is_active', true)
-            ->whereHas('team', fn (Builder $teamQuery) => $teamQuery->where('type', TeamType::ADVISORY->value))
+            ->whereHas('team', fn (Builder $teamQuery) => $teamQuery->supportingAdvisory())
             ->withAnyPermission(['advisory.assign_expert', 'advisory-requests.assign'])
             ->distinct();
     }
@@ -323,7 +322,7 @@ class User extends Authenticatable implements MustVerifyEmail, HasLocalePreferen
     {
         return $query
             ->where('is_active', true)
-            ->whereHas('team', fn (Builder $teamQuery) => $teamQuery->where('type', TeamType::ADVISORY->value))
+            ->whereHas('team', fn (Builder $teamQuery) => $teamQuery->supportingAdvisory())
             ->withAnyPermission(['advisory.respond', 'advisory-requests.respond'])
             ->distinct();
     }
@@ -332,7 +331,7 @@ class User extends Authenticatable implements MustVerifyEmail, HasLocalePreferen
     {
         return $query
             ->where('is_active', true)
-            ->whereHas('team', fn (Builder $teamQuery) => $teamQuery->where('type', TeamType::LITIGATION->value))
+            ->whereHas('team', fn (Builder $teamQuery) => $teamQuery->supportingCourtCase())
             ->withAnyPermission(['cases.assign_expert', 'legal-cases.assign'])
             ->distinct();
     }
@@ -341,7 +340,7 @@ class User extends Authenticatable implements MustVerifyEmail, HasLocalePreferen
     {
         return $query
             ->where('is_active', true)
-            ->whereHas('team', fn (Builder $teamQuery) => $teamQuery->where('type', TeamType::LITIGATION->value))
+            ->whereHas('team', fn (Builder $teamQuery) => $teamQuery->supportingCourtCase())
             ->withAnyPermission(['cases.record_hearing', 'legal-cases.update'])
             ->distinct();
     }

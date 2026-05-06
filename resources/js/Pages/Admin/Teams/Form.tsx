@@ -1,3 +1,4 @@
+import Checkbox from '@/Components/Checkbox';
 import ConfirmationDialog from '@/Components/Ui/ConfirmationDialog';
 import BackButton from '@/Components/Ui/BackButton';
 import FormField from '@/Components/Ui/FormField';
@@ -9,7 +10,7 @@ import { useI18n } from '@/lib/i18n';
 import { Head, router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 
-export default function TeamForm({ teamItem, typeOptions, leaderOptions, canDelete }: any) {
+export default function TeamForm({ teamItem, leaderOptions, canDelete }: any) {
     const { t } = useI18n();
     const [confirmOpen, setConfirmOpen] = useState(false);
     const form = useForm({
@@ -17,7 +18,8 @@ export default function TeamForm({ teamItem, typeOptions, leaderOptions, canDele
         code: teamItem?.code ?? '',
         name_en: teamItem?.name_en ?? '',
         name_am: teamItem?.name_am ?? '',
-        type: teamItem?.type ?? typeOptions[0]?.value ?? '',
+        supports_advisory: teamItem?.supports_advisory ?? false,
+        supports_court_case: teamItem?.supports_court_case ?? false,
         is_active: teamItem?.is_active ?? true,
     });
     const isEditing = !!teamItem;
@@ -58,14 +60,29 @@ export default function TeamForm({ teamItem, typeOptions, leaderOptions, canDele
                             <FormField label={t('common.code')} required error={form.errors.code}>
                                 <input value={form.data.code} onChange={(event) => form.setData('code', event.target.value)} className="input-ui" />
                             </FormField>
-                            <FormField label={t('teams.type')} required error={form.errors.type}>
-                                <select value={form.data.type} onChange={(event) => form.setData('type', event.target.value)} className="select-ui">
-                                    {typeOptions.map((option: any) => (
-                                        <option key={option.value} value={option.value}>
-                                            {option.label}
-                                        </option>
-                                    ))}
-                                </select>
+                            <FormField label={t('teams.capabilities')} required error={form.errors.supports_advisory}>
+                                <div className="space-y-3 rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-muted)] px-4 py-4">
+                                    <label className="flex items-start gap-3">
+                                        <Checkbox
+                                            checked={form.data.supports_advisory}
+                                            onChange={(event) => form.setData('supports_advisory', event.target.checked)}
+                                        />
+                                        <div>
+                                            <p className="text-sm font-medium text-[color:var(--text)]">{t('teams.supports_advisory')}</p>
+                                            <p className="text-xs text-[color:var(--muted)]">{t('teams.supports_advisory_hint')}</p>
+                                        </div>
+                                    </label>
+                                    <label className="flex items-start gap-3">
+                                        <Checkbox
+                                            checked={form.data.supports_court_case}
+                                            onChange={(event) => form.setData('supports_court_case', event.target.checked)}
+                                        />
+                                        <div>
+                                            <p className="text-sm font-medium text-[color:var(--text)]">{t('teams.supports_court_case')}</p>
+                                            <p className="text-xs text-[color:var(--muted)]">{t('teams.supports_court_case_hint')}</p>
+                                        </div>
+                                    </label>
+                                </div>
                             </FormField>
                             <FormField label={t('teams.name_en')} required error={form.errors.name_en}>
                                 <input value={form.data.name_en} onChange={(event) => form.setData('name_en', event.target.value)} className="input-ui" />

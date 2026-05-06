@@ -6,7 +6,6 @@ use App\Enums\AdvisoryRequestStatus;
 use App\Enums\AdvisoryRequestType;
 use App\Enums\CaseStatus;
 use App\Enums\PriorityLevel;
-use App\Enums\TeamType;
 use App\Enums\WorkflowStage;
 use App\Models\AdvisoryCategory;
 use App\Models\AdvisoryRequest;
@@ -50,7 +49,8 @@ it('allows a super admin to manage all master data modules', function (): void {
         'code' => 'ADM-LIT-X',
         'name_en' => 'Admin Litigation Team',
         'name_am' => 'የአስተዳደር የክስ ቡድን',
-        'type' => TeamType::LITIGATION->value,
+        'supports_advisory' => false,
+        'supports_court_case' => true,
         'leader_user_id' => $admin->id,
         'is_active' => true,
     ])->assertRedirect();
@@ -100,7 +100,8 @@ it('allows a super admin to manage all master data modules', function (): void {
         'code' => 'ADM-LIT-X',
         'name_en' => 'Admin Litigation Team Updated',
         'name_am' => 'የአስተዳደር የክስ ቡድን የተዘምነ',
-        'type' => TeamType::ADVISORY->value,
+        'supports_advisory' => true,
+        'supports_court_case' => true,
         'leader_user_id' => $admin->id,
         'is_active' => false,
     ])->assertRedirect(route('teams.edit', $team));
@@ -131,7 +132,8 @@ it('allows a super admin to manage all master data modules', function (): void {
     ])->assertRedirect(route('legal-case-types.edit', $caseType));
 
     expect($department->fresh()?->is_active)->toBeFalse()
-        ->and($team->fresh()?->type)->toBe(TeamType::ADVISORY)
+        ->and($team->fresh()?->supports_advisory)->toBeTrue()
+        ->and($team->fresh()?->supports_court_case)->toBeTrue()
         ->and($category->fresh()?->is_active)->toBeFalse()
         ->and($court->fresh()?->city)->toBe('Adama')
         ->and($caseType->fresh()?->name_en)->toBe('Labour and Employment')

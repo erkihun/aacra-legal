@@ -15,7 +15,8 @@ type TeamRow = {
     code: string;
     name_en: string;
     name_am: string;
-    type: string;
+    capability_labels: string[];
+    legacy_type?: string | null;
     leader?: { id: string; name: string } | null;
     is_active: boolean;
 };
@@ -79,7 +80,7 @@ export default function TeamsIndex({ filters, teams, typeOptions, can }: any) {
                 >
                     <input value={form.data.search} onChange={(event) => form.setData('search', event.target.value)} className="input-ui" placeholder={t('teams.search_placeholder')} />
                     <select value={form.data.type} onChange={(event) => form.setData('type', event.target.value)} className="select-ui">
-                        <option value="">{t('teams.type')}</option>
+                        <option value="">{t('teams.capabilities')}</option>
                         {typeOptions.map((option: any) => (
                             <option key={option.value} value={option.value}>
                                 {option.label}
@@ -118,7 +119,17 @@ export default function TeamsIndex({ filters, teams, typeOptions, can }: any) {
                                         </div>
                                     ),
                                 },
-                                { key: 'type', header: t('teams.type'), cell: (row) => <StatusBadge value={row.type} /> },
+                                {
+                                    key: 'capabilities',
+                                    header: t('teams.capabilities'),
+                                    cell: (row) => (
+                                        <div className="flex flex-wrap gap-2">
+                                            {row.capability_labels.length > 0 ? row.capability_labels.map((label) => (
+                                                <StatusBadge key={`${row.id}-${label}`} value="approved" label={label} />
+                                            )) : <StatusBadge value="pending" label={t('teams.supports_none')} />}
+                                        </div>
+                                    ),
+                                },
                                 { key: 'status', header: t('common.status'), cell: (row) => <StatusBadge value={row.is_active ? 'active' : 'inactive'} /> },
                             ]}
                         />

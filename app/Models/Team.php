@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Concerns\HasUuidPrimaryKey;
 use App\Enums\TeamType;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -27,6 +28,8 @@ class Team extends Model
         'name_en',
         'name_am',
         'type',
+        'supports_advisory',
+        'supports_court_case',
         'is_active',
     ];
 
@@ -34,6 +37,8 @@ class Team extends Model
     {
         return [
             'type' => TeamType::class,
+            'supports_advisory' => 'boolean',
+            'supports_court_case' => 'boolean',
             'is_active' => 'boolean',
         ];
     }
@@ -48,9 +53,29 @@ class Team extends Model
         return $this->hasMany(User::class);
     }
 
-    public function scopeActive($query)
+    public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
+    }
+
+    public function scopeSupportingAdvisory(Builder $query): Builder
+    {
+        return $query->where('supports_advisory', true);
+    }
+
+    public function scopeSupportingCourtCase(Builder $query): Builder
+    {
+        return $query->where('supports_court_case', true);
+    }
+
+    public function supportsAdvisory(): bool
+    {
+        return (bool) $this->supports_advisory;
+    }
+
+    public function supportsCourtCase(): bool
+    {
+        return (bool) $this->supports_court_case;
     }
 
     public function getActivitylogOptions(): LogOptions

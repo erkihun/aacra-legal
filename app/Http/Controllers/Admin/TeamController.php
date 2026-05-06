@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Actions\PersistTeamAction;
-use App\Enums\TeamType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\TeamRequest;
 use App\Models\Team;
@@ -37,7 +36,7 @@ class TeamController extends Controller
                         ->orWhere('name_am', 'like', "%{$search}%");
                 });
             })
-            ->when($filters['type'] ?? null, fn ($query, string $type) => $query->where('type', $type))
+            ->when($filters['type'] ?? null, fn ($query, string $type) => $this->applyCapabilityFilter($query, $type))
             ->when(
                 array_key_exists('is_active', $filters) && $filters['is_active'] !== null && $filters['is_active'] !== '',
                 fn ($query) => $query->where('is_active', $filters['is_active'] === '1'),
@@ -50,7 +49,8 @@ class TeamController extends Controller
                 'code' => $team->code,
                 'name_en' => $team->name_en,
                 'name_am' => $team->name_am,
-                'type' => $team->type?->value,
+                'capability_labels' => $this->capabilityLabels($team),
+                'legacy_type' => $team->type?->value,
                 'leader' => $team->leader ? [
                     'id' => $team->leader->id,
                     'name' => $team->leader->name,
@@ -61,10 +61,7 @@ class TeamController extends Controller
         return Inertia::render('Admin/Teams/Index', [
             'filters' => $filters,
             'teams' => $teams,
-            'typeOptions' => collect(TeamType::cases())->map(fn (TeamType $type): array => [
-                'value' => $type->value,
-                'label' => __("team_type.{$type->value}"),
-            ])->values(),
+            'typeOptions' => $this->capabilityFilterOptions(),
             'can' => [
                 'create' => $request->user()?->can('create', Team::class) ?? false,
                 'update' => $request->user()?->can('teams.manage') ?? false,
@@ -79,10 +76,6 @@ class TeamController extends Controller
         return Inertia::render('Admin/Teams/Form', [
             'teamItem' => null,
             'leaderOptions' => $this->leaderOptions(),
-            'typeOptions' => collect(TeamType::cases())->map(fn (TeamType $type): array => [
-                'value' => $type->value,
-                'label' => __("team_type.{$type->value}"),
-            ])->values(),
             'canDelete' => false,
         ]);
     }
@@ -100,7 +93,10 @@ class TeamController extends Controller
                 'code' => $team->code,
                 'name_en' => $team->name_en,
                 'name_am' => $team->name_am,
-                'type' => $team->type?->value,
+                'supports_advisory' => $team->supports_advisory,
+                'supports_court_case' => $team->supports_court_case,
+                'capability_labels' => $this->capabilityLabels($team),
+                'legacy_type' => $team->type?->value,
                 'is_active' => $team->is_active,
                 'leader' => $team->leader ? [
                     'id' => $team->leader->id,
@@ -135,14 +131,12 @@ class TeamController extends Controller
                 'code' => $team->code,
                 'name_en' => $team->name_en,
                 'name_am' => $team->name_am,
-                'type' => $team->type?->value,
+                'supports_advisory' => $team->supports_advisory,
+                'supports_court_case' => $team->supports_court_case,
+                'legacy_type' => $team->type?->value,
                 'is_active' => $team->is_active,
             ],
             'leaderOptions' => $this->leaderOptions(),
-            'typeOptions' => collect(TeamType::cases())->map(fn (TeamType $type): array => [
-                'value' => $type->value,
-                'label' => __("team_type.{$type->value}"),
-            ])->values(),
             'canDelete' => request()->user()?->can('delete', $team) ?? false,
         ]);
     }
@@ -179,5 +173,40 @@ class TeamController extends Controller
             ])
             ->values()
             ->all();
+    }
+
+    private function applyCapabilityFilter($query, string $filter)
+    {
+        return match ($filter) {
+            'supports_advisory', 'advisory' => $query->where('supports_advisory', true),
+            'supports_court_case', 'litigation' => $query->where('supports_court_case', true),
+            'both' => $query->where('supports_advisory', true)->where('supports_court_case', true),
+            'none', 'administration' => $query->where('supports_advisory', false)->where('supports_court_case', false),
+            default => $query,
+        };
+    }
+
+    /**
+     * @return array<int, array{value: string, label: string}>
+     */
+    private function capabilityFilterOptions(): array
+    {
+        return [
+            ['value' => 'supports_advisory', 'label' => __('teams.supports_advisory')],
+            ['value' => 'supports_court_case', 'label' => __('teams.supports_court_case')],
+            ['value' => 'both', 'label' => __('teams.supports_both')],
+            ['value' => 'none', 'label' => __('teams.supports_none')],
+        ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function capabilityLabels(Team $team): array
+    {
+        return collect([
+            $team->supportsAdvisory() ? __('teams.supports_advisory_short') : null,
+            $team->supportsCourtCase() ? __('teams.supports_court_case_short') : null,
+        ])->filter()->values()->all();
     }
 }

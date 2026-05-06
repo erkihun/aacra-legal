@@ -40,7 +40,9 @@ export default function TeamShow({ teamItem, can }: any) {
                 />
 
                 <div className="flex flex-wrap gap-2">
-                    <StatusBadge value={teamItem.type} />
+                    {teamItem.capability_labels.length > 0 ? teamItem.capability_labels.map((label: string) => (
+                        <StatusBadge key={label} value="approved" label={label} />
+                    )) : <StatusBadge value="pending" label={t('teams.supports_none')} />}
                     <StatusBadge value={teamItem.is_active ? 'active' : 'inactive'} />
                 </div>
 
@@ -49,7 +51,7 @@ export default function TeamShow({ teamItem, can }: any) {
                         <h2 className="text-lg font-semibold text-[color:var(--text)]">{t('common.overview')}</h2>
                         <div className="mt-4 grid gap-4 md:grid-cols-2">
                             <Detail label={t('common.code')} value={teamItem.code} />
-                            <Detail label={t('teams.type')} value={teamItem.type} />
+                            <Detail label={t('teams.capabilities')} value={teamItem.capability_labels.join(', ') || t('teams.supports_none')} />
                             <Detail label={t('teams.name_en')} value={teamItem.name_en} />
                             <Detail label={t('teams.name_am')} value={teamItem.name_am} />
                             <Detail label={t('teams.leader')} value={teamItem.leader?.name} />
