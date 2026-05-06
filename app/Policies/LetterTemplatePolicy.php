@@ -11,12 +11,12 @@ class LetterTemplatePolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->can('letter_templates.view');
+        return $this->canAccessModule($user);
     }
 
     public function view(User $user, LetterTemplate $letterTemplate): bool
     {
-        return $this->viewAny($user);
+        return $this->canAccessModule($user);
     }
 
     public function create(User $user): bool
@@ -47,5 +47,17 @@ class LetterTemplatePolicy
     public function duplicate(User $user, LetterTemplate $letterTemplate): bool
     {
         return $user->can('letter_templates.create');
+    }
+
+    private function canAccessModule(User $user): bool
+    {
+        return $user->canAnyPermissions([
+            'letter_templates.view',
+            'letter_templates.create',
+            'letter_templates.update',
+            'letter_templates.delete',
+            'letter_templates.preview',
+            'letter_templates.print',
+        ]);
     }
 }

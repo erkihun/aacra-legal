@@ -62,6 +62,48 @@ it('exposes workflow creation actions only to authorized roles in list pages', f
         ->assertForbidden();
 });
 
+it('denies dashboard access to authenticated users without the dashboard permission', function (): void {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->get(route('dashboard'))
+        ->assertForbidden();
+});
+
+it('allows letter module access when the user has create permission even without letters.view', function (): void {
+    $user = User::factory()->create();
+    $user->givePermissionTo('letters.create');
+
+    $this->actingAs($user)
+        ->get(route('letters.index'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Admin/Letters/Index')
+            ->where('can.create', true)
+        );
+
+    $this->actingAs($user)
+        ->get(route('letters.create'))
+        ->assertOk();
+});
+
+it('allows letter template module access when the user has create permission even without letter_templates.view', function (): void {
+    $user = User::factory()->create();
+    $user->givePermissionTo('letter_templates.create');
+
+    $this->actingAs($user)
+        ->get(route('letter-templates.index'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Admin/LetterTemplates/Index')
+            ->where('can.create', true)
+        );
+
+    $this->actingAs($user)
+        ->get(route('letter-templates.create'))
+        ->assertOk();
+});
+
 it('enforces updated role permissions for advisory review actions', function (): void {
     $director = User::query()->where('email', 'director@ldms.test')->firstOrFail();
     $requester = User::query()->where('email', 'requester@ldms.test')->firstOrFail();

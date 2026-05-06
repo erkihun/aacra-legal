@@ -11,12 +11,12 @@ class LetterPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->can('letters.view');
+        return $this->canAccessModule($user);
     }
 
     public function view(User $user, Letter $letter): bool
     {
-        return $this->viewAny($user);
+        return $this->canAccessModule($user);
     }
 
     public function create(User $user): bool
@@ -47,5 +47,18 @@ class LetterPolicy
     public function approve(User $user, Letter $letter): bool
     {
         return $user->can('letters.approve');
+    }
+
+    private function canAccessModule(User $user): bool
+    {
+        return $user->canAnyPermissions([
+            'letters.view',
+            'letters.create',
+            'letters.update',
+            'letters.delete',
+            'letters.preview',
+            'letters.print',
+            'letters.approve',
+        ]);
     }
 }

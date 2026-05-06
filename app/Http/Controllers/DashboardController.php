@@ -13,6 +13,8 @@ class DashboardController extends Controller
 {
     public function __invoke(Request $request, BuildDashboardDataAction $action): Response
     {
+        abort_unless($request->user()?->can('dashboard.view') ?? false, 403);
+
         return Inertia::render('Dashboard', $action->execute($request->user()));
     }
 }

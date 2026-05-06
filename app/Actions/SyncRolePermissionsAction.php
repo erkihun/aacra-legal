@@ -6,6 +6,7 @@ namespace App\Actions;
 
 use App\Models\User;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 
 class SyncRolePermissionsAction
 {
@@ -14,6 +15,7 @@ class SyncRolePermissionsAction
         $previousPermissions = $role->permissions()->pluck('name')->sort()->values()->all();
 
         $role->syncPermissions($permissions);
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
         $role->load('permissions', 'users');
 
         activity()
