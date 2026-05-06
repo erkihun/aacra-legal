@@ -459,6 +459,7 @@ export default function AdvisoryShow({
                                             <th className="px-4 py-3">{t('advisory.requester')}</th>
                                             <th className="px-4 py-3">{t('advisory.department')}</th>
                                             <th className="px-4 py-3">{t('audit.actor')}</th>
+                                            <th className="px-4 py-3">{t('advisory.response_approval_status')}</th>
                                             <th className="px-4 py-3">{t('common.actions')}</th>
                                         </tr>
                                     </thead>
@@ -486,6 +487,9 @@ export default function AdvisoryShow({
                                                     {response.responder ?? t('common.not_available')}
                                                 </td>
                                                 <td className="px-4 py-4">
+                                                    <StatusBadge value={response.approval_status ?? 'pending'} />
+                                                </td>
+                                                <td className="px-4 py-4">
                                                     <div className="flex flex-wrap gap-2">
                                                         <Link
                                                             href={route('advisory.responses.show', {
@@ -496,6 +500,19 @@ export default function AdvisoryShow({
                                                         >
                                                             {t('common.view')}
                                                         </Link>
+                                                        {response.can_approve ? (
+                                                            <Link
+                                                                href={route('advisory.responses.approve', {
+                                                                    advisoryRequest: requestItem.id,
+                                                                    advisoryResponse: response.id,
+                                                                })}
+                                                                method="patch"
+                                                                as="button"
+                                                                className="btn-base btn-primary focus-ring"
+                                                            >
+                                                                {t('advisory.approve_response')}
+                                                            </Link>
+                                                        ) : null}
                                                         {response.can_update ? (
                                                             <Link
                                                                 href={route('advisory.responses.edit', {

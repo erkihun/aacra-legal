@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Actions\AddCommentAction;
+use App\Actions\ApproveAdvisoryResponseAction;
 use App\Actions\AssignAdvisoryToExpertAction;
 use App\Actions\DeleteAdvisoryRequestAction;
 use App\Actions\DeleteAdvisoryResponseAction;
@@ -31,6 +32,7 @@ use App\Models\AdvisoryCategory;
 use App\Models\AdvisoryRequest;
 use App\Models\AdvisoryResponse;
 use App\Models\Attachment;
+use App\Models\Comment;
 use App\Models\Department;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -141,7 +143,7 @@ class AdvisoryRequestController extends Controller
             'directorReviewer',
             'assignedTeamLeader',
             'assignedLegalExpert',
-            'responses' => fn ($query) => $query->with(['responder', 'attachments.uploadedBy'])->latest('responded_at'),
+            'responses' => fn ($query) => $query->with(['responder', 'approver', 'attachments.uploadedBy'])->latest('responded_at'),
             'attachments.uploadedBy',
         ]);
 
@@ -231,8 +233,25 @@ class AdvisoryRequestController extends Controller
 
         $advisoryResponse->load([
             'responder',
+            'approver',
             'attachments.uploadedBy',
+            'comments.user',
         ]);
+
+        $requesterView = $advisoryRequest->requester_user_id === request()->user()?->getKey();
+        $comments = $advisoryResponse->comments
+            ->filter(fn (Comment $comment): bool => ! ($requesterView && $comment->is_internal))
+            ->map(fn (Comment $comment) => [
+                'id' => $comment->id,
+                'body' => $comment->body,
+                'is_internal' => $comment->is_internal,
+                'created_at' => $comment->created_at?->toIso8601String(),
+                'user' => [
+                    'name' => $comment->user?->name,
+                ],
+            ])
+            ->values()
+            ->all();
 
         return Inertia::render('Advisory/Responses/Show', [
             'requestItem' => [
@@ -252,7 +271,13 @@ class AdvisoryRequestController extends Controller
                 'subject' => $advisoryResponse->subject ?? $advisoryResponse->summary,
                 'response' => $advisoryResponse->response ?? $advisoryResponse->advice_text ?? $advisoryResponse->summary,
                 'responded_at' => $advisoryResponse->responded_at?->toIso8601String(),
+                'approval_status' => $advisoryResponse->approval_status ?? 'pending',
+                'approved_at' => $advisoryResponse->approved_at?->toIso8601String(),
+                'approver' => $advisoryResponse->approver?->name,
                 'actor' => $advisoryResponse->responder?->name,
+                'can_approve' => request()->user()?->can('approve', $advisoryResponse) ?? false,
+                'can_comment' => request()->user()?->can('comment', $advisoryResponse) ?? false,
+                'comments' => $comments,
                 'attachments' => \App\Http\Resources\AttachmentResource::collection($advisoryResponse->attachments)->resolve(request()),
             ],
         ]);
@@ -326,6 +351,19 @@ class AdvisoryRequestController extends Controller
         return to_route('advisory.show', $advisoryRequest)->with('success', __('Advisory response recorded.'));
     }
 
+    public function approveResponse(
+        AdvisoryRequest $advisoryRequest,
+        AdvisoryResponse $advisoryResponse,
+        ApproveAdvisoryResponseAction $action,
+    ): RedirectResponse {
+        abort_unless($advisoryResponse->advisory_request_id === $advisoryRequest->getKey(), 404);
+        $this->authorize('approve', $advisoryResponse);
+
+        $action->execute($advisoryResponse, request()->user());
+
+        return back()->with('success', __('Advisory response approved successfully.'));
+    }
+
     public function updateResponse(
         UpdateAdvisoryResponseRequest $request,
         AdvisoryRequest $advisoryRequest,
@@ -369,6 +407,25 @@ class AdvisoryRequestController extends Controller
             $request->user(),
             $request->string('body')->toString(),
             (bool) $request->boolean('is_internal', ! $request->user()?->usesRequesterAdvisoryScope()),
+        );
+
+        return back()->with('success', __('Comment added.'));
+    }
+
+    public function addResponseComment(
+        StoreCommentRequest $request,
+        AdvisoryRequest $advisoryRequest,
+        AdvisoryResponse $advisoryResponse,
+        AddCommentAction $action,
+    ): RedirectResponse {
+        abort_unless($advisoryResponse->advisory_request_id === $advisoryRequest->getKey(), 404);
+        $this->authorize('comment', $advisoryResponse);
+
+        $action->execute(
+            $advisoryResponse,
+            $request->user(),
+            $request->string('body')->toString(),
+            (bool) $request->boolean('is_internal', ! ($request->user()?->usesRequesterAdvisoryScope() ?? false)),
         );
 
         return back()->with('success', __('Comment added.'));

@@ -60,18 +60,26 @@ class AdvisoryRequestResource extends JsonResource
                 'assigned_by' => $assignment->assignedBy?->name,
                 'assigned_to' => $assignment->assignedTo?->name,
             ])),
-            'responses' => $this->whenLoaded('responses', fn () => $this->responses->map(fn ($response) => [
-                'id' => $response->id,
-                'subject' => $response->subject ?? $response->summary,
-                'response' => $response->response ?? $response->advice_text ?? $response->summary,
-                'responded_at' => $response->responded_at?->toIso8601String(),
-                'responder' => $response->responder?->name,
-                'can_update' => $request->user()?->can('update', $response) ?? false,
-                'can_delete' => $request->user()?->can('delete', $response) ?? false,
-                'attachments' => $response->relationLoaded('attachments')
-                    ? AttachmentResource::collection($response->attachments)->resolve($request)
-                    : [],
-            ])),
+            'responses' => $this->whenLoaded('responses', fn () => $this->responses
+                ->filter(fn ($response) => $request->user()?->can('view', $response) ?? false)
+                ->map(fn ($response) => [
+                    'id' => $response->id,
+                    'subject' => $response->subject ?? $response->summary,
+                    'response' => $response->response ?? $response->advice_text ?? $response->summary,
+                    'responded_at' => $response->responded_at?->toIso8601String(),
+                    'approval_status' => $response->approval_status ?? 'pending',
+                    'approved_at' => $response->approved_at?->toIso8601String(),
+                    'approver' => $response->approver?->name,
+                    'responder' => $response->responder?->name,
+                    'can_update' => $request->user()?->can('update', $response) ?? false,
+                    'can_delete' => $request->user()?->can('delete', $response) ?? false,
+                    'can_approve' => $request->user()?->can('approve', $response) ?? false,
+                    'attachments' => $response->relationLoaded('attachments')
+                        ? AttachmentResource::collection($response->attachments)->resolve($request)
+                        : [],
+                ])
+                ->values()
+                ->all()),
             'comments' => CommentResource::collection($this->whenLoaded('comments')),
             'attachments' => AttachmentResource::collection($this->whenLoaded('attachments')),
             'can_update' => $request->user()?->can('update', $this->resource) ?? false,

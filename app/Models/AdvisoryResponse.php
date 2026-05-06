@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use App\Models\User;
 
 class AdvisoryResponse extends Model
 {
@@ -26,6 +27,9 @@ class AdvisoryResponse extends Model
         'advice_text',
         'follow_up_notes',
         'responded_at',
+        'approval_status',
+        'approved_by',
+        'approved_at',
     ];
 
     protected function casts(): array
@@ -33,6 +37,7 @@ class AdvisoryResponse extends Model
         return [
             'response_type' => AdvisoryRequestType::class,
             'responded_at' => 'datetime',
+            'approved_at' => 'datetime',
         ];
     }
 
@@ -46,8 +51,18 @@ class AdvisoryResponse extends Model
         return $this->belongsTo(User::class, 'responder_id');
     }
 
+    public function approver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by')->withTrashed();
+    }
+
     public function attachments(): MorphMany
     {
         return $this->morphMany(Attachment::class, 'attachable');
+    }
+
+    public function comments(): MorphMany
+    {
+        return $this->morphMany(Comment::class, 'commentable');
     }
 }

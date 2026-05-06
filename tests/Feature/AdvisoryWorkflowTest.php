@@ -227,6 +227,169 @@ it('renders the advisory response create page for the assigned expert', function
         );
 });
 
+it('stores new advisory responses as pending approval', function (): void {
+    $director = createUserWithRole(
+        SystemRole::LEGAL_DIRECTOR,
+        Department::query()->where('code', 'LEG')->firstOrFail(),
+        Team::query()->where('code', 'ADM')->firstOrFail(),
+    );
+    $teamLeader = createUserWithRole(
+        SystemRole::ADVISORY_TEAM_LEADER,
+        Department::query()->where('code', 'LEG')->firstOrFail(),
+        Team::query()->where('code', 'ADV')->firstOrFail(),
+    );
+    $expert = createUserWithRole(
+        SystemRole::LEGAL_EXPERT,
+        Department::query()->where('code', 'LEG')->firstOrFail(),
+        Team::query()->where('code', 'ADV')->firstOrFail(),
+    );
+    $requester = createUserWithRole(
+        SystemRole::DEPARTMENT_REQUESTER,
+        Department::query()->where('code', 'HR')->firstOrFail(),
+    );
+
+    $advisoryRequest = AdvisoryRequest::query()->create([
+        'request_number' => 'ADV-2026-9010A',
+        'department_id' => $requester->department_id,
+        'category_id' => AdvisoryCategory::query()->firstOrFail()->id,
+        'requester_user_id' => $requester->id,
+        'assigned_team_leader_id' => $teamLeader->id,
+        'assigned_legal_expert_id' => $expert->id,
+        'subject' => 'Pending response approval',
+        'request_type' => 'written',
+        'status' => AdvisoryRequestStatus::ASSIGNED_TO_EXPERT,
+        'workflow_stage' => 'expert',
+        'priority' => 'medium',
+        'director_decision' => 'approved',
+        'description' => 'A newly recorded response should wait for approval before the requester can see it.',
+        'date_submitted' => now()->toDateString(),
+    ]);
+
+    $this->actingAs($expert)
+        ->post(route('advisory.respond', $advisoryRequest), [
+            'subject' => 'Pending response subject',
+            'response' => '<p>Pending response body.</p>',
+        ])
+        ->assertSessionHasNoErrors();
+
+    $response = $advisoryRequest->fresh()->responses()->firstOrFail();
+
+    expect($response->approval_status)->toBe('pending')
+        ->and($response->approved_by)->toBeNull()
+        ->and($response->approved_at)->toBeNull();
+
+    $this->actingAs($requester)
+        ->get(route('advisory.responses.show', [
+            'advisoryRequest' => $advisoryRequest,
+            'advisoryResponse' => $response,
+        ]))
+        ->assertForbidden();
+
+    $this->actingAs($director)
+        ->patch(route('advisory.responses.approve', [
+            'advisoryRequest' => $advisoryRequest,
+            'advisoryResponse' => $response,
+        ]))
+        ->assertSessionHasNoErrors();
+
+    $response->refresh();
+
+    expect($response->approval_status)->toBe('approved')
+        ->and($response->approved_by)->toBe($director->id)
+        ->and($response->approved_at)->not->toBeNull();
+
+    $this->actingAs($requester)
+        ->get(route('advisory.responses.show', [
+            'advisoryRequest' => $advisoryRequest,
+            'advisoryResponse' => $response,
+        ]))
+        ->assertOk();
+
+    $this->actingAs($requester)
+        ->get(route('advisory.show', $advisoryRequest))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Advisory/Show')
+            ->has('requestItem.responses', 1)
+            ->where('requestItem.responses.0.id', $response->id)
+        );
+});
+
+it('allows users with the advisory response comment permission to comment on visible advisory responses', function (): void {
+    $director = createUserWithRole(
+        SystemRole::LEGAL_DIRECTOR,
+        Department::query()->where('code', 'LEG')->firstOrFail(),
+        Team::query()->where('code', 'ADM')->firstOrFail(),
+    );
+    $teamLeader = createUserWithRole(
+        SystemRole::ADVISORY_TEAM_LEADER,
+        Department::query()->where('code', 'LEG')->firstOrFail(),
+        Team::query()->where('code', 'ADV')->firstOrFail(),
+    );
+    $expert = createUserWithRole(
+        SystemRole::LEGAL_EXPERT,
+        Department::query()->where('code', 'LEG')->firstOrFail(),
+        Team::query()->where('code', 'ADV')->firstOrFail(),
+    );
+    $requester = createUserWithRole(
+        SystemRole::DEPARTMENT_REQUESTER,
+        Department::query()->where('code', 'HR')->firstOrFail(),
+    );
+
+    $director->givePermissionTo(['comments.create', 'advisory-responses.comment']);
+
+    $advisoryRequest = AdvisoryRequest::query()->create([
+        'request_number' => 'ADV-2026-9010B',
+        'department_id' => $requester->department_id,
+        'category_id' => AdvisoryCategory::query()->firstOrFail()->id,
+        'requester_user_id' => $requester->id,
+        'assigned_team_leader_id' => $teamLeader->id,
+        'assigned_legal_expert_id' => $expert->id,
+        'subject' => 'Response comments',
+        'request_type' => 'written',
+        'status' => AdvisoryRequestStatus::RESPONDED,
+        'workflow_stage' => 'completed',
+        'priority' => 'medium',
+        'director_decision' => 'approved',
+        'description' => 'Authorized users should be able to comment on advisory responses.',
+        'date_submitted' => now()->toDateString(),
+        'completed_at' => now(),
+    ]);
+
+    $response = $advisoryRequest->responses()->create([
+        'responder_id' => $expert->id,
+        'subject' => 'Approved response',
+        'response' => '<p>Approved response body.</p>',
+        'summary' => 'Approved response',
+        'advice_text' => '<p>Approved response body.</p>',
+        'responded_at' => now(),
+        'approval_status' => 'approved',
+        'approved_by' => $director->id,
+        'approved_at' => now(),
+    ]);
+
+    $this->actingAs($director)
+        ->post(route('advisory.responses.comments.store', [
+            'advisoryRequest' => $advisoryRequest,
+            'advisoryResponse' => $response,
+        ]), [
+            'body' => 'Reviewed and acknowledged.',
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect($response->fresh()->comments()->count())->toBe(1);
+
+    $this->actingAs($director)
+        ->get(route('advisory.responses.show', [
+            'advisoryRequest' => $advisoryRequest,
+            'advisoryResponse' => $response,
+        ]))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Advisory/Responses/Show')
+            ->where('responseItem.can_comment', true)
+            ->where('responseItem.comments.0.body', 'Reviewed and acknowledged.')
+        );
+});
+
 it('shows advisory request delete availability on the list and allows deleting an eligible request', function (): void {
     $requester = createUserWithRole(
         SystemRole::DEPARTMENT_REQUESTER,

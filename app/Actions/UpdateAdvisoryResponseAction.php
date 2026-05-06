@@ -29,6 +29,9 @@ class UpdateAdvisoryResponseAction
                 'response' => $this->richTextSanitizer->sanitize($attributes['response'] ?? null),
                 'summary' => trim((string) ($attributes['subject'] ?? '')),
                 'advice_text' => $this->richTextSanitizer->sanitize($attributes['response'] ?? null),
+                'approval_status' => 'pending',
+                'approved_by' => null,
+                'approved_at' => null,
             ]);
 
             if ($attachments !== []) {

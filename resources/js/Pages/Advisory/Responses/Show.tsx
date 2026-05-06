@@ -1,15 +1,19 @@
+import CommentItem from '@/Components/Ui/CommentItem';
 import EmptyState from '@/Components/Ui/EmptyState';
 import BackButton from '@/Components/Ui/BackButton';
 import FileAttachmentCard from '@/Components/Ui/FileAttachmentCard';
+import FormField from '@/Components/Ui/FormField';
 import PageContainer from '@/Components/Ui/PageContainer';
 import SectionHeader from '@/Components/Ui/SectionHeader';
+import StatusBadge from '@/Components/Ui/StatusBadge';
 import SurfaceCard from '@/Components/Ui/SurfaceCard';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useDateFormatter } from '@/lib/dates';
+import { finishSuccessfulSubmission } from '@/lib/form-submission';
 import { useI18n } from '@/lib/i18n';
 import { sanitizeRichTextHtml } from '@/lib/sanitize-rich-text';
-import { Head } from '@inertiajs/react';
-import { useMemo } from 'react';
+import { Head, Link, useForm } from '@inertiajs/react';
+import { type ReactNode, useMemo } from 'react';
 
 type AdvisoryResponseShowProps = {
     requestItem: {
@@ -24,7 +28,19 @@ type AdvisoryResponseShowProps = {
         subject?: string | null;
         response?: string | null;
         responded_at?: string | null;
+        approval_status?: string | null;
+        approved_at?: string | null;
+        approver?: string | null;
         actor?: string | null;
+        can_approve?: boolean;
+        can_comment?: boolean;
+        comments?: Array<{
+            id: string;
+            body: string;
+            is_internal?: boolean;
+            created_at?: string | null;
+            user?: { name?: string | null } | null;
+        }>;
         attachments?: Array<any>;
     };
 };
@@ -32,6 +48,9 @@ type AdvisoryResponseShowProps = {
 export default function AdvisoryResponseShow({ requestItem, responseItem }: AdvisoryResponseShowProps) {
     const { t, locale } = useI18n();
     const { formatDateTime } = useDateFormatter();
+    const commentForm = useForm({
+        body: '',
+    });
 
     const departmentName =
         locale === 'am'
@@ -44,6 +63,7 @@ export default function AdvisoryResponseShow({ requestItem, responseItem }: Advi
     );
 
     const attachments = Array.isArray(responseItem.attachments) ? responseItem.attachments : [];
+    const comments = Array.isArray(responseItem.comments) ? responseItem.comments : [];
 
     return (
         <AuthenticatedLayout
@@ -60,7 +80,24 @@ export default function AdvisoryResponseShow({ requestItem, responseItem }: Advi
                 <SectionHeader
                     eyebrow={requestItem.request_number}
                     title={responseItem.subject ?? t('common.not_available')}
-                    action={<BackButton fallbackHref={route('advisory.show', { advisoryRequest: requestItem.id })} />}
+                    action={
+                        <div className="flex flex-wrap gap-3">
+                            {responseItem.can_approve ? (
+                                <Link
+                                    href={route('advisory.responses.approve', {
+                                        advisoryRequest: requestItem.id,
+                                        advisoryResponse: responseItem.id,
+                                    })}
+                                    method="patch"
+                                    as="button"
+                                    className="btn-base btn-primary focus-ring"
+                                >
+                                    {t('advisory.approve_response')}
+                                </Link>
+                            ) : null}
+                            <BackButton fallbackHref={route('advisory.show', { advisoryRequest: requestItem.id })} />
+                        </div>
+                    }
                 />
 
                 <SurfaceCard className="space-y-5 p-6">
@@ -70,6 +107,9 @@ export default function AdvisoryResponseShow({ requestItem, responseItem }: Advi
                         <ResponseMetaItem label={t('advisory.requester')} value={requestItem.requester?.name ?? t('common.not_available')} />
                         <ResponseMetaItem label={t('advisory.department')} value={departmentName ?? t('common.not_available')} />
                         <ResponseMetaItem label={t('audit.actor')} value={responseItem.actor ?? t('common.not_available')} />
+                        <ResponseMetaItem label={t('advisory.response_approval_status')} valueNode={<StatusBadge value={responseItem.approval_status ?? 'pending'} />} />
+                        <ResponseMetaItem label={t('advisory.response_approved_by')} value={responseItem.approver ?? t('common.not_available')} />
+                        <ResponseMetaItem label={t('advisory.response_approved_at')} value={responseItem.approved_at ? formatDateTime(responseItem.approved_at) : t('common.not_available')} />
                     </dl>
 
                     <div className="border-t border-[color:var(--border)] pt-5">
@@ -87,6 +127,64 @@ export default function AdvisoryResponseShow({ requestItem, responseItem }: Advi
                             </p>
                         )}
                     </div>
+                </SurfaceCard>
+
+                <SurfaceCard className="space-y-5 p-6">
+                    <h2 className="text-lg font-semibold text-[color:var(--text)]">
+                        {t('advisory.response_comments')}
+                    </h2>
+
+                    {responseItem.can_comment ? (
+                        <FormField label={t('common.add_comment')} required error={commentForm.errors.body}>
+                            <div className="space-y-3">
+                                <textarea
+                                    value={commentForm.data.body}
+                                    onChange={(event) => commentForm.setData('body', event.target.value)}
+                                    rows={4}
+                                    className="textarea-ui"
+                                />
+                                <div className="flex justify-end">
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            commentForm.post(route('advisory.responses.comments.store', {
+                                                advisoryRequest: requestItem.id,
+                                                advisoryResponse: responseItem.id,
+                                            }), {
+                                                onSuccess: () => {
+                                                    finishSuccessfulSubmission(commentForm, {
+                                                        reset: ['body'],
+                                                    });
+                                                },
+                                            })
+                                        }
+                                        className="btn-base btn-primary focus-ring"
+                                        disabled={commentForm.processing}
+                                    >
+                                        {t('common.add_comment')}
+                                    </button>
+                                </div>
+                            </div>
+                        </FormField>
+                    ) : null}
+
+                    {comments.length === 0 ? (
+                        <EmptyState
+                            title={t('advisory.response_comments')}
+                            description={t('common.no_comments')}
+                        />
+                    ) : (
+                        <div className="space-y-3">
+                            {comments.map((comment) => (
+                                <CommentItem
+                                    key={comment.id}
+                                    author={comment.user?.name}
+                                    body={comment.body}
+                                    date={comment.created_at ? formatDateTime(comment.created_at) : null}
+                                />
+                            ))}
+                        </div>
+                    )}
                 </SurfaceCard>
 
                 <SurfaceCard className="space-y-4 p-6">
@@ -119,14 +217,22 @@ export default function AdvisoryResponseShow({ requestItem, responseItem }: Advi
     );
 }
 
-function ResponseMetaItem({ label, value }: { label: string; value: string }) {
+function ResponseMetaItem({
+    label,
+    value,
+    valueNode,
+}: {
+    label: string;
+    value?: string;
+    valueNode?: ReactNode;
+}) {
     return (
         <div className="space-y-1.5 border-b border-[color:var(--border)] pb-4 last:border-b-0 last:pb-0">
             <dt className="text-xs font-semibold uppercase text-[color:var(--muted)]">
                 {label}
             </dt>
             <dd className="text-sm font-medium text-[color:var(--text)]">
-                {value}
+                {valueNode ?? value}
             </dd>
         </div>
     );

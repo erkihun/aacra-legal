@@ -24,10 +24,11 @@ beforeEach(function (): void {
     ]);
 });
 
-it('notifies the advisory requester when a response is created and does not notify unrelated users', function (): void {
+it('notifies the advisory requester when a response is approved and does not notify unrelated users', function (): void {
     Notification::fake();
 
     $requester = createAdvisoryUserWithRole(SystemRole::DEPARTMENT_REQUESTER, 'HR');
+    $director = createAdvisoryUserWithRole(SystemRole::LEGAL_DIRECTOR, 'LEG', 'ADM');
     $teamLeader = createAdvisoryUserWithRole(SystemRole::ADVISORY_TEAM_LEADER, 'LEG', 'ADV');
     $expert = createAdvisoryUserWithRole(SystemRole::LEGAL_EXPERT, 'LEG', 'ADV');
     $unrelatedUser = createAdvisoryUserWithRole(SystemRole::DEPARTMENT_REQUESTER, 'FIN');
@@ -57,6 +58,17 @@ it('notifies the advisory requester when a response is created and does not noti
         ->assertRedirect(route('advisory.show', $advisoryRequest))
         ->assertSessionHasNoErrors();
 
+    Notification::assertNothingSent();
+
+    $responseId = $advisoryRequest->fresh()->responses()->value('id');
+
+    $this->actingAs($director)
+        ->patch(route('advisory.responses.approve', [
+            'advisoryRequest' => $advisoryRequest,
+            'advisoryResponse' => $responseId,
+        ]))
+        ->assertSessionHasNoErrors();
+
     Notification::assertSentTo(
         $requester,
         AdvisoryResponseRecordedNotification::class,
@@ -79,8 +91,9 @@ it('notifies the advisory requester when a response is created and does not noti
     Notification::assertCount(1);
 });
 
-it('stores the expected advisory response notification payload in the database while preserving response creation flow', function (): void {
+it('stores the expected advisory response notification payload in the database after approval', function (): void {
     $requester = createAdvisoryUserWithRole(SystemRole::DEPARTMENT_REQUESTER, 'HR');
+    $director = createAdvisoryUserWithRole(SystemRole::LEGAL_DIRECTOR, 'LEG', 'ADM');
     $teamLeader = createAdvisoryUserWithRole(SystemRole::ADVISORY_TEAM_LEADER, 'LEG', 'ADV');
     $expert = createAdvisoryUserWithRole(SystemRole::LEGAL_EXPERT, 'LEG', 'ADV');
 
@@ -107,6 +120,15 @@ it('stores the expected advisory response notification payload in the database w
             'response' => '<p>Requester can now review the advice.</p>',
         ])
         ->assertRedirect(route('advisory.show', $advisoryRequest))
+        ->assertSessionHasNoErrors();
+
+    $responseId = $advisoryRequest->fresh()->responses()->value('id');
+
+    $this->actingAs($director)
+        ->patch(route('advisory.responses.approve', [
+            'advisoryRequest' => $advisoryRequest,
+            'advisoryResponse' => $responseId,
+        ]))
         ->assertSessionHasNoErrors();
 
     $advisoryRequest->refresh();

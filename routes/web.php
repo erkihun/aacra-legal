@@ -132,8 +132,10 @@ Route::middleware('auth')->group(function () {
         Route::patch('/advisory/{advisoryRequest}/review', [AdvisoryRequestController::class, 'directorReview'])->name('advisory.review');
         Route::patch('/advisory/{advisoryRequest}/assign', [AdvisoryRequestController::class, 'assign'])->name('advisory.assign');
         Route::post('/advisory/{advisoryRequest}/responses', [AdvisoryRequestController::class, 'respond'])->name('advisory.respond');
+        Route::patch('/advisory/{advisoryRequest}/responses/{advisoryResponse}/approve', [AdvisoryRequestController::class, 'approveResponse'])->name('advisory.responses.approve');
         Route::patch('/advisory/{advisoryRequest}/responses/{advisoryResponse}', [AdvisoryRequestController::class, 'updateResponse'])->name('advisory.responses.update');
         Route::delete('/advisory/{advisoryRequest}/responses/{advisoryResponse}', [AdvisoryRequestController::class, 'destroyResponse'])->name('advisory.responses.destroy');
+        Route::post('/advisory/{advisoryRequest}/responses/{advisoryResponse}/comments', [AdvisoryRequestController::class, 'addResponseComment'])->name('advisory.responses.comments.store');
         
         Route::post('/advisory/{advisoryRequest}/comments', [AdvisoryRequestController::class, 'addComment'])->name('advisory.comments.store');
         Route::post('/advisory/{advisoryRequest}/attachments', [AdvisoryRequestController::class, 'addAttachment'])->name('advisory.attachments.store');
