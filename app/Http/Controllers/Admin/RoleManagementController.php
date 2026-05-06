@@ -9,6 +9,7 @@ use App\Enums\SystemRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\RoleStoreRequest;
 use App\Http\Requests\Admin\RoleUpdateRequest;
+use App\Support\PermissionDescriptionCatalog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
