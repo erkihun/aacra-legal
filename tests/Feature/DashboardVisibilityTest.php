@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\LegalCase;
 use App\Models\User;
 use Database\Seeders\DemoUserSeeder;
 use Database\Seeders\DemoWorkflowSeeder;
@@ -60,4 +61,20 @@ it('limits audit log access to authorized roles', function (): void {
     $this->actingAs($requester)
         ->get(route('audit-logs.index'))
         ->assertForbidden();
+});
+
+it('renders the dashboard when recent cases have nullable party names', function (): void {
+    $director = User::query()->where('email', 'director@ldms.test')->firstOrFail();
+
+    LegalCase::query()->latest('updated_at')->firstOrFail()->update([
+        'plaintiff' => null,
+        'defendant' => null,
+    ]);
+
+    $this->actingAs($director)
+        ->get(route('dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Dashboard')
+            ->has('recently_updated_matters'));
 });

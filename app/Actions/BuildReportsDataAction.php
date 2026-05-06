@@ -254,9 +254,14 @@ class BuildReportsDataAction
         return __("status.{$status}");
     }
 
-    private function caseSubject(string $plaintiff, string $defendant): string
+    private function caseSubject(?string $plaintiff, ?string $defendant): string
     {
-        return "{$plaintiff} ".__('common.versus')." {$defendant}";
+        return sprintf(
+            '%s %s %s',
+            $plaintiff ?: __('common.not_available'),
+            __('common.versus'),
+            $defendant ?: __('common.not_available'),
+        );
     }
 
     private function applyAdvisoryFilters($query, array $filters)

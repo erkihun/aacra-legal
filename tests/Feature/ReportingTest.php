@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\LegalCase;
 use App\Models\User;
 use Database\Seeders\DemoWorkflowSeeder;
 use Database\Seeders\PermissionSeeder;
@@ -75,4 +76,21 @@ it('validates report filters against whitelisted values', function (): void {
         ]))
         ->assertRedirect(route('reports.index'))
         ->assertSessionHasErrors('status');
+});
+
+it('renders reports when overdue cases have nullable party names', function (): void {
+    $director = User::query()->where('email', 'director@ldms.test')->firstOrFail();
+
+    LegalCase::query()->latest('updated_at')->firstOrFail()->update([
+        'plaintiff' => null,
+        'defendant' => null,
+        'appeal_deadline' => now()->subDay(),
+    ]);
+
+    $this->actingAs($director)
+        ->get(route('reports.index'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Reports/Index')
+            ->has('overdue_items'));
 });
