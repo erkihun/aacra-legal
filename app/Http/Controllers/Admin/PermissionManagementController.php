@@ -26,6 +26,7 @@ class PermissionManagementController extends Controller
 
         return Inertia::render('Admin/Permissions/Index', [
             'permissions' => $permissions,
+            'rolesIndexUrl' => route('roles.index'),
         ]);
     }
 
@@ -35,6 +36,8 @@ class PermissionManagementController extends Controller
 
         return Inertia::render('Admin/Permissions/Edit', [
             'permissionItem' => $this->permissionPayload($permission),
+            'permissionsIndexUrl' => route('permissions.index'),
+            'rolesIndexUrl' => route('roles.index'),
         ]);
     }
 
@@ -66,7 +69,7 @@ class PermissionManagementController extends Controller
     }
 
     /**
-     * @return array{id: int|string, name: string, group: string, group_label: string, label: string, description_en: string, description_am: string}
+     * @return array{id: int|string, name: string, group: string, group_label: string, label: string, description_en: string, description_am: string, edit_url: string, update_url: string}
      */
     private function permissionPayload(Permission $permission): array
     {
@@ -81,6 +84,8 @@ class PermissionManagementController extends Controller
             'label' => $this->translatedPermissionLabel($permission->name),
             'description_en' => $permission->description_en ?: $descriptions['en'],
             'description_am' => $permission->description_am ?: $descriptions['am'],
+            'edit_url' => route('permissions.edit', $permission),
+            'update_url' => route('permissions.update', $permission),
         ];
     }
 

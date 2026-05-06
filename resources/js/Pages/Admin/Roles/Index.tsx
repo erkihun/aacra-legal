@@ -19,7 +19,13 @@ type RoleRow = {
     permissions_locked: boolean;
 };
 
-export default function RolesIndex({ roles }: { roles: RoleRow[] }) {
+export default function RolesIndex({
+    roles,
+    permissionsIndexUrl,
+}: {
+    roles: RoleRow[];
+    permissionsIndexUrl: string;
+}) {
     const { t } = useI18n();
     const { formatDateTime } = useDateFormatter();
     const [roleToDelete, setRoleToDelete] = useState<RoleRow | null>(null);
@@ -40,7 +46,7 @@ export default function RolesIndex({ roles }: { roles: RoleRow[] }) {
                     description={t('roles.index_description')}
                     action={
                         <div className="flex flex-wrap gap-3">
-                            <Link href={route('permissions.index')} className="btn-base btn-secondary focus-ring">
+                            <Link href={permissionsIndexUrl} className="btn-base btn-secondary focus-ring">
                                 {t('permissions.open_directory')}
                             </Link>
                             <Link href={route('roles.create')} className="btn-base btn-primary focus-ring">

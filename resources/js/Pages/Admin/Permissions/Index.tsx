@@ -13,16 +13,23 @@ type PermissionRow = {
     label: string;
     description_en: string;
     description_am: string;
+    edit_url: string;
 };
 
-export default function PermissionsIndex({ permissions }: { permissions: PermissionRow[] }) {
+export default function PermissionsIndex({
+    permissions,
+    rolesIndexUrl,
+}: {
+    permissions: PermissionRow[];
+    rolesIndexUrl: string;
+}) {
     const { t } = useI18n();
 
     return (
         <AuthenticatedLayout
             breadcrumbs={[
                 { label: t('navigation.dashboard'), href: route('dashboard') },
-                { label: t('navigation.roles'), href: route('roles.index') },
+                { label: t('navigation.roles'), href: rolesIndexUrl },
                 { label: t('permissions.index_title') },
             ]}
         >
@@ -34,7 +41,7 @@ export default function PermissionsIndex({ permissions }: { permissions: Permiss
                     title={t('permissions.index_title')}
                     description={t('permissions.index_description')}
                     action={
-                        <Link href={route('roles.index')} className="btn-base btn-secondary focus-ring">
+                        <Link href={rolesIndexUrl} className="btn-base btn-secondary focus-ring">
                             {t('permissions.back_to_roles')}
                         </Link>
                     }
@@ -46,8 +53,8 @@ export default function PermissionsIndex({ permissions }: { permissions: Permiss
                     emptyTitle={t('permissions.index_title')}
                     emptyDescription={t('permissions.empty_description')}
                     actions={(row) => [
-                        { label: t('common.view'), href: route('permissions.edit', row.id) },
-                        { label: t('common.edit'), href: route('permissions.edit', row.id) },
+                        { label: t('common.view'), href: row.edit_url },
+                        { label: t('common.edit'), href: row.edit_url },
                     ]}
                     columns={[
                         {

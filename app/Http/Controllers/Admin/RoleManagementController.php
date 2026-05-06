@@ -30,6 +30,7 @@ class RoleManagementController extends Controller
 
         return Inertia::render('Admin/Roles/Index', [
             'roles' => $roles,
+            'permissionsIndexUrl' => route('permissions.index'),
         ]);
     }
 

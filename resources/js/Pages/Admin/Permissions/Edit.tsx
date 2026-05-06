@@ -15,9 +15,19 @@ type PermissionItem = {
     label: string;
     description_en: string;
     description_am: string;
+    edit_url: string;
+    update_url: string;
 };
 
-export default function PermissionsEdit({ permissionItem }: { permissionItem: PermissionItem }) {
+export default function PermissionsEdit({
+    permissionItem,
+    permissionsIndexUrl,
+    rolesIndexUrl,
+}: {
+    permissionItem: PermissionItem;
+    permissionsIndexUrl: string;
+    rolesIndexUrl: string;
+}) {
     const { t } = useI18n();
     const form = useForm({
         description_en: permissionItem.description_en,
@@ -28,8 +38,8 @@ export default function PermissionsEdit({ permissionItem }: { permissionItem: Pe
         <AuthenticatedLayout
             breadcrumbs={[
                 { label: t('navigation.dashboard'), href: route('dashboard') },
-                { label: t('navigation.roles'), href: route('roles.index') },
-                { label: t('permissions.index_title'), href: route('permissions.index') },
+                { label: t('navigation.roles'), href: rolesIndexUrl },
+                { label: t('permissions.index_title'), href: permissionsIndexUrl },
                 { label: permissionItem.name },
             ]}
         >
@@ -40,7 +50,7 @@ export default function PermissionsEdit({ permissionItem }: { permissionItem: Pe
                     eyebrow={t('roles.eyebrow')}
                     title={permissionItem.name}
                     description={t('permissions.edit_description')}
-                    action={<BackButton fallbackHref={route('permissions.index')} />}
+                    action={<BackButton fallbackHref={permissionsIndexUrl} />}
                 />
 
                 <div className="grid gap-4 xl:grid-cols-[1.1fr,0.9fr]">
@@ -48,7 +58,7 @@ export default function PermissionsEdit({ permissionItem }: { permissionItem: Pe
                         className="space-y-4"
                         onSubmit={(event) => {
                             event.preventDefault();
-                            form.patch(route('permissions.update', permissionItem.id));
+                            form.patch(permissionItem.update_url);
                         }}
                     >
                         <SurfaceCard className="space-y-4">
