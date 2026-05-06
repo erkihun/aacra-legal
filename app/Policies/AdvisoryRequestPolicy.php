@@ -14,6 +14,8 @@ class AdvisoryRequestPolicy
     {
         return $user->can('advisory.view_any')
             || $user->can('advisory.view_own')
+            || $user->can('advisory.respond')
+            || $user->can('advisory-requests.respond')
             || $user->can('advisory-requests.view');
     }
 

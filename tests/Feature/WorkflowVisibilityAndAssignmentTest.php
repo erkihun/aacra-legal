@@ -109,6 +109,48 @@ it('limits advisory experts to their own assigned records only', function (): vo
     $this->actingAs($expertA)->get(route('advisory.show', $otherRequest))->assertForbidden();
 });
 
+it('lets an assigned advisory responder with the respond permission view their advisory records', function (): void {
+    $requester = createScopedUser(SystemRole::DEPARTMENT_REQUESTER, 'HR');
+    $responder = User::factory()->create([
+        'department_id' => Department::query()->where('code', 'LEG')->firstOrFail()->id,
+        'team_id' => null,
+        'email' => 'advisory-responder-only@ldms.test',
+    ]);
+    $responder->givePermissionTo('advisory-requests.respond');
+
+    $advisoryRequest = AdvisoryRequest::query()->create([
+        'request_number' => 'ADV-RESP-ONLY-001',
+        'department_id' => $requester->department_id,
+        'category_id' => AdvisoryCategory::query()->firstOrFail()->id,
+        'requester_user_id' => $requester->id,
+        'assigned_legal_expert_id' => $responder->id,
+        'subject' => 'Assigned responder visibility',
+        'request_type' => 'written',
+        'status' => AdvisoryRequestStatus::ASSIGNED_TO_EXPERT,
+        'workflow_stage' => WorkflowStage::EXPERT,
+        'priority' => PriorityLevel::MEDIUM,
+        'director_decision' => 'approved',
+        'description' => 'Respond permission should expose the assigned advisory request to the responder.',
+        'date_submitted' => now()->toDateString(),
+    ]);
+
+    $this->actingAs($responder)
+        ->get(route('advisory.index'))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Advisory/Index')
+            ->has('requests.data', 1)
+            ->where('requests.data.0.id', $advisoryRequest->id)
+        );
+
+    $this->actingAs($responder)
+        ->get(route('advisory.show', $advisoryRequest))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Advisory/Show')
+            ->where('requestItem.id', $advisoryRequest->id)
+            ->where('can.respond', true)
+        );
+});
+
 it('lets a director view all litigation records across teams', function (): void {
     $director = createScopedUser(SystemRole::LEGAL_DIRECTOR, 'LEG', 'ADM');
     [$leaderA, $expertA] = createLitigationTeamMembers('LIT', 'litigation-a');

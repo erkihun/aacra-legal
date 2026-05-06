@@ -140,7 +140,11 @@ class AdvisoryRequest extends Model
             });
         }
 
-        if ($user->canRespondToAdvisories()) {
+        if (
+            $user->canRespondToAdvisories()
+            || $user->can('advisory.respond')
+            || $user->can('advisory-requests.respond')
+        ) {
             return $query->where('assigned_legal_expert_id', $user->getKey());
         }
 
@@ -161,7 +165,11 @@ class AdvisoryRequest extends Model
 
     public function isVisibleToAssignedExpert(User $user): bool
     {
-        return $user->canRespondToAdvisories()
+        return (
+            $user->canRespondToAdvisories()
+            || $user->can('advisory.respond')
+            || $user->can('advisory-requests.respond')
+        )
             && $this->assigned_legal_expert_id === $user->getKey();
     }
 
