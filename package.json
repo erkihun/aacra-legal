@@ -27,6 +27,7 @@
     },
     "dependencies": {
         "@tinymce/tinymce-react": "^6.3.0",
+        "react-ethiopian-calendar": "^1.0.18",
         "tinymce": "^8.4.0"
     }
 }
