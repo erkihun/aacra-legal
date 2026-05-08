@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Support\NotificationFingerprint;
+use App\Support\LocalizedDateFormatter;
 use App\Support\SafeUrl;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,6 +16,10 @@ use Inertia\Response;
 
 class NotificationController extends Controller
 {
+    public function __construct(
+        private readonly LocalizedDateFormatter $dateFormatter,
+    ) {}
+
     public function index(Request $request): Response
     {
         $allNotifications = $request->user()
@@ -133,21 +138,41 @@ class NotificationController extends Controller
             'advisory.response_recorded' => __('notifications.feed.messages.advisory_response_recorded', [
                 'subject' => $notification->data['subject'] ?? __('common.not_available'),
                 'responder_name' => $notification->data['responder_name'] ?? __('common.not_available'),
-                'responded_at' => $notification->data['responded_at'] ?? __('common.not_available'),
+                'responded_at' => $this->localizedDateTimeValue($notification->data['responded_at'] ?? null),
             ]),
             'advisory.overdue' => __('notifications.feed.messages.advisory_overdue', [
-                'due_date' => $notification->data['due_date'] ?? __('common.not_available'),
+                'due_date' => $this->localizedDateValue($notification->data['due_date'] ?? null),
             ]),
             'case.assigned' => __('notifications.feed.messages.case_assigned', [
                 'assigned_by' => $notification->data['assigned_by'] ?? __('common.not_available'),
             ]),
             'case.upcoming_hearing' => __('notifications.feed.messages.case_upcoming_hearing', [
-                'next_hearing_date' => $notification->data['next_hearing_date'] ?? __('common.not_available'),
+                'next_hearing_date' => $this->localizedDateValue($notification->data['next_hearing_date'] ?? null),
             ]),
             'case.appeal_deadline' => __('notifications.feed.messages.case_appeal_deadline', [
-                'appeal_deadline' => $notification->data['appeal_deadline'] ?? __('common.not_available'),
+                'appeal_deadline' => $this->localizedDateValue($notification->data['appeal_deadline'] ?? null),
             ]),
             default => (string) ($notification->data['title'] ?? __('Notification')),
         };
+    }
+
+    private function localizedDateValue(mixed $value): string
+    {
+        return $this->dateFormatter->formatDate(
+            is_string($value) ? $value : null,
+            app()->getLocale(),
+            null,
+            __('common.not_available'),
+        );
+    }
+
+    private function localizedDateTimeValue(mixed $value): string
+    {
+        return $this->dateFormatter->formatDateTime(
+            is_string($value) ? $value : null,
+            app()->getLocale(),
+            null,
+            __('common.not_available'),
+        );
     }
 }

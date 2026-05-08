@@ -165,3 +165,29 @@ it('deduplicates duplicate notification rows on the notifications page and marks
 
     expect($requester->fresh()->unreadNotifications()->count())->toBe(0);
 });
+
+it('formats notification message dates in ethiopic form for amharic locale', function (): void {
+    $requester = User::query()->where('email', 'requester@ldms.test')->firstOrFail();
+    $requester->update(['locale' => LocaleCode::AMHARIC]);
+
+    $requester->notifications()->create([
+        'id' => (string) \Illuminate\Support\Str::uuid(),
+        'type' => OverdueRequestNotification::class,
+        'data' => [
+            'type' => 'advisory.overdue',
+            'title' => 'Overdue advisory request',
+            'request_number' => 'ADV-ETH-001',
+            'due_date' => '2026-05-08',
+            'url' => route('advisory.index'),
+        ],
+        'read_at' => null,
+    ]);
+
+    $this->actingAs($requester)
+        ->get(route('notifications.index'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Notifications/Index')
+            ->where('locale', LocaleCode::AMHARIC->value)
+            ->where('notifications.data.0.message', fn (string $message) => str_contains($message, '2018') && ! str_contains($message, '2026-05-08')));
+});
