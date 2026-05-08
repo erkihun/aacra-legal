@@ -1,6 +1,6 @@
 import { formatDocumentDateValue } from '@/lib/ethiopian-dates';
 import { useI18n } from '@/lib/i18n';
-import { EtCalendar } from 'react-ethiopian-calendar';
+import { EtCalendar } from '@/vendor/react-ethiopian-calendar';
 import { type InputHTMLAttributes } from 'react';
 
 type LocalizedDateInputProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'value' | 'onChange'> & {

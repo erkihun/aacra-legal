@@ -7,7 +7,7 @@ it('uses the ethiopian calendar widget for amharic locale and keeps the english 
 
     expect($source)
         ->toBeString()
-        ->toContain("import { EtCalendar } from 'react-ethiopian-calendar';")
+        ->toContain("import { EtCalendar } from '@/vendor/react-ethiopian-calendar';")
         ->toContain("if (locale === 'am')")
         ->toContain('calendarType={true}')
         ->toContain('lang="am"')
