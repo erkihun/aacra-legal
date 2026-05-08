@@ -1,6 +1,5 @@
 import '../css/app.css';
 import './bootstrap';
-import 'react-ethiopian-calendar/dist/index.css';
 
 import { createInertiaApp, router } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';

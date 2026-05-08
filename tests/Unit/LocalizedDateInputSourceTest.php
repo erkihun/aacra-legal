@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 it('uses the ethiopian calendar widget for amharic locale and keeps the english native input path', function (): void {
-    $source = file_get_contents(resource_path('js/Components/Ui/LocalizedDateInput.tsx'));
+    $source = file_get_contents(dirname(__DIR__, 2).'/resources/js/Components/Ui/LocalizedDateInput.tsx');
 
     expect($source)
         ->toBeString()
