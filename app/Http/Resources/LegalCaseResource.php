@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Resources;
 
 use App\Enums\LegalCaseMainType;
+use App\Support\LocalizedDateFormatter;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -131,8 +132,8 @@ class LegalCaseResource extends JsonResource
             $this->optionalField('court_file_number', __('cases.court_file_number'), $this->external_court_file_number),
             $this->optionalField('team_leader', __('cases.team_leader'), $this->assignedTeamLeader?->name ?? __('common.unassigned')),
             $this->optionalField('expert', __('cases.expert'), $this->assignedLegalExpert?->name ?? __('common.unassigned')),
-            $this->optionalField('next_hearing', __('cases.next_hearing'), $this->next_hearing_date?->toDateString()),
-            $this->optionalField('closing_date', __('cases.closing_date'), $this->decision_date?->toDateString()),
+            $this->optionalField('next_hearing', __('cases.next_hearing'), $this->localizedDateValue($this->next_hearing_date)),
+            $this->optionalField('closing_date', __('cases.closing_date'), $this->localizedDateValue($this->decision_date)),
         ];
 
         $fields = [
@@ -193,7 +194,7 @@ class LegalCaseResource extends JsonResource
             $this->optionalField('stolen_property_type', __('cases.stolen_property_type'), $this->stolen_property_type),
             $this->optionalField('stolen_property_estimated_value', __('cases.stolen_property_estimated_value'), $this->formattedDecimal($this->stolen_property_estimated_value)),
             $this->optionalField('suspect_names', __('cases.suspect_names'), $this->suspect_names),
-            $this->optionalField('statement_date', __('cases.statement_date'), $this->statement_date?->toDateString()),
+            $this->optionalField('statement_date', __('cases.statement_date'), $this->localizedDateValue($this->statement_date)),
         ]));
     }
 
@@ -213,7 +214,7 @@ class LegalCaseResource extends JsonResource
             $this->optionalField('stolen_property_type', __('cases.stolen_property_type'), $this->stolen_property_type),
             $this->optionalField('stolen_property_estimated_value', __('cases.stolen_property_estimated_value'), $this->formattedDecimal($this->stolen_property_estimated_value)),
             $this->optionalField('suspect_names', __('cases.suspect_names'), $this->suspect_names),
-            $this->optionalField('statement_date', __('cases.statement_date'), $this->statement_date?->toDateString()),
+            $this->optionalField('statement_date', __('cases.statement_date'), $this->localizedDateValue($this->statement_date)),
         ]));
     }
 
@@ -271,5 +272,14 @@ class LegalCaseResource extends JsonResource
         }
 
         return is_numeric($value) ? number_format((float) $value, 2, '.', ',') : (string) $value;
+    }
+
+    private function localizedDateValue(mixed $value): ?string
+    {
+        if (! $value) {
+            return null;
+        }
+
+        return app(LocalizedDateFormatter::class)->formatDate($value, app()->getLocale(), fallback: '');
     }
 }

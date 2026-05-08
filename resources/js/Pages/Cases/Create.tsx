@@ -1,5 +1,6 @@
 import FormField from '@/Components/Ui/FormField';
 import BackButton from '@/Components/Ui/BackButton';
+import LocalizedDateInput from '@/Components/Ui/LocalizedDateInput';
 import PageContainer from '@/Components/Ui/PageContainer';
 import RichTextEditor from '@/Components/Ui/RichTextEditor';
 import SectionHeader from '@/Components/Ui/SectionHeader';
@@ -311,10 +312,9 @@ export default function CasesCreate({
                                         />
                                     </FormField>
                                     <FormField label={t('cases.statement_date')} required error={errors.statement_date}>
-                                        <input
-                                            type="date"
+                                        <LocalizedDateInput
                                             value={data.statement_date}
-                                            onChange={(event) => setData('statement_date', event.target.value)}
+                                            onChange={(value) => setData('statement_date', value)}
                                             className="input-ui"
                                         />
                                     </FormField>
@@ -428,10 +428,9 @@ export default function CasesCreate({
                                 </select>
                             </FormField>
                             <FormField label={t('reports.opened_at')} optional error={errors.filing_date}>
-                                <input
-                                    type="date"
+                                <LocalizedDateInput
                                     value={data.filing_date}
-                                    onChange={(event) => setData('filing_date', event.target.value)}
+                                    onChange={(value) => setData('filing_date', value)}
                                     className="input-ui"
                                 />
                             </FormField>

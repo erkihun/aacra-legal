@@ -27,6 +27,7 @@ class RenderLetterPdfAction
 
     public function __construct(
         private readonly ViewFactory $view,
+        private readonly \App\Support\LocalizedDateFormatter $localizedDateFormatter,
     ) {}
 
     public function inlineResponse(Letter $letter): Response
@@ -191,7 +192,7 @@ class RenderLetterPdfAction
             'ccItems' => $this->bulletItems($letter->cc_content),
             'subject' => $this->displaySubject($letter->subject),
             'referenceNumber' => $letter->reference_number,
-            'letterDate' => $letter->letter_date?->toDateString(),
+            'letterDate' => $this->localizedDateFormatter->formatDate($letter->letter_date, $locale, fallback: '-'),
             'signerName' => $letter->signerFullName(),
             'signerTitle' => $letter->signerTitle(),
         ];

@@ -3,6 +3,7 @@ import ConfirmationDialog from '@/Components/Ui/ConfirmationDialog';
 import EmptyState from '@/Components/Ui/EmptyState';
 import FileAttachmentCard from '@/Components/Ui/FileAttachmentCard';
 import FormField from '@/Components/Ui/FormField';
+import LocalizedDateInput from '@/Components/Ui/LocalizedDateInput';
 import Modal from '@/Components/Modal';
 import BackButton from '@/Components/Ui/BackButton';
 import PageContainer from '@/Components/Ui/PageContainer';
@@ -81,7 +82,7 @@ export default function CasesShow({
     const attachments = normalizeArray(caseItem.attachments);
 
     const { t } = useI18n();
-    const { formatDateTime } = useDateFormatter();
+    const { formatDate, formatDateTime } = useDateFormatter();
     const [activePanel, setActivePanel] = useRemember<CaseWorkspacePanel>(
         'overview',
         `cases-show-active-panel-${caseItem.id}`,
@@ -284,7 +285,7 @@ export default function CasesShow({
                     ) : null}
                     {latestHearing?.hearing_date ? (
                         <span className="rounded-full bg-[color:var(--surface-muted)] px-3 py-1 text-xs font-semibold text-[color:var(--muted-strong)]">
-                            {t('cases.hearing_on')}: {latestHearing.hearing_date}
+                            {t('cases.hearing_on')}: {formatDate(latestHearing.hearing_date)}
                         </span>
                     ) : null}
                 </div>
@@ -469,7 +470,7 @@ export default function CasesShow({
                     <WorkspacePanel
                         eyebrow={t('cases.record_hearing')}
                         title={t('cases.record_hearing')}
-                        description={caseItem.next_hearing_date ?? t('common.not_available')}
+                        description={formatDate(caseItem.next_hearing_date, t('common.not_available'))}
                         tone="success"
                         icon={<WorkspaceIcon kind="hearing" />}
                         className="xl:col-span-2"
@@ -496,10 +497,9 @@ export default function CasesShow({
                     >
                         <div className="grid gap-4 md:grid-cols-2">
                             <FormField label={t('cases.hearing_on')} required error={hearingForm.errors.hearing_date}>
-                                <input
-                                    type="date"
+                                <LocalizedDateInput
                                     value={hearingForm.data.hearing_date}
-                                    onChange={(event) => hearingForm.setData('hearing_date', event.target.value)}
+                                    onChange={(value) => hearingForm.setData('hearing_date', value)}
                                     className="input-ui"
                                 />
                             </FormField>
@@ -508,10 +508,9 @@ export default function CasesShow({
                                 optional
                                 error={hearingForm.errors.next_hearing_date}
                             >
-                                <input
-                                    type="date"
+                                <LocalizedDateInput
                                     value={hearingForm.data.next_hearing_date}
-                                    onChange={(event) => hearingForm.setData('next_hearing_date', event.target.value)}
+                                    onChange={(value) => hearingForm.setData('next_hearing_date', value)}
                                     className="input-ui"
                                 />
                             </FormField>
@@ -606,10 +605,9 @@ export default function CasesShow({
                                     required
                                     error={closeForm.errors.closing_date}
                                 >
-                                    <input
-                                        type="date"
+                                    <LocalizedDateInput
                                         value={closeForm.data.closing_date}
-                                        onChange={(event) => closeForm.setData('closing_date', event.target.value)}
+                                        onChange={(value) => closeForm.setData('closing_date', value)}
                                         className="input-ui"
                                     />
                                 </FormField>
@@ -813,7 +811,7 @@ export default function CasesShow({
                       key: 'hearing',
                       label: t('cases.record_hearing'),
                       icon: 'hearing',
-                      detail: caseItem.next_hearing_date ?? t('common.not_available'),
+                      detail: formatDate(caseItem.next_hearing_date, t('common.not_available')),
                       badge: hearings.length,
                   } satisfies CaseWorkspaceNavItem,
               ]
@@ -896,7 +894,7 @@ export default function CasesShow({
                     />
                     <WorkspaceInfoRow
                         label={t('cases.next_hearing')}
-                        value={caseItem.next_hearing_date ?? t('common.not_available')}
+                        value={formatDate(caseItem.next_hearing_date, t('common.not_available'))}
                     />
                 </div>
             </SurfaceCard>
@@ -1187,7 +1185,7 @@ export default function CasesShow({
                                 {t('cases.record_hearing')}
                             </h3>
                             <p className="text-sm text-[color:var(--muted-strong)]">
-                                {t('cases.next_hearing')}: {caseItem.next_hearing_date ?? t('common.not_available')}
+                                {t('cases.next_hearing')}: {formatDate(caseItem.next_hearing_date, t('common.not_available'))}
                             </p>
                         </div>
                         <div className="flex flex-wrap gap-3">
@@ -1232,8 +1230,8 @@ export default function CasesShow({
                                     {hearings.map((hearing: any, index: number) => (
                                         <tr key={hearing.id} className="align-top">
                                             <td className="px-4 py-3 text-[color:var(--muted-strong)]">{index + 1}</td>
-                                            <td className="px-4 py-3">{hearing.hearing_date ?? t('common.not_available')}</td>
-                                            <td className="px-4 py-3">{hearing.next_hearing_date ?? t('common.not_available')}</td>
+                                            <td className="px-4 py-3">{formatDate(hearing.hearing_date, t('common.not_available'))}</td>
+                                            <td className="px-4 py-3">{formatDate(hearing.next_hearing_date, t('common.not_available'))}</td>
                                             <td className="px-4 py-3">
                                                 <div className="max-w-md">
                                                     <p className="line-clamp-2 text-[color:var(--text)]">{hearing.summary ?? t('common.not_available')}</p>
@@ -1306,12 +1304,11 @@ export default function CasesShow({
                                 required
                                 error={closeForm.errors.closing_date}
                             >
-                                <input
-                                    type="date"
-                                    value={closeForm.data.closing_date}
-                                    onChange={(event) => closeForm.setData('closing_date', event.target.value)}
-                                    className="input-ui"
-                                />
+                                    <LocalizedDateInput
+                                        value={closeForm.data.closing_date}
+                                        onChange={(value) => closeForm.setData('closing_date', value)}
+                                        className="input-ui"
+                                    />
                             </FormField>
                         </div>
                     </div>
@@ -1563,8 +1560,8 @@ export default function CasesShow({
                     {hearingModalMode === 'view' ? (
                         <div className="space-y-6">
                             <dl className="grid gap-4 md:grid-cols-2">
-                                <OverviewItem label={t('cases.hearing_on')} value={selectedHearing?.hearing_date} />
-                                <OverviewItem label={t('cases.next_hearing')} value={selectedHearing?.next_hearing_date} />
+                                <OverviewItem label={t('cases.hearing_on')} value={formatDate(selectedHearing?.hearing_date, t('common.not_available'))} />
+                                <OverviewItem label={t('cases.next_hearing')} value={formatDate(selectedHearing?.next_hearing_date, t('common.not_available'))} />
                                 <OverviewItem label={t('common.status')} value={selectedHearing?.appearance_status} />
                                 <OverviewItem label={t('common.actor')} value={selectedHearing?.recorded_by} />
                                 <OverviewItem label={t('cases.hearing_summary')} value={selectedHearing?.summary} />
@@ -1699,10 +1696,9 @@ export default function CasesShow({
                         <>
                             <div className="space-y-4">
                                 <FormField label={t('cases.hearing_on')} required error={hearingForm.errors.hearing_date}>
-                                    <input
-                                        type="date"
+                                    <LocalizedDateInput
                                         value={hearingForm.data.hearing_date}
-                                        onChange={(event) => hearingForm.setData('hearing_date', event.target.value)}
+                                        onChange={(value) => hearingForm.setData('hearing_date', value)}
                                         className="input-ui"
                                     />
                                 </FormField>
@@ -1711,10 +1707,9 @@ export default function CasesShow({
                                     optional
                                     error={hearingForm.errors.next_hearing_date}
                                 >
-                                    <input
-                                        type="date"
+                                    <LocalizedDateInput
                                         value={hearingForm.data.next_hearing_date}
-                                        onChange={(event) => hearingForm.setData('next_hearing_date', event.target.value)}
+                                        onChange={(value) => hearingForm.setData('next_hearing_date', value)}
                                         className="input-ui"
                                     />
                                 </FormField>

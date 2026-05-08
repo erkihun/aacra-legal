@@ -1,6 +1,7 @@
 import BackButton from '@/Components/Ui/BackButton';
 import ConfirmationDialog from '@/Components/Ui/ConfirmationDialog';
 import FormField from '@/Components/Ui/FormField';
+import LocalizedDateInput from '@/Components/Ui/LocalizedDateInput';
 import PageContainer from '@/Components/Ui/PageContainer';
 import SectionHeader from '@/Components/Ui/SectionHeader';
 import SurfaceCard from '@/Components/Ui/SurfaceCard';
@@ -249,7 +250,7 @@ export default function LetterForm({ letterItem, selectedTemplate, templateOptio
                                     <input value={form.data.reference_number} onChange={(event) => form.setData('reference_number', event.target.value)} className="input-ui" />
                                 </FormField>
                                 <FormField label={t('letters.fields.letter_date')} required error={form.errors.letter_date}>
-                                    <input type="date" value={form.data.letter_date} onChange={(event) => form.setData('letter_date', event.target.value)} className="input-ui" />
+                                    <LocalizedDateInput value={form.data.letter_date} onChange={(value) => form.setData('letter_date', value)} className="input-ui" />
                                 </FormField>
                                 {letterItem?.approval_status === 'approved' ? (
                                     <InfoPill label={t('common.status')} value={t('letters.status.final')} />

@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Actions\RenderLetterPdfAction;
 use App\Actions\GenerateLetterReferenceNumberAction;
 use App\Enums\LocaleCode;
+use App\Support\LocalizedDateFormatter;
 use App\Models\Department;
 use App\Models\Letter;
 use App\Models\LetterTemplate;
@@ -733,6 +734,33 @@ it('returns inline and downloadable pdf responses for authorized users', functio
         ->assertOk()
         ->assertHeader('content-type', 'application/pdf')
         ->assertHeader('content-disposition', 'attachment; filename="leg-2026-0001.pdf"');
+});
+
+it('renders letter pdf dates in ethiopic format for amharic letters and keeps gregorian dates in english', function (): void {
+    $template = createLetterTemplateForLetters([
+        'language' => 'am',
+    ]);
+
+    $amharicLetter = createLetterForTesting($template, [
+        'language' => 'am',
+        'letter_date' => '2026-05-08',
+    ]);
+
+    $englishLetter = createLetterForTesting($template, [
+        'language' => 'en',
+        'letter_date' => '2026-05-08',
+        'reference_number' => 'LEG/2026/0002',
+    ]);
+
+    $formatter = app(LocalizedDateFormatter::class);
+    $amharicHtml = app(RenderLetterPdfAction::class)->html($amharicLetter);
+    $englishHtml = app(RenderLetterPdfAction::class)->html($englishLetter);
+
+    expect($amharicHtml)
+        ->toContain($formatter->formatDate('2026-05-08', 'am', 'Africa/Addis_Ababa'))
+        ->not->toContain('Date: 2026-05-08')
+        ->and($englishHtml)
+        ->toContain('Date: 2026-05-08');
 });
 
 it('generates pdf safely for letters with invalid legacy language values', function (): void {

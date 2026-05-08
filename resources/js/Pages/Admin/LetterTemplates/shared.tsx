@@ -1,4 +1,5 @@
 import { sanitizeRichTextHtml } from '@/lib/sanitize-rich-text';
+import { formatDocumentDateValue } from '@/lib/ethiopian-dates';
 import { ReactNode, useEffect, useMemo, useState } from 'react';
 
 export type LayoutConfig = {
@@ -725,6 +726,8 @@ function measureReferenceHeight(labels: LetterLabels, renderable: LetterRenderab
         return 0;
     }
 
+    const formattedDate = formatDocumentDateValue(renderable.date, renderable.language, '-');
+
     return measureHtmlHeight(
         `
         <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;font-size:14px;line-height:1.5;${useNyala ? `font-family:${LETTER_NYALA_FONT_FAMILY};` : ''}">
@@ -732,7 +735,7 @@ function measureReferenceHeight(labels: LetterLabels, renderable: LetterRenderab
                 <p style="margin:0;font-weight:700;color:#0f172a;">${escapeHtml(renderable.reference_label?.trim() || labels.reference)}: ${escapeHtml(renderable.reference_number || '-')}</p>
             </div>
             <div style="text-align:right;">
-                <p style="margin:0;font-weight:700;color:#0f172a;">${escapeHtml(labels.date)}: ${escapeHtml(renderable.date || '-')}</p>
+                <p style="margin:0;font-weight:700;color:#0f172a;">${escapeHtml(labels.date)}: ${escapeHtml(formattedDate)}</p>
             </div>
         </div>
         `,
@@ -1110,7 +1113,7 @@ export function LetterSheet({
                                                 <p className="font-bold text-slate-900" style={useNyala ? { fontFamily: LETTER_NYALA_FONT_FAMILY } : undefined}>{referenceLabel}: {renderable.reference_number || '-'}</p>
                                             </div>
                                             <div className="text-left md:text-right">
-                                                <p className="font-bold text-slate-900" style={useNyala ? { fontFamily: LETTER_NYALA_FONT_FAMILY } : undefined}>{labels.date}: {renderable.date || '-'}</p>
+                                                <p className="font-bold text-slate-900" style={useNyala ? { fontFamily: LETTER_NYALA_FONT_FAMILY } : undefined}>{labels.date}: {formatDocumentDateValue(renderable.date, renderable.language, '-')}</p>
                                             </div>
                                         </div>
                                     ) : null}

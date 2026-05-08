@@ -1,10 +1,12 @@
 import DataTable from '@/Components/Ui/DataTable';
 import FiltersToolbar from '@/Components/Ui/FiltersToolbar';
+import LocalizedDateInput from '@/Components/Ui/LocalizedDateInput';
 import MetricCard from '@/Components/Ui/MetricCard';
 import PageContainer from '@/Components/Ui/PageContainer';
 import SectionHeader from '@/Components/Ui/SectionHeader';
 import SurfaceCard from '@/Components/Ui/SurfaceCard';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { useDateFormatter } from '@/lib/dates';
 import { useI18n } from '@/lib/i18n';
 import { PageProps } from '@/types';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
@@ -94,6 +96,19 @@ function ReportSection({
     emptyLabel: string;
 }) {
     const { t } = useI18n();
+    const { formatDate } = useDateFormatter();
+
+    const formatRowValue = (key: string, value: string | number | null) => {
+        if (typeof value !== 'string') {
+            return value ?? '';
+        }
+
+        if (['opened_at', 'completed_at', 'next_hearing_date', 'due_date'].includes(key)) {
+            return formatDate(value, '');
+        }
+
+        return value;
+    };
 
     return (
         <SurfaceCard>
@@ -114,7 +129,7 @@ function ReportSection({
                 columns={columns.map((column) => ({
                     key: column.key,
                     header: column.header,
-                    cell: (row: Row) => row[column.key] ?? '',
+                    cell: (row: Row) => formatRowValue(column.key, row[column.key] ?? null),
                 }))}
             />
         </SurfaceCard>
@@ -316,7 +331,11 @@ function FilterInput({
     return (
         <label className="block space-y-2">
             <span className="text-sm font-medium text-[color:var(--text)]">{label}</span>
-            <input type={type} value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} className="input-ui" />
+            {type === 'date' ? (
+                <LocalizedDateInput value={value} onChange={onChange} className="input-ui" />
+            ) : (
+                <input type={type} value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} className="input-ui" />
+            )}
         </label>
     );
 }

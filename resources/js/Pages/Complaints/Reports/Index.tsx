@@ -1,10 +1,12 @@
 import DataTable from '@/Components/Ui/DataTable';
 import FiltersToolbar from '@/Components/Ui/FiltersToolbar';
+import LocalizedDateInput from '@/Components/Ui/LocalizedDateInput';
 import MetricCard from '@/Components/Ui/MetricCard';
 import PageContainer from '@/Components/Ui/PageContainer';
 import SectionHeader from '@/Components/Ui/SectionHeader';
 import SurfaceCard from '@/Components/Ui/SurfaceCard';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { useDateFormatter } from '@/lib/dates';
 import { useI18n } from '@/lib/i18n';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 
@@ -36,6 +38,7 @@ type Props = {
 
 export default function ComplaintReports({ filters, metrics, by_status, by_department, by_branch, by_complainant_type, rows, filterOptions }: Props) {
     const { t } = useI18n();
+    const { formatDate } = useDateFormatter();
     const form = useForm({
         search: filters.search ?? '',
         status: filters.status ?? '',
@@ -96,11 +99,11 @@ export default function ComplaintReports({ filters, metrics, by_status, by_depar
                     <SelectFilter label={t('common.status')} value={form.data.status} onChange={(value) => form.setData('status', value)} options={filterOptions.statuses} allLabel={t('common.all')} />
                     <label className="block space-y-2">
                         <span className="text-sm font-medium text-[color:var(--text)]">{t('complaints.filters.date_from')}</span>
-                        <input type="date" className="input-ui" value={form.data.date_from} onChange={(event) => form.setData('date_from', event.target.value)} />
+                        <LocalizedDateInput className="input-ui" value={form.data.date_from} onChange={(value) => form.setData('date_from', value)} />
                     </label>
                     <label className="block space-y-2">
                         <span className="text-sm font-medium text-[color:var(--text)]">{t('complaints.filters.date_to')}</span>
-                        <input type="date" className="input-ui" value={form.data.date_to} onChange={(event) => form.setData('date_to', event.target.value)} />
+                        <LocalizedDateInput className="input-ui" value={form.data.date_to} onChange={(value) => form.setData('date_to', value)} />
                     </label>
                 </FiltersToolbar>
 
@@ -134,8 +137,8 @@ export default function ComplaintReports({ filters, metrics, by_status, by_depar
                             { key: 'branch', header: t('complaints.table.branch'), cell: (row) => row.branch ?? '-' },
                             { key: 'department', header: t('complaints.table.department'), cell: (row) => row.department ?? '-' },
                             { key: 'status', header: t('common.status'), cell: (row) => row.status_label ?? row.status ?? '-' },
-                            { key: 'submitted_at', header: t('complaints.labels.submitted'), cell: (row) => row.submitted_at ?? '-' },
-                            { key: 'deadline', header: t('complaints.labels.response_deadline'), cell: (row) => row.deadline ?? '-' },
+                            { key: 'submitted_at', header: t('complaints.labels.submitted'), cell: (row) => formatDate(typeof row.submitted_at === 'string' ? row.submitted_at : null, '-') },
+                            { key: 'deadline', header: t('complaints.labels.response_deadline'), cell: (row) => formatDate(typeof row.deadline === 'string' ? row.deadline : null, '-') },
                         ]}
                     />
                 </SurfaceCard>

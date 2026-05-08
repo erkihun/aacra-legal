@@ -53,7 +53,7 @@ export default function AdvisoryShow({
     const normalizeArray = (value: unknown) => (Array.isArray(value) ? value : []);
 
     const { t, locale } = useI18n();
-    const { formatDateTime } = useDateFormatter();
+    const { formatDate, formatDateTime } = useDateFormatter();
     const [activePanel, setActivePanel] = useRemember<AdvisoryWorkspacePanel>(
         'overview',
         `advisory-show-active-panel-${requestItem.id}`,
@@ -184,7 +184,7 @@ export default function AdvisoryShow({
                     />
                     <WorkspaceInfoRow
                         label={t('advisory.due_date')}
-                        value={requestItem.due_date ?? t('common.not_available')}
+                        value={formatDate(requestItem.due_date, t('common.not_available'))}
                     />
                 </div>
             </SurfaceCard>
@@ -204,7 +204,7 @@ export default function AdvisoryShow({
                             <OverviewItem label={t('advisory.requester')} value={requestItem.requester?.name} />
                             <OverviewItem label={t('advisory.request_type')} value={requestItem.request_type} />
                             <OverviewItem label={t('advisory.priority')} value={requestItem.priority} />
-                            <OverviewItem label={t('advisory.due_date')} value={requestItem.due_date} />
+                            <OverviewItem label={t('advisory.due_date')} value={formatDate(requestItem.due_date, t('common.not_available'))} />
                             <OverviewItem
                                 label={t('common.status')}
                                 value={<StatusBadge value={requestItem.status} />}

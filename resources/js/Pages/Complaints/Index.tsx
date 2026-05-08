@@ -1,5 +1,6 @@
 import DataTable from '@/Components/Ui/DataTable';
 import FiltersToolbar from '@/Components/Ui/FiltersToolbar';
+import LocalizedDateInput from '@/Components/Ui/LocalizedDateInput';
 import PageContainer from '@/Components/Ui/PageContainer';
 import Pagination from '@/Components/Ui/Pagination';
 import SectionHeader from '@/Components/Ui/SectionHeader';
@@ -156,11 +157,11 @@ export default function ComplaintIndex({ filters, complaints, statusOptions, com
                     />
                     <label className="block space-y-2">
                         <span className="text-sm font-medium text-[color:var(--text)]">{t('complaints.filters.date_from')}</span>
-                        <input type="date" className="input-ui" value={form.data.date_from} onChange={(event) => form.setData('date_from', event.target.value)} />
+                        <LocalizedDateInput className="input-ui" value={form.data.date_from} onChange={(value) => form.setData('date_from', value)} />
                     </label>
                     <label className="block space-y-2">
                         <span className="text-sm font-medium text-[color:var(--text)]">{t('complaints.filters.date_to')}</span>
-                        <input type="date" className="input-ui" value={form.data.date_to} onChange={(event) => form.setData('date_to', event.target.value)} />
+                        <LocalizedDateInput className="input-ui" value={form.data.date_to} onChange={(value) => form.setData('date_to', value)} />
                     </label>
                 </FiltersToolbar>
 

@@ -1,6 +1,7 @@
 import BackButton from '@/Components/Ui/BackButton';
 import FileAttachmentCard from '@/Components/Ui/FileAttachmentCard';
 import FormField from '@/Components/Ui/FormField';
+import LocalizedDateInput from '@/Components/Ui/LocalizedDateInput';
 import PageContainer from '@/Components/Ui/PageContainer';
 import RichTextEditor from '@/Components/Ui/RichTextEditor';
 import SectionHeader from '@/Components/Ui/SectionHeader';
@@ -218,7 +219,7 @@ export default function ComplaintCreate({
                     <ComplaintSection title={t('complaints.sections.c.title')} description={t('complaints.sections.c.description')}>
                         <div className="grid gap-4 md:grid-cols-2">
                             <FormField label={t('complaints.form.labels.incident_date')} required error={form.errors.incident_date}>
-                                <input type="date" className="input-ui" value={form.data.incident_date} onChange={(event) => form.setData('incident_date', event.target.value)} />
+                                <LocalizedDateInput value={form.data.incident_date} onChange={(value) => form.setData('incident_date', value)} className="input-ui" />
                             </FormField>
 
                             <FormField label={t('complaints.form.labels.branch')} required error={form.errors.branch_id}>

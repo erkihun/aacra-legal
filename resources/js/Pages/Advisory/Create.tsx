@@ -1,5 +1,6 @@
 import FormField from '@/Components/Ui/FormField';
 import BackButton from '@/Components/Ui/BackButton';
+import LocalizedDateInput from '@/Components/Ui/LocalizedDateInput';
 import PageContainer from '@/Components/Ui/PageContainer';
 import RichTextEditor from '@/Components/Ui/RichTextEditor';
 import SectionHeader from '@/Components/Ui/SectionHeader';
@@ -196,10 +197,9 @@ export default function AdvisoryCreate({
 
                                 <div className="grid gap-4 md:grid-cols-2">
                                     <FormField label={t('advisory.due_date')} optional>
-                                        <input
-                                            type="date"
+                                        <LocalizedDateInput
                                             value={form.data.due_date}
-                                            onChange={(event) => form.setData('due_date', event.target.value)}
+                                            onChange={(value) => form.setData('due_date', value)}
                                             className="input-ui"
                                         />
                                     </FormField>

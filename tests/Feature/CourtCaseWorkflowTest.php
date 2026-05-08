@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\CaseStatus;
 use App\Enums\PriorityLevel;
+use App\Enums\LocaleCode;
 use App\Enums\SystemRole;
 use App\Enums\WorkflowStage;
 use App\Models\CaseType;
@@ -12,6 +13,7 @@ use App\Models\Department;
 use App\Models\LegalCase;
 use App\Models\Team;
 use App\Models\User;
+use App\Support\LocalizedDateFormatter;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\ReferenceDataSeeder;
 use Inertia\Testing\AssertableInertia;
@@ -409,6 +411,61 @@ it('renders old incomplete case records safely without non-applicable not-set ov
             ->component('Cases/Show')
             ->where('caseItem.overview_fields', overviewFieldsWithoutFallbackPlaceholders())
             ->where('caseItem.overview_description_html', null)
+        );
+});
+
+it('formats overview dates in ethiopic form when the active locale is amharic', function (): void {
+    $registrar = createCaseUserWithRole(
+        SystemRole::REGISTRAR,
+        Department::query()->where('code', 'LEG')->firstOrFail(),
+        Team::query()->where('code', 'ADM')->firstOrFail(),
+    );
+    $registrar->forceFill(['locale' => LocaleCode::AMHARIC->value])->save();
+
+    $legalCase = LegalCase::query()->create([
+        'case_number' => 'CASE-SHOW-AM-DATE-1',
+        'main_case_type' => 'crime',
+        'registered_by_id' => $registrar->id,
+        'crime_scene' => 'Merkato',
+        'police_station' => 'Addis Police',
+        'stolen_property_type' => 'Documents',
+        'suspect_names' => 'Suspect One',
+        'statement_date' => '2026-05-08',
+        'next_hearing_date' => '2026-05-09',
+        'status' => CaseStatus::INTAKE,
+        'workflow_stage' => WorkflowStage::DIRECTOR,
+        'priority' => PriorityLevel::MEDIUM,
+        'director_decision' => 'pending',
+        'claim_summary' => '<p>Crime details.</p>',
+    ]);
+
+    $expectedStatementDate = app(LocalizedDateFormatter::class)->formatDate('2026-05-08', 'am', 'Africa/Addis_Ababa');
+    $expectedNextHearingDate = app(LocalizedDateFormatter::class)->formatDate('2026-05-09', 'am', 'Africa/Addis_Ababa');
+
+    $this->actingAs($registrar)
+        ->get(route('cases.show', $legalCase))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Cases/Show')
+            ->where('locale', LocaleCode::AMHARIC->value)
+            ->where('caseItem.overview_fields', function ($fields) use ($expectedStatementDate, $expectedNextHearingDate): bool {
+                if ($fields instanceof \Illuminate\Support\Collection) {
+                    $fields = $fields->all();
+                } elseif ($fields instanceof \Traversable) {
+                    $fields = iterator_to_array($fields);
+                }
+
+                if (! is_array($fields)) {
+                    return false;
+                }
+
+                $indexed = collect($fields)
+                    ->filter(fn ($field) => is_array($field) && isset($field['key']))
+                    ->mapWithKeys(fn ($field) => [$field['key'] => $field['value'] ?? null]);
+
+                return $indexed->get('statement_date') === $expectedStatementDate
+                    && $indexed->get('next_hearing') === $expectedNextHearingDate;
+            })
         );
 });
 
