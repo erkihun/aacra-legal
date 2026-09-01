@@ -2,10 +2,12 @@
 
 use App\Http\Middleware\AddSecurityHeaders;
 use App\Http\Middleware\CanonicalizeLoopbackHost;
+use App\Http\Middleware\EnsureRequesterIsActive;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\SetLocale;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -17,6 +19,10 @@ return Application::configure(basePath: dirname(__DIR__))
         web: __DIR__.'/../routes/web.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
+        then: function (): void {
+            \Illuminate\Support\Facades\Route::middleware('web')
+                ->group(base_path('routes/requester.php'));
+        },
     )
     ->withCommands([
         __DIR__.'/../app/Console/Commands',
@@ -31,9 +37,17 @@ return Application::configure(basePath: dirname(__DIR__))
             EnsureUserIsActive::class,
         ]);
 
-        //
+        $middleware->alias([
+            'requester' => EnsureRequesterIsActive::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
+        $exceptions->render(function (AuthenticationException $exception, $request) {
+            if (! $request->expectsJson() && $request->is('requester/*')) {
+                return redirect()->route('requester.login');
+            }
+        });
+
         $exceptions->report(function (AuthorizationException $exception): void {
             $request = request();
 

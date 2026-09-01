@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions;
 
+use App\Models\RequesterAccount;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
@@ -15,7 +16,7 @@ class StoreAttachmentAction
     /**
      * @param  array<int, UploadedFile>  $files
      */
-    public function execute(Model $attachable, array $files, User $uploadedBy): void
+    public function execute(Model $attachable, array $files, ?User $uploadedBy, ?RequesterAccount $requesterUploader = null): void
     {
         foreach ($files as $file) {
             $originalName = basename((string) $file->getClientOriginalName());
@@ -26,7 +27,8 @@ class StoreAttachmentAction
             );
 
             $attachable->attachments()->create([
-                'uploaded_by_id' => $uploadedBy->getKey(),
+                'uploaded_by_id' => $uploadedBy?->getKey(),
+                'requester_uploader_id' => $requesterUploader?->getKey(),
                 'disk' => 'local',
                 'path' => $path,
                 'original_name' => $originalName,

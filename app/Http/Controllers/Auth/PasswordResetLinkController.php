@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\RequesterAccount;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Password;
@@ -35,19 +36,35 @@ class PasswordResetLinkController extends Controller
             'email' => 'required|email',
         ]);
 
-        // We will send the password reset link to this user. Once we have attempted
-        // to send the link, we will examine the response then see the message we
-        // need to show to the user. Finally, we'll send out a proper response.
-        $status = Password::sendResetLink(
+        $email = (string) $request->input('email');
+
+        // Accounts live in two separate tables behind two separate brokers, so we
+        // pick the broker that actually owns this address. Otherwise a requester
+        // asking for a link is told no such user exists.
+        $broker = $this->brokerFor($email);
+
+        $status = Password::broker($broker)->sendResetLink(
             $request->only('email')
         );
 
-        if ($status == Password::RESET_LINK_SENT) {
+        if ($status === Password::RESET_LINK_SENT) {
             return back()->with('success', __($status));
         }
 
         throw ValidationException::withMessages([
-            'email' => [trans($status)],
+            'email' => [__($status)],
         ]);
+    }
+
+    /**
+     * Resolve which password broker owns the given email address.
+     */
+    private function brokerFor(string $email): string
+    {
+        if (RequesterAccount::where('email', $email)->exists()) {
+            return 'requester_accounts';
+        }
+
+        return 'users';
     }
 }

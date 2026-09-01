@@ -6,6 +6,8 @@ namespace App\Providers;
 
 use App\Models\AdvisoryCategory;
 use App\Models\AdvisoryRequest;
+use App\Models\LawsuitFilingRequest;
+use App\Models\RequesterAccount;
 use App\Models\AdvisoryResponse;
 use App\Models\Attachment;
 use App\Models\CaseType;
@@ -66,13 +68,15 @@ class AppServiceProvider extends ServiceProvider
 
         Vite::prefetch(concurrency: 3);
         RateLimiter::for('legal-mutations', function (Request $request) {
-            $limit = $request->user()?->isSuperAdmin() ? 120 : 40;
+            $webUser = $request->user('web');
+            $limit = $webUser?->isSuperAdmin() ? 120 : 40;
 
-            return Limit::perMinute($limit)->by(($request->user()?->id ?? 'guest').'|'.$request->ip());
+            return Limit::perMinute($limit)->by(($webUser?->id ?? $request->user('requester')?->id ?? 'guest').'|'.$request->ip());
         });
 
         Relation::enforceMorphMap([
             'user' => User::class,
+            'requester_account' => RequesterAccount::class,
             'branch' => Branch::class,
             'department' => Department::class,
             'team' => Team::class,
@@ -84,6 +88,7 @@ class AppServiceProvider extends ServiceProvider
             'letter_template' => LetterTemplate::class,
             'advisory_request' => AdvisoryRequest::class,
             'advisory_response' => AdvisoryResponse::class,
+            'lawsuit_filing_request' => LawsuitFilingRequest::class,
             'complaint' => Complaint::class,
             'complaint_category' => ComplaintCategory::class,
             'complaint_response' => ComplaintResponse::class,

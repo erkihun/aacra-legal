@@ -300,6 +300,14 @@ export default function AuthenticatedLayout({
                         icon: navigationIcon('M7 5.5h10A1.5 1.5 0 0 1 18.5 7v10a1.5 1.5 0 0 1-1.5 1.5H7A1.5 1.5 0 0 1 5.5 17V7A1.5 1.5 0 0 1 7 5.5Zm2.5 4h5m-5 4h5'),
                     },
                     {
+                        key: 'lawsuit-requests',
+                        label: t('navigation.lawsuit_requests'),
+                        routeName: 'lawsuit-requests.index',
+                        routePatterns: ['lawsuit-requests.*'],
+                        permissions: ['lawsuit-requests.view', 'lawsuit-requests.create', 'lawsuit-requests.review'],
+                        icon: navigationIcon('M6 4.5h12A1.5 1.5 0 0 1 19.5 6v12A1.5 1.5 0 0 1 18 19.5H6A1.5 1.5 0 0 1 4.5 18V6A1.5 1.5 0 0 1 6 4.5Zm2.5 4.5h7m-7 3.5h7m-7 3.5h4m2.5-10.5v3l1.5-1.5'),
+                    },
+                    {
                         key: 'cases',
                         label: t('navigation.legal_cases'),
                         routeName: 'cases.index',

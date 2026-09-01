@@ -19,6 +19,7 @@ use App\Http\Controllers\Admin\TelegramTestMessageController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\AdvisoryRequestController;
 use App\Http\Controllers\AttachmentController;
+use App\Http\Controllers\LawsuitFilingRequestController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\BrandingAssetController;
 use App\Http\Controllers\ComplaintController;
@@ -43,12 +44,12 @@ Route::get('/updates', [PublicPostController::class, 'index'])->name('posts.inde
 Route::get('/updates/{slug}', [PublicPostController::class, 'show'])->name('posts.show');
 
 Route::get('/dashboard', DashboardController::class)
-    ->middleware(['auth', 'verified'])
+    ->middleware(['auth:web', 'verified'])
     ->name('dashboard');
 
 Route::post('/locale', [LocaleController::class, 'update'])->name('locale.update');
 
-Route::middleware('auth')->group(function () {
+Route::middleware('auth:web')->group(function () {
     // Authenticated read routes.
     Route::get('/attachments/{attachment}/view', [AttachmentController::class, 'show'])->name('attachments.view');
     Route::get('/attachments/{attachment}', [AttachmentController::class, 'download'])->name('attachments.download');
@@ -70,6 +71,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/complaints/settings', [ComplaintController::class, 'settings'])->name('complaints.settings');
     Route::get('/complaints/reports', [ComplaintReportController::class, 'index'])->name('complaints.reports');
     Route::get('/complaints/{complaint}', [ComplaintController::class, 'show'])->whereUuid('complaint')->name('complaints.show');
+
+    Route::get('/lawsuit-requests', [LawsuitFilingRequestController::class, 'index'])->name('lawsuit-requests.index');
+    Route::get('/lawsuit-requests/create', [LawsuitFilingRequestController::class, 'create'])->name('lawsuit-requests.create');
+    Route::get('/lawsuit-requests/{lawsuitFilingRequest}/edit', [LawsuitFilingRequestController::class, 'edit'])->name('lawsuit-requests.edit');
+    Route::get('/lawsuit-requests/{lawsuitFilingRequest}', [LawsuitFilingRequestController::class, 'show'])->name('lawsuit-requests.show');
 
     Route::get('/cases', [LegalCaseController::class, 'index'])->name('cases.index');
     Route::get('/cases/create', [LegalCaseController::class, 'create'])->name('cases.create');
@@ -125,6 +131,12 @@ Route::middleware('auth')->group(function () {
 
     // Authenticated mutation routes guarded by rate limiting.
     Route::middleware('throttle:legal-mutations')->group(function () {
+        Route::post('/lawsuit-requests', [LawsuitFilingRequestController::class, 'store'])->name('lawsuit-requests.store');
+        Route::patch('/lawsuit-requests/{lawsuitFilingRequest}', [LawsuitFilingRequestController::class, 'update'])->name('lawsuit-requests.update');
+        Route::delete('/lawsuit-requests/{lawsuitFilingRequest}', [LawsuitFilingRequestController::class, 'destroy'])->name('lawsuit-requests.destroy');
+        Route::patch('/lawsuit-requests/{lawsuitFilingRequest}/review', [LawsuitFilingRequestController::class, 'review'])->name('lawsuit-requests.review');
+        Route::post('/lawsuit-requests/{lawsuitFilingRequest}/attachments', [LawsuitFilingRequestController::class, 'addAttachment'])->name('lawsuit-requests.attachments.store');
+
         Route::post('/advisory', [AdvisoryRequestController::class, 'store'])->name('advisory.store');
         Route::patch('/advisory/{advisoryRequest}', [AdvisoryRequestController::class, 'update'])->name('advisory.update');
         Route::delete('/advisory/{advisoryRequest}', [AdvisoryRequestController::class, 'destroy'])->name('advisory.destroy');

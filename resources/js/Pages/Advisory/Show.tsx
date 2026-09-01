@@ -3,6 +3,7 @@ import BackButton from '@/Components/Ui/BackButton';
 import EmptyState from '@/Components/Ui/EmptyState';
 import FileAttachmentCard from '@/Components/Ui/FileAttachmentCard';
 import FormField from '@/Components/Ui/FormField';
+import FormalRequestLetter from '@/Components/Ui/FormalRequestLetter';
 import PageContainer from '@/Components/Ui/PageContainer';
 import SectionHeader from '@/Components/Ui/SectionHeader';
 import StatusBadge from '@/Components/Ui/StatusBadge';
@@ -220,14 +221,21 @@ export default function AdvisoryShow({
                         </dl>
 
                         <div className="border-t border-[color:var(--border)] pt-5">
-                            <p className="text-sm font-semibold text-[color:var(--muted-strong)]">
-                                {t('common.description')}
-                            </p>
-                            {sanitizedDescriptionHtml ? (
-                                <div
-                                    className="prose prose-sm mt-4 max-w-none text-[color:var(--text)] dark:prose-invert"
-                                    dangerouslySetInnerHTML={{ __html: sanitizedDescriptionHtml }}
+                            {requestItem.formal_letter ? (
+                                <FormalRequestLetter
+                                    title={t('requester.letter_preview')}
+                                    document={requestItem.formal_letter}
                                 />
+                            ) : sanitizedDescriptionHtml ? (
+                                <>
+                                    <p className="text-sm font-semibold text-[color:var(--muted-strong)]">
+                                        {t('common.description')}
+                                    </p>
+                                    <div
+                                        className="prose prose-sm mt-4 max-w-none text-[color:var(--text)] dark:prose-invert"
+                                        dangerouslySetInnerHTML={{ __html: sanitizedDescriptionHtml }}
+                                    />
+                                </>
                             ) : (
                                 <p className="mt-3 text-sm leading-7 text-[color:var(--text)]">
                                     {t('common.not_available')}

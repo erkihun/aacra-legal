@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Support\RequestLetterTemplateData;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -16,6 +17,21 @@ class AdvisoryRequestResource extends JsonResource
             'request_number' => $this->request_number,
             'subject' => $this->subject,
             'description' => $this->description,
+            'letter_template_id' => $this->letter_template_id,
+            'letter_snapshot' => $this->letter_snapshot,
+            'formal_letter' => app(RequestLetterTemplateData::class)->renderPayload(
+                is_array($this->letter_snapshot) ? $this->letter_snapshot : null,
+                $this->relationLoaded('letterTemplate') ? $this->letterTemplate : $this->letterTemplate()->first(),
+                (string) ($this->description ?? ''),
+                $this->request_number,
+                $this->subject,
+                $this->date_submitted?->toDateString(),
+                $this->department ? [
+                    'name_en' => $this->department?->name_en,
+                    'name_am' => $this->department?->name_am,
+                ] : null,
+                $request->user()?->locale?->value ?? app()->getLocale(),
+            ),
             'request_type' => $this->request_type?->value,
             'status' => $this->status?->value,
             'workflow_stage' => $this->workflow_stage?->value,

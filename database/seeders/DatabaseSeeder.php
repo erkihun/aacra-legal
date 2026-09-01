@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
             AdvisoryCategorySeeder::class,
             CourtSeeder::class,
             LegalCaseTypeSeeder::class,
+            DefaultLetterTemplateSeeder::class,
             DemoUserSeeder::class,
             PublicPostSeeder::class,
             DemoWorkflowSeeder::class,

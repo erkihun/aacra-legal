@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Models\RequesterAccount;
+use App\Models\User;
 use App\Services\SystemSettingsService;
 use App\Support\NotificationFingerprint;
 use App\Support\Translations;
-use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -27,10 +28,12 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $appMeta = $this->settings->appMeta();
-        $appMeta['default_dashboard_route'] = $this->settings->defaultDashboardRouteFor($request->user());
         $cookieFlashError = $request->cookie('ldms_flash_error');
         /** @var User|null $user */
-        $user = $request->user();
+        $user = $request->user('web');
+        /** @var RequesterAccount|null $requesterUser */
+        $requesterUser = $request->user('requester');
+        $appMeta['default_dashboard_route'] = $this->settings->defaultDashboardRouteFor($user);
 
         if (is_string($cookieFlashError) && $cookieFlashError !== '') {
             cookie()->queue(cookie()->forget('ldms_flash_error'));
@@ -64,10 +67,21 @@ class HandleInertiaRequests extends Middleware
             'csrf_token' => csrf_token(),
             'translations' => Translations::forLocale(app()->getLocale()),
             'appMeta' => $appMeta,
-            'notificationSummary' => $request->user() ? [
-                'unread_count' => NotificationFingerprint::deduplicate($request->user()->unreadNotifications()->get())->count(),
+            'notificationSummary' => $user ? [
+                'unread_count' => NotificationFingerprint::deduplicate($user->unreadNotifications()->get())->count(),
             ] : [
                 'unread_count' => 0,
+            ],
+            'requesterAuth' => [
+                'user' => $requesterUser ? [
+                    'id' => $requesterUser->id,
+                    'full_name' => $requesterUser->full_name,
+                    'email' => $requesterUser->email,
+                    'department' => $requesterUser->department ? [
+                        'name_en' => $requesterUser->department->name_en,
+                        'name_am' => $requesterUser->department->name_am,
+                    ] : null,
+                ] : null,
             ],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),

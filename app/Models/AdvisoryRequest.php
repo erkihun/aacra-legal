@@ -31,6 +31,9 @@ class AdvisoryRequest extends Model
         'department_id',
         'category_id',
         'requester_user_id',
+        'requester_account_id',
+        'letter_template_id',
+        'letter_snapshot',
         'director_reviewer_id',
         'assigned_team_leader_id',
         'assigned_legal_expert_id',
@@ -56,6 +59,7 @@ class AdvisoryRequest extends Model
             'workflow_stage' => WorkflowStage::class,
             'priority' => PriorityLevel::class,
             'director_decision' => DirectorDecision::class,
+            'letter_snapshot' => 'array',
             'date_submitted' => 'date',
             'due_date' => 'date',
             'completed_at' => 'datetime',
@@ -75,6 +79,16 @@ class AdvisoryRequest extends Model
     public function requester(): BelongsTo
     {
         return $this->belongsTo(User::class, 'requester_user_id');
+    }
+
+    public function requesterAccount(): BelongsTo
+    {
+        return $this->belongsTo(RequesterAccount::class, 'requester_account_id');
+    }
+
+    public function letterTemplate(): BelongsTo
+    {
+        return $this->belongsTo(LetterTemplate::class, 'letter_template_id');
     }
 
     public function directorReviewer(): BelongsTo

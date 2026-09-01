@@ -8,6 +8,7 @@ use App\Models\AdvisoryCategory;
 use App\Models\AdvisoryRequest;
 use App\Models\AdvisoryResponse;
 use App\Models\Department;
+use App\Models\LetterTemplate;
 use App\Models\Team;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
@@ -106,6 +107,60 @@ it('provides the advisory id to the advisory show page props', function (): void
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Advisory/Show')
             ->where('requestItem.id', $advisoryRequest->id)
+        );
+});
+
+it('renders template-backed formal letter data on the internal advisory show page', function (): void {
+    $director = createUserWithRole(
+        SystemRole::LEGAL_DIRECTOR,
+        Department::query()->where('code', 'LEG')->firstOrFail(),
+        Team::query()->where('code', 'ADM')->firstOrFail(),
+    );
+
+    $requester = createUserWithRole(
+        SystemRole::DEPARTMENT_REQUESTER,
+        Department::query()->where('code', 'HR')->firstOrFail(),
+    );
+
+    $template = LetterTemplate::factory()->create([
+        'is_active' => true,
+        'is_default' => true,
+        'name' => 'Requester Default Template',
+    ]);
+
+    $advisoryRequest = AdvisoryRequest::query()->create([
+        'request_number' => 'ADV-2026-9001A',
+        'department_id' => $requester->department_id,
+        'category_id' => AdvisoryCategory::query()->firstOrFail()->id,
+        'requester_user_id' => $requester->id,
+        'letter_template_id' => $template->id,
+        'letter_snapshot' => [
+            'template_id' => (string) $template->id,
+            'template_name' => $template->name,
+            'language' => $template->language,
+            'header_image_path' => null,
+            'footer_image_path' => null,
+            'salutation_template' => '<p>To whom it may concern,</p>',
+            'body_content' => '<p>Formal request body</p>',
+            'closing_content' => '<p>Sincerely,</p>',
+            'layout_config' => null,
+        ],
+        'subject' => 'Template-backed advisory request',
+        'request_type' => 'written',
+        'status' => AdvisoryRequestStatus::UNDER_DIRECTOR_REVIEW,
+        'workflow_stage' => 'director',
+        'priority' => 'medium',
+        'director_decision' => 'pending',
+        'description' => '<p>Internal review should see this formal body.</p>',
+        'date_submitted' => now()->toDateString(),
+    ]);
+
+    $this->actingAs($director)
+        ->get(route('advisory.show', $advisoryRequest))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Advisory/Show')
+            ->where('requestItem.formal_letter.template_name', 'Requester Default Template')
+            ->where('requestItem.formal_letter.body_content', '<p>Internal review should see this formal body.</p>')
         );
 });
 

@@ -119,6 +119,13 @@ class RolesAndPermissionsSeeder extends Seeder
             'complaints.reports.view',
             'complaints.view_all',
             'complaints.attachments.manage',
+            'lawsuit-requests.view',
+            'lawsuit-requests.create',
+            'lawsuit-requests.update',
+            'lawsuit-requests.review',
+            'lawsuit-requests.approve',
+            'lawsuit-requests.reject',
+            'lawsuit-requests.delete',
         ]));
     }
 
@@ -214,6 +221,10 @@ class RolesAndPermissionsSeeder extends Seeder
                 'audit.view',
                 'public-posts.view',
                 'public-posts.manage',
+                'lawsuit-requests.view',
+                'lawsuit-requests.review',
+                'lawsuit-requests.approve',
+                'lawsuit-requests.reject',
             ],
             SystemRole::LITIGATION_TEAM_LEADER->value => [
                 'dashboard.view',
@@ -235,6 +246,7 @@ class RolesAndPermissionsSeeder extends Seeder
                 'complaints.view_department',
                 'complaints.respond_department',
                 'complaints.attachments.manage',
+                'lawsuit-requests.view',
             ],
             SystemRole::ADVISORY_TEAM_LEADER->value => [
                 'dashboard.view',
@@ -278,6 +290,7 @@ class RolesAndPermissionsSeeder extends Seeder
                 'complaints.view_department',
                 'complaints.respond_department',
                 'complaints.attachments.manage',
+                'lawsuit-requests.view',
             ],
             SystemRole::DEPARTMENT_REQUESTER->value => [
                 'dashboard.view',
@@ -297,6 +310,8 @@ class RolesAndPermissionsSeeder extends Seeder
                 'complaints.view_own',
                 'complaints.forward_to_committee',
                 'complaints.attachments.manage',
+                'lawsuit-requests.view',
+                'lawsuit-requests.create',
             ],
             SystemRole::REGISTRAR->value => [
                 'dashboard.view',
@@ -329,6 +344,7 @@ class RolesAndPermissionsSeeder extends Seeder
                 'complaints.view_all',
                 'complaints.reports.view',
                 'audit.view',
+                'lawsuit-requests.view',
             ],
             SystemRole::COMPLAINT_COMMITTEE->value => [
                 'dashboard.view',
