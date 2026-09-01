@@ -2,6 +2,7 @@ import ConfirmationDialog from '@/Components/Ui/ConfirmationDialog';
 import DataTable from '@/Components/Ui/DataTable';
 import FiltersToolbar from '@/Components/Ui/FiltersToolbar';
 import PageContainer from '@/Components/Ui/PageContainer';
+import Pagination from '@/Components/Ui/Pagination';
 import SectionHeader from '@/Components/Ui/SectionHeader';
 import StatusBadge from '@/Components/Ui/StatusBadge';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
@@ -38,6 +39,20 @@ type CasesIndexProps = {
     };
     cases: {
         data: CaseRow[];
+        links?: {
+            first?: string | null;
+            last?: string | null;
+            prev?: string | null;
+            next?: string | null;
+        };
+        meta?: {
+            links?: Array<{ url: string | null; label: string; active: boolean }>;
+            current_page?: number;
+            from?: number | null;
+            last_page?: number;
+            to?: number | null;
+            total?: number;
+        };
     };
     can: {
         create: boolean;
@@ -73,9 +88,11 @@ export default function CasesIndex({
         });
     };
 
+    const rowNumberOffset = cases.meta?.from ?? 1;
+
     const visibleRows = useMemo(
-        () => cases.data.map((row, index) => ({ ...row, row_number: index + 1 })),
-        [cases.data],
+        () => cases.data.map((row, index) => ({ ...row, row_number: rowNumberOffset + index })),
+        [cases.data, rowNumberOffset],
     );
 
     const isCrimeView = data.main_case_type === 'crime';
@@ -292,7 +309,7 @@ export default function CasesIndex({
                         ))}
                     </select>
                     <div className="surface-muted flex items-center px-4 text-sm text-[color:var(--muted)]">
-                        {visibleRows.length} {t('common.records')}
+                        {cases.meta?.total ?? visibleRows.length} {t('common.records')}
                     </div>
                 </FiltersToolbar>
 
@@ -330,6 +347,11 @@ export default function CasesIndex({
                             ),
                         },
                     ]}
+                />
+
+                <Pagination
+                    links={Array.isArray(cases.meta?.links) ? cases.meta.links : []}
+                    meta={cases.meta}
                 />
             </PageContainer>
 

@@ -2,6 +2,7 @@ import ConfirmationDialog from '@/Components/Ui/ConfirmationDialog';
 import DataTable from '@/Components/Ui/DataTable';
 import FiltersToolbar from '@/Components/Ui/FiltersToolbar';
 import PageContainer from '@/Components/Ui/PageContainer';
+import Pagination from '@/Components/Ui/Pagination';
 import SectionHeader from '@/Components/Ui/SectionHeader';
 import StatusBadge from '@/Components/Ui/StatusBadge';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
@@ -35,6 +36,20 @@ type AdvisoryListProps = {
                 name: string;
             } | null;
         }>;
+        links?: {
+            first?: string | null;
+            last?: string | null;
+            prev?: string | null;
+            next?: string | null;
+        };
+        meta?: {
+            links?: Array<{ url: string | null; label: string; active: boolean }>;
+            current_page?: number;
+            from?: number | null;
+            last_page?: number;
+            to?: number | null;
+            total?: number;
+        };
     };
     can: {
         create: boolean;
@@ -146,7 +161,7 @@ export default function AdvisoryIndex({
                         ))}
                     </select>
                     <div className="surface-muted flex items-center px-4 text-sm text-[color:var(--muted)]">
-                        {requests.data.length} {t('common.records')}
+                        {requests.meta?.total ?? requests.data.length} {t('common.records')}
                     </div>
                 </FiltersToolbar>
 
@@ -228,6 +243,11 @@ export default function AdvisoryIndex({
                             ),
                         },
                     ]}
+                />
+
+                <Pagination
+                    links={Array.isArray(requests.meta?.links) ? requests.meta.links : []}
+                    meta={requests.meta}
                 />
             </PageContainer>
 
